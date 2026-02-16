@@ -13,10 +13,6 @@ Spring Boot API for authentication, authorization, project collaboration domains
 ## Prerequisites
 - Java 21
 - Docker + Docker Compose
-- Install dependencies from repository root
-```bash
-pnpm install
-```
 
 ## Required Environment Variables
 Values are resolved from `backend/src/main/resources/application.properties`.
@@ -44,7 +40,9 @@ docker compose up -d
 
 2. Start backend
 ```bash
-pnpm -C backend dev
+./gradlew bootRun
+# Windows (PowerShell/CMD)
+gradlew.bat bootRun
 ```
 
 Default server URL: `http://localhost:8080`
@@ -60,6 +58,9 @@ Default server URL: `http://localhost:8080`
 
 ## Validation Commands
 ```bash
-pnpm -C backend test
-pnpm -C backend build
+./gradlew test
+./gradlew build
+# Windows (PowerShell/CMD)
+gradlew.bat test
+gradlew.bat build
 ```
