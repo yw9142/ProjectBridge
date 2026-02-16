@@ -35,7 +35,10 @@ docker compose up -d
 
 3. 백엔드 실행
 ```bash
-pnpm -C backend dev
+cd backend
+./gradlew bootRun
+# Windows (PowerShell/CMD)
+gradlew.bat bootRun
 ```
 
 4. 웹앱 실행 (아래 중 하나)
@@ -74,8 +77,12 @@ pnpm -C apps/admin-web dev
 ## Validation Commands
 ### Backend
 ```bash
-pnpm -C backend test
-pnpm -C backend build
+cd backend
+./gradlew test
+./gradlew build
+# Windows (PowerShell/CMD)
+gradlew.bat test
+gradlew.bat build
 ```
 
 ### Frontend
