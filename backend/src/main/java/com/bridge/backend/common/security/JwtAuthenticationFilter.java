@@ -17,6 +17,12 @@ import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    private static final Set<String> ACCESS_COOKIE_NAMES = Set.of(
+            "bridge_access_token",
+            "bridge_pm_access_token",
+            "bridge_client_access_token",
+            "bridge_admin_access_token"
+    );
     private final JwtService jwtService;
 
     public JwtAuthenticationFilter(JwtService jwtService) {
@@ -28,7 +34,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         return path.startsWith("/api/auth/login")
                 || path.startsWith("/api/auth/refresh")
-                || path.startsWith("/api/auth/set-password")
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/swagger-ui");
     }
@@ -63,15 +68,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if ("bridge_access_token".equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
+                if (ACCESS_COOKIE_NAMES.contains(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
                     return cookie.getValue();
                 }
             }
         }
 
-        String queryToken = request.getParameter("accessToken");
-        if (queryToken != null && !queryToken.isBlank()) {
-            return queryToken;
+        if ("/api/notifications/stream".equals(request.getRequestURI())) {
+            String queryToken = request.getParameter("accessToken");
+            if (queryToken != null && !queryToken.isBlank()) {
+                return queryToken;
+            }
         }
 
         return null;

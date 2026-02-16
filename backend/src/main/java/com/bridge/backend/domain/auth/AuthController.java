@@ -43,7 +43,7 @@ public class AuthController {
 
     @PostMapping("/set-password")
     public ApiSuccess<Map<String, Object>> setPassword(@RequestBody @Valid SetPasswordRequest request) {
-        authService.setPassword(request.email(), request.password());
+        authService.setPassword(SecurityUtils.currentUserId(), request.password());
         return ApiSuccess.of(Map.of("updated", true));
     }
 
@@ -56,6 +56,6 @@ public class AuthController {
     public record LogoutRequest(@NotBlank String refreshToken) {
     }
 
-    public record SetPasswordRequest(@Email @NotBlank String email, @NotBlank String password) {
+    public record SetPasswordRequest(@NotBlank String password) {
     }
 }

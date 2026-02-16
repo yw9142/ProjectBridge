@@ -282,15 +282,15 @@ public class AuthService {
     }
 
     @Transactional
-    public void setPassword(String email, String password) {
-        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(email)
+    public void setPassword(UUID userId, String password) {
+        UserEntity user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found."));
         user.setPasswordHash(passwordEncoder.encode(password));
         if (user.getStatus() == UserStatus.INVITED) {
             user.setStatus(UserStatus.ACTIVE);
         }
         userRepository.save(user);
-        failedLoginAttempts.remove(email.toLowerCase(Locale.ROOT));
+        failedLoginAttempts.remove(user.getEmail().toLowerCase(Locale.ROOT));
     }
 
     private AppException invalidCredentials(String key) {
