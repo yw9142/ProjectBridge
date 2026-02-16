@@ -1,0 +1,28 @@
+# Node
+node_modules/
+.pnpm-store/
+.turbo/
+
+# Next
+.next/
+out/
+
+# Java / Gradle
+.gradle/
+backend/build/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+Thumbs.db
+Desktop.ini
+
+# Runtime
+*.log
+tmp/

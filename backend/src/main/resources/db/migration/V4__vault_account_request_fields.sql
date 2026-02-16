@@ -1,0 +1,7 @@
+ALTER TABLE vault_secrets
+    ADD COLUMN IF NOT EXISTS site_url VARCHAR(500),
+    ADD COLUMN IF NOT EXISTS request_reason VARCHAR(2000),
+    ADD COLUMN IF NOT EXISTS requested_by_user_id UUID,
+    ADD COLUMN IF NOT EXISTS provided_by_user_id UUID,
+    ADD COLUMN IF NOT EXISTS provided_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS credential_ready BOOLEAN NOT NULL DEFAULT FALSE;

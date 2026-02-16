@@ -1,0 +1,11 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "gradlew.bat bootRun",
+    "build": "gradlew.bat build",
+    "test": "gradlew.bat test",
+    "lint": "echo \"backend: no lint step\""
+  }
+}

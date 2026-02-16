@@ -1,0 +1,19 @@
+{
+  "name": "bridge-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.11.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=2048 turbo run dev --parallel",
+    "dev:pm": "cross-env NODE_OPTIONS=--max-old-space-size=2048 turbo run dev --filter=pm-web --filter=backend",
+    "dev:client": "cross-env NODE_OPTIONS=--max-old-space-size=2048 turbo run dev --filter=client-web --filter=backend",
+    "dev:admin": "cross-env NODE_OPTIONS=--max-old-space-size=2048 turbo run dev --filter=admin-web --filter=backend",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "turbo": "^2.5.8"
+  }
+}
