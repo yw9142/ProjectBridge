@@ -16,6 +16,12 @@ Bridge는 PM(벤더)와 클라이언트가 프로젝트 진행을 한 공간에�
 - `packages/shared-types`: 공통 타입
 - `packages/ui`: 공통 UI 패키지
 
+## Service Intro Docs
+- 통합 소개: [docs/Product/SERVICE_INTRO.md](docs/Product/SERVICE_INTRO.md)
+- Admin 소개: [docs/Product/admin/SERVICE_INTRO.md](docs/Product/admin/SERVICE_INTRO.md)
+- PM 소개: [docs/Product/pm/SERVICE_INTRO.md](docs/Product/pm/SERVICE_INTRO.md)
+- Client 소개: [docs/Product/client/SERVICE_INTRO.md](docs/Product/client/SERVICE_INTRO.md)
+
 ## Prerequisites
 - Node.js 20+
 - pnpm 10+
