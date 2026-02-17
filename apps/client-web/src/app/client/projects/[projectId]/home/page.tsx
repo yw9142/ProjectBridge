@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, CheckCheck, ClipboardList, FileSignature, History } from "lucide-react";
+import { CalendarClock, CheckCheck, ClipboardList, ExternalLink, FileSignature, History, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
@@ -30,6 +30,7 @@ type MeetingItem = {
   id: string;
   title: string;
   startAt: string;
+  meetUrl?: string;
   status: MeetingStatus;
   createdAt?: string;
 };
@@ -160,6 +161,33 @@ export default function ClientHomePage() {
     return { activeRequests, pendingApprovals, upcomingMeetings, activeContracts };
   }, [contracts, meetings, requests]);
 
+  const nearestMeeting = useMemo(() => {
+    const now = Date.now();
+    const candidates = meetings
+      .filter((item) => item.status === "SCHEDULED" && typeof item.meetUrl === "string" && item.meetUrl.trim().length > 0)
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        startAt: item.startAt,
+        meetUrl: item.meetUrl!.trim(),
+        startTime: new Date(item.startAt).getTime(),
+      }))
+      .filter((item) => Number.isFinite(item.startTime) && item.startTime >= now)
+      .sort((a, b) => a.startTime - b.startTime);
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    const first = candidates[0];
+    return {
+      id: first.id,
+      title: first.title,
+      startAt: first.startAt,
+      meetUrl: first.meetUrl,
+    };
+  }, [meetings]);
+
   const requestTrend = useMemo<TrendPoint[]>(() => {
     const currentWeekStart = getWeekStart(new Date());
     const weeks = [3, 2, 1, 0].map((offset) => {
@@ -259,13 +287,49 @@ export default function ClientHomePage() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{project?.name ?? "프로젝트 홈"}</CardTitle>
+          <CardTitle className="text-2xl font-bold text-slate-900">{project?.name ?? "프로젝트 홈"}</CardTitle>
           <CardDescription>{project?.description || "클라이언트 관점 프로젝트 현황"}</CardDescription>
           <p className="text-xs text-slate-400">status: {project?.status ?? "-"}</p>
         </CardHeader>
       </Card>
 
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+
+      <section>
+        {nearestMeeting ? (
+          <a
+            href={nearestMeeting.meetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group block rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 p-4 shadow-sm transition hover:border-emerald-300 hover:shadow"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                <Video className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">회의</p>
+                <p className="truncate text-sm font-semibold text-slate-900">{nearestMeeting.title || "가장 가까운 회의"}</p>
+                <p className="text-xs text-slate-600">{formatActionTime(nearestMeeting.startAt)}</p>
+              </div>
+              <ExternalLink className="h-4 w-4 text-slate-500 transition group-hover:text-slate-900" />
+            </div>
+          </a>
+        ) : (
+          <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-300 text-white">
+                <Video className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">회의</p>
+                <p className="text-sm font-semibold text-slate-700">예정된 회의가 없습니다</p>
+                <p className="text-xs text-slate-500">회의가 생성되면 바로 입장할 수 있어요.</p>
+              </div>
+            </div>
+          </article>
+        )}
+      </section>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((item) => {

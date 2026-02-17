@@ -7,7 +7,7 @@ import { ClientLogoutButton } from "./ClientLogoutButton";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
 
 const menu = [
-  { key: "home", label: "홈", icon: House },
+  { key: "home", label: "대시보드", icon: House },
   { key: "requests", label: "요청", icon: SquareCheck },
   { key: "posts", label: "커뮤니케이션", icon: MessageSquare },
   { key: "files", label: "파일", icon: FolderOpen },

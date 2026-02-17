@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { CalendarClock, CheckCheck, ClipboardList, HandCoins, History } from "lucide-react";
+import { CalendarClock, CheckCheck, ClipboardList, ExternalLink, HandCoins, History, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useProjectId } from "@/lib/use-project-id";
 import { apiFetch, handleAuthError } from "@/lib/api";
@@ -20,7 +20,9 @@ type RequestItem = {
 
 type MeetingItem = {
   id: string;
+  title?: string;
   startAt: string;
+  meetUrl?: string;
   status: MeetingStatus;
 };
 
@@ -165,6 +167,17 @@ export default function DashboardPage() {
     };
   }, [invoices, meetings, requests]);
 
+  const nearestMeeting = useMemo(() => {
+    const now = Date.now();
+    return (
+      meetings
+        .filter((item) => item.status === "SCHEDULED" && typeof item.meetUrl === "string" && item.meetUrl.trim().length > 0)
+        .map((item) => ({ ...item, startTime: new Date(item.startAt).getTime() }))
+        .filter((item) => Number.isFinite(item.startTime) && item.startTime >= now)
+        .sort((a, b) => a.startTime - b.startTime)[0] ?? null
+    );
+  }, [meetings]);
+
   const requestTrend = useMemo<TrendPoint[]>(() => {
     const currentWeekStart = getWeekStart(new Date());
     const weeks = [3, 2, 1, 0].map((offset) => {
@@ -235,6 +248,42 @@ export default function DashboardPage() {
       </section>
 
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+
+      <section>
+        {nearestMeeting ? (
+          <a
+            href={nearestMeeting.meetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group block rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 p-4 shadow-sm transition hover:border-emerald-300 hover:shadow"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                <Video className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">회의</p>
+                <p className="truncate text-sm font-semibold text-slate-900">{nearestMeeting.title || "가장 가까운 회의"}</p>
+                <p className="text-xs text-slate-600">{formatActionTime(nearestMeeting.startAt)}</p>
+              </div>
+              <ExternalLink className="h-4 w-4 text-slate-500 transition group-hover:text-slate-900" />
+            </div>
+          </a>
+        ) : (
+          <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-300 text-white">
+                <Video className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">회의</p>
+                <p className="text-sm font-semibold text-slate-700">예정된 회의가 없습니다</p>
+                <p className="text-xs text-slate-500">회의가 생성되면 바로 입장할 수 있어요.</p>
+              </div>
+            </div>
+          </article>
+        )}
+      </section>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {kpiCards.map((card) => {
