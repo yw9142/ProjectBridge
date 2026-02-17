@@ -44,7 +44,7 @@ public class ProjectController {
     }
 
     @GetMapping("/api/projects/{projectId}/members")
-    public ApiSuccess<List<ProjectMemberEntity>> projectMembers(@PathVariable UUID projectId) {
+    public ApiSuccess<List<ProjectService.ProjectMemberAccount>> projectMembers(@PathVariable UUID projectId) {
         return ApiSuccess.of(projectService.members(SecurityUtils.requirePrincipal(), projectId));
     }
 
@@ -72,6 +72,19 @@ public class ProjectController {
         return ApiSuccess.of(projectService.updateMemberRole(SecurityUtils.requirePrincipal(), projectId, memberId, request.role()));
     }
 
+    @PatchMapping("/api/projects/{projectId}/members/{memberId}/account")
+    public ApiSuccess<ProjectService.ProjectMemberAccount> updateMemberAccount(@PathVariable UUID projectId,
+                                                                               @PathVariable UUID memberId,
+                                                                               @RequestBody @Valid UpdateMemberAccountRequest request) {
+        return ApiSuccess.of(projectService.updateMemberAccount(
+                SecurityUtils.requirePrincipal(),
+                projectId,
+                memberId,
+                request.loginId(),
+                request.password()
+        ));
+    }
+
     @DeleteMapping("/api/projects/{projectId}/members/{memberId}")
     public ApiSuccess<Map<String, Object>> removeMember(@PathVariable UUID projectId, @PathVariable UUID memberId) {
         return ApiSuccess.of(projectService.removeMember(SecurityUtils.requirePrincipal(), projectId, memberId));
@@ -92,5 +105,8 @@ public class ProjectController {
     }
 
     public record UpdateMemberRequest(MemberRole role) {
+    }
+
+    public record UpdateMemberAccountRequest(String loginId, String password) {
     }
 }

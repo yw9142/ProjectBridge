@@ -20,6 +20,8 @@ import java.util.*;
 
 @Service
 public class ProjectService {
+    private static final String PASSWORD_MASK = "********";
+
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final InvitationRepository invitationRepository;
@@ -42,6 +44,9 @@ public class ProjectService {
         this.tenantMemberRepository = tenantMemberRepository;
         this.passwordEncoder = passwordEncoder;
         this.accessGuardService = accessGuardService;
+    }
+
+    public record ProjectMemberAccount(UUID id, UUID userId, MemberRole role, String loginId, String passwordMask) {
     }
 
     @Transactional(readOnly = true)
@@ -96,9 +101,26 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProjectMemberEntity> members(AuthPrincipal principal, UUID projectId) {
+    public List<ProjectMemberAccount> members(AuthPrincipal principal, UUID projectId) {
         accessGuardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
-        return projectMemberRepository.findByProjectIdAndDeletedAtIsNull(projectId);
+        List<ProjectMemberEntity> projectMembers = projectMemberRepository.findByProjectIdAndDeletedAtIsNull(projectId);
+        List<UUID> userIds = projectMembers.stream()
+                .map(ProjectMemberEntity::getUserId)
+                .distinct()
+                .toList();
+
+        Map<UUID, UserEntity> usersById = new HashMap<>();
+        for (UserEntity user : userRepository.findAllById(userIds)) {
+            if (user.getDeletedAt() == null) {
+                usersById.put(user.getId(), user);
+            }
+        }
+
+        List<ProjectMemberAccount> accounts = new ArrayList<>();
+        for (ProjectMemberEntity member : projectMembers) {
+            accounts.add(toProjectMemberAccount(member, usersById.get(member.getUserId())));
+        }
+        return accounts;
     }
 
     @Transactional
@@ -205,6 +227,51 @@ public class ProjectService {
     }
 
     @Transactional
+    public ProjectMemberAccount updateMemberAccount(AuthPrincipal principal,
+                                                    UUID projectId,
+                                                    UUID memberId,
+                                                    String loginId,
+                                                    String password) {
+        accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(), Set.of(MemberRole.PM_OWNER));
+        ProjectMemberEntity member = projectMemberRepository.findById(memberId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎."));
+        if (member.getDeletedAt() != null || !member.getProjectId().equals(projectId)) {
+            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎.");
+        }
+
+        boolean hasLoginId = loginId != null && !loginId.isBlank();
+        boolean hasPassword = password != null && !password.isBlank();
+        if (!hasLoginId && !hasPassword) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "ACCOUNT_UPDATE_EMPTY", "蹂寃쏀븷 怨꾩젙 ?뺣낫媛 ?놁뒿?덈떎.");
+        }
+
+        UserEntity user = userRepository.findByIdAndDeletedAtIsNull(member.getUserId())
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎."));
+
+        if (hasLoginId) {
+            String normalizedLoginId = loginId.trim().toLowerCase(Locale.ROOT);
+            userRepository.findByEmailAndDeletedAtIsNull(normalizedLoginId).ifPresent(existing -> {
+                if (!existing.getId().equals(user.getId())) {
+                    throw new AppException(HttpStatus.CONFLICT, "LOGIN_ID_DUPLICATE", "?대? 濡쒓렇??ID媛 ?대? ?ъ슜 以묒엯?덈떎.");
+                }
+            });
+            user.setEmail(normalizedLoginId);
+            if (user.getName() == null || user.getName().isBlank()) {
+                user.setName(normalizedLoginId.split("@")[0]);
+            }
+        }
+
+        if (hasPassword) {
+            user.setPasswordHash(passwordEncoder.encode(password));
+            user.setStatus(UserStatus.ACTIVE);
+        }
+
+        user.setUpdatedBy(principal.getUserId());
+        UserEntity updatedUser = userRepository.save(user);
+        return toProjectMemberAccount(member, updatedUser);
+    }
+
+    @Transactional
     public Map<String, Object> removeMember(AuthPrincipal principal, UUID projectId, UUID memberId) {
         accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(), Set.of(MemberRole.PM_OWNER));
         ProjectMemberEntity member = projectMemberRepository.findById(memberId)
@@ -219,5 +286,10 @@ public class ProjectService {
         member.setUpdatedBy(principal.getUserId());
         projectMemberRepository.save(member);
         return Map.of("deleted", true);
+    }
+
+    private ProjectMemberAccount toProjectMemberAccount(ProjectMemberEntity member, UserEntity user) {
+        String loginId = user == null ? "" : user.getEmail();
+        return new ProjectMemberAccount(member.getId(), member.getUserId(), member.getRole(), loginId, PASSWORD_MASK);
     }
 }

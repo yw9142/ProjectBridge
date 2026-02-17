@@ -12,6 +12,13 @@ type ProjectMember = {
   id: string;
   userId: string;
   role: MemberRole;
+  loginId: string;
+  passwordMask: string;
+};
+
+type AccountDraft = {
+  loginId: string;
+  password: string;
 };
 
 const roles: Array<{ value: MemberRole; label: string }> = [
@@ -26,6 +33,7 @@ export default function ProjectMemberSettingsPage() {
   const projectId = useProjectId();
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, MemberRole>>({});
+  const [accountDrafts, setAccountDrafts] = useState<Record<string, AccountDraft>>({});
 
   const [createOpen, setCreateOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -43,6 +51,17 @@ export default function ProjectMemberSettingsPage() {
       const data = await apiFetch<ProjectMember[]>(`/api/projects/${projectId}/members`);
       setMembers(data);
       setRoleDrafts(Object.fromEntries(data.map((member) => [member.id, member.role])));
+      setAccountDrafts(
+        Object.fromEntries(
+          data.map((member) => [
+            member.id,
+            {
+              loginId: member.loginId,
+              password: member.passwordMask,
+            },
+          ]),
+        ),
+      );
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
         setError(e instanceof Error ? e.message : "멤버 목록을 불러오지 못했습니다.");
@@ -103,6 +122,33 @@ export default function ProjectMemberSettingsPage() {
     }
   }
 
+  async function saveAccount(memberId: string) {
+    const member = members.find((item) => item.id === memberId);
+    const draft = accountDrafts[memberId];
+    if (!member || !draft) return;
+
+    const normalizedLoginId = draft.loginId.trim();
+    const hasLoginIdChange = normalizedLoginId !== "" && normalizedLoginId !== member.loginId;
+    const hasPasswordChange = draft.password.trim() !== "" && draft.password !== member.passwordMask;
+    if (!hasLoginIdChange && !hasPasswordChange) return;
+
+    setError(null);
+    try {
+      await apiFetch(`/api/projects/${projectId}/members/${memberId}/account`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          ...(hasLoginIdChange ? { loginId: normalizedLoginId } : {}),
+          ...(hasPasswordChange ? { password: draft.password } : {}),
+        }),
+      });
+      await load();
+    } catch (e) {
+      if (!handleAuthError(e, "/admin/login")) {
+        setError(e instanceof Error ? e.message : "계정 정보 수정에 실패했습니다.");
+      }
+    }
+  }
+
   async function deleteMember(memberId: string) {
     setError(null);
     try {
@@ -122,7 +168,7 @@ export default function ProjectMemberSettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">멤버 설정</h1>
-          <p className="text-sm text-slate-500">멤버를 테이블에서 관리하고 계정을 모달에서 생성합니다.</p>
+          <p className="text-sm text-slate-500">멤버 역할과 계정 정보를 관리합니다.</p>
         </div>
         <button
           type="button"
@@ -140,6 +186,8 @@ export default function ProjectMemberSettingsPage() {
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">사용자</th>
+              <th className="px-4 py-3">로그인 ID</th>
+              <th className="px-4 py-3">비밀번호</th>
               <th className="px-4 py-3">역할</th>
               <th className="px-4 py-3">작업</th>
             </tr>
@@ -148,6 +196,46 @@ export default function ProjectMemberSettingsPage() {
             {members.map((member) => (
               <tr key={member.id}>
                 <td className="px-4 py-3 font-medium text-slate-900">{member.userId}</td>
+                <td className="px-4 py-3">
+                  <input
+                    className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    value={accountDrafts[member.id]?.loginId ?? member.loginId}
+                    onChange={(e) =>
+                      setAccountDrafts((prev) => ({
+                        ...prev,
+                        [member.id]: {
+                          loginId: e.target.value,
+                          password: prev[member.id]?.password ?? member.passwordMask,
+                        },
+                      }))
+                    }
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <input
+                    className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    type="text"
+                    value={accountDrafts[member.id]?.password ?? member.passwordMask}
+                    onFocus={() =>
+                      setAccountDrafts((prev) => ({
+                        ...prev,
+                        [member.id]: {
+                          loginId: prev[member.id]?.loginId ?? member.loginId,
+                          password: prev[member.id]?.password === member.passwordMask ? "" : (prev[member.id]?.password ?? ""),
+                        },
+                      }))
+                    }
+                    onChange={(e) =>
+                      setAccountDrafts((prev) => ({
+                        ...prev,
+                        [member.id]: {
+                          loginId: prev[member.id]?.loginId ?? member.loginId,
+                          password: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                </td>
                 <td className="px-4 py-3">
                   <select
                     className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
@@ -162,7 +250,14 @@ export default function ProjectMemberSettingsPage() {
                   </select>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void saveAccount(member.id)}
+                      className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold !text-white hover:bg-indigo-700"
+                    >
+                      계정 저장
+                    </button>
                     <button
                       type="button"
                       onClick={() => void saveRole(member.id)}
@@ -173,7 +268,7 @@ export default function ProjectMemberSettingsPage() {
                     <ConfirmActionButton
                       label="멤버 삭제"
                       title="멤버를 삭제할까요?"
-                      description="삭제 후 프로젝트 접근 권한이 제거됩니다."
+                      description="삭제 시 프로젝트 접근 권한이 제거됩니다."
                       onConfirm={() => deleteMember(member.id)}
                       triggerVariant="destructive"
                       triggerSize="sm"
@@ -186,7 +281,7 @@ export default function ProjectMemberSettingsPage() {
             ))}
             {members.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
                   등록된 멤버가 없습니다.
                 </td>
               </tr>
@@ -195,10 +290,27 @@ export default function ProjectMemberSettingsPage() {
         </table>
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="계정 생성" description="ID/PW를 포함해 계정을 생성하고 프로젝트에 추가합니다.">
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="계정 생성"
+        description="로그인 ID/비밀번호를 포함해 계정을 생성하고 프로젝트에 추가합니다."
+      >
         <form onSubmit={createMember} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="초대 이메일" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="로그인 ID(이메일)" value={loginId} onChange={(e) => setLoginId(e.target.value)} required />
+          <input
+            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            placeholder="초대 이메일"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            required
+          />
+          <input
+            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            placeholder="로그인 ID(이메일)"
+            value={loginId}
+            onChange={(e) => setLoginId(e.target.value)}
+            required
+          />
           <input
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             type="text"
@@ -207,7 +319,12 @@ export default function ProjectMemberSettingsPage() {
             onChange={(e) => setInitialPassword(e.target.value)}
             required
           />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="표시 이름" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <input
+            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            placeholder="표시 이름"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
           <select className="w-full rounded-lg border border-slate-300 px-3 py-2" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as MemberRole)}>
             {roles.map((role) => (
               <option key={role.value} value={role.value}>
@@ -230,4 +347,3 @@ export default function ProjectMemberSettingsPage() {
     </section>
   );
 }
-
