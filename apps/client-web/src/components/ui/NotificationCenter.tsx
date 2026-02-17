@@ -22,6 +22,12 @@ export function NotificationCenter() {
 
   useEffect(() => {
     let active = true;
+    let stream: EventSource | null = null;
+    let reconnectTimer: number | null = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    const MAX_RECONNECT_DELAY_MS = 10000;
+    const BASE_RECONNECT_DELAY_MS = 1000;
 
     const load = async () => {
       try {
@@ -36,17 +42,21 @@ export function NotificationCenter() {
       }
     };
 
-    load();
-
-    const token = getAccessToken();
-    const apiOrigin = new URL(API_BASE, window.location.origin).origin;
-    const sameOriginApi = apiOrigin === window.location.origin;
-    const streamUrl =
-      sameOriginApi || !token
+    const buildStreamUrl = () => {
+      const token = getAccessToken();
+      const apiOrigin = new URL(API_BASE, window.location.origin).origin;
+      const sameOriginApi = apiOrigin === window.location.origin;
+      return sameOriginApi || !token
         ? `${API_BASE}/api/notifications/stream`
         : `${API_BASE}/api/notifications/stream?accessToken=${encodeURIComponent(token)}`;
+    };
 
-    const es = new EventSource(streamUrl, { withCredentials: true });
+    const clearReconnectTimer = () => {
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+    };
 
     const onCreated = (event: MessageEvent) => {
       try {
@@ -57,12 +67,85 @@ export function NotificationCenter() {
       }
     };
 
-    es.addEventListener("notification.created", onCreated as EventListener);
+    const onOpen = () => {
+      reconnectAttempts = 0;
+      if (active) {
+        setError(null);
+      }
+    };
+
+    const closeStream = () => {
+      if (!stream) {
+        return;
+      }
+      stream.removeEventListener("open", onOpen as EventListener);
+      stream.removeEventListener("notification.created", onCreated as EventListener);
+      stream.removeEventListener("error", onError as EventListener);
+      stream.close();
+      stream = null;
+    };
+
+    const scheduleReconnect = () => {
+      if (!active || reconnectTimer !== null) {
+        return;
+      }
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        if (active) {
+          setError("실시간 연결이 끊겼습니다. 페이지를 새로고침해 주세요.");
+        }
+        return;
+      }
+
+      reconnectAttempts += 1;
+      const delayMs = Math.min(BASE_RECONNECT_DELAY_MS * 2 ** (reconnectAttempts - 1), MAX_RECONNECT_DELAY_MS);
+      if (active) {
+        setError(`실시간 연결 복구 중... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+      }
+
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        if (!active) {
+          return;
+        }
+        connectStream();
+      }, delayMs);
+    };
+
+    const onError = () => {
+      closeStream();
+      if (!active) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          await apiFetch<unknown>("/api/auth/me");
+        } catch (e) {
+          if (!handleAuthError(e, "/login") && active) {
+            setError(e instanceof Error ? e.message : "실시간 연결을 복구하지 못했습니다.");
+          }
+          return;
+        }
+
+        scheduleReconnect();
+      })();
+    };
+
+    const connectStream = () => {
+      closeStream();
+      stream = new EventSource(buildStreamUrl(), { withCredentials: true });
+      stream.addEventListener("open", onOpen as EventListener);
+      stream.addEventListener("notification.created", onCreated as EventListener);
+      stream.addEventListener("error", onError as EventListener);
+    };
+
+    load();
+    connectStream();
 
     return () => {
       active = false;
-      es.removeEventListener("notification.created", onCreated as EventListener);
-      es.close();
+      clearReconnectTimer();
+      closeStream();
     };
   }, []);
 

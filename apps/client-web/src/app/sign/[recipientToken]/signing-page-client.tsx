@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, handleAuthError } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
 type SigningData = {
@@ -30,7 +30,7 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
           setData(response);
         }
       } catch (e) {
-        if (active) {
+        if (active && !handleAuthError(e, "/login")) {
           setError(e instanceof Error ? e.message : "서명 정보를 불러오지 못했습니다.");
         }
       } finally {
@@ -55,6 +55,9 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
       setResult("열람 이벤트를 기록했습니다.");
       setData((prev) => (prev ? { ...prev, recipient: { ...prev.recipient, status: "VIEWED" } } : prev));
     } catch (e) {
+      if (handleAuthError(e, "/login")) {
+        return;
+      }
       setError(e instanceof Error ? e.message : "열람 처리에 실패했습니다.");
     } finally {
       setSubmitting(false);
@@ -80,6 +83,9 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
           : prev,
       );
     } catch (e) {
+      if (handleAuthError(e, "/login")) {
+        return;
+      }
       setError(e instanceof Error ? e.message : "서명 제출에 실패했습니다.");
     } finally {
       setSubmitting(false);

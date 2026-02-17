@@ -127,9 +127,6 @@
   - `/sign/[recipientToken]` 페이지에서 `GET /api/signing/{recipientToken}` 호출로 소유권 검증 결과를 표시하고, `viewed/submit` 액션 버튼 연결
   - `pm-web`, `admin-web`, `client-web` lint 통과
 - 미완료/잔여
-  - 세부 화면의 실제 도메인 API(read/write) 연동 보강
-  - refresh 토큰 자동 갱신/세션 만료 복구 시나리오 보강
-  - SSE 인증 헤더 제약을 고려한 구독 방식 보강(현재 브라우저 EventSource 기본 연결만 적용)
   - DoD 데모 시나리오 1~9 실증(도메인 전체 플로우)
 
 ---
@@ -160,10 +157,7 @@
 
 ## 4) 다음 재개 시 우선순위
 1. DoD 데모 시나리오 1~9 실증(스크린샷/응답 증빙 포함)
-2. `pm-web`/`client-web`/`admin-web` 핵심 화면의 read/write API 잔여 구간 연결
-3. refresh 토큰 자동 갱신 + 세션 만료 시 로그인 복귀 처리 보강
-4. SSE 구독 경로를 인증 요구사항에 맞게 보강(중복 연결/루프 방지 포함)
-5. 배포 파이프라인 구현(Vercel 3앱 + AWS backend)
+2. 배포 파이프라인 구현(Vercel 3앱 + AWS backend)
 
 ---
 
