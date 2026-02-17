@@ -17,6 +17,7 @@ import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    private static final String NOTIFICATION_STREAM_PATH = "/api/notifications/stream";
     private static final Set<String> ACCESS_COOKIE_NAMES = Set.of(
             "bridge_access_token",
             "bridge_pm_access_token",
@@ -31,7 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
+        String path = normalizePath(request);
         return path.startsWith("/api/auth/login")
                 || path.startsWith("/api/auth/refresh")
                 || path.startsWith("/v3/api-docs")
@@ -74,7 +75,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        if ("/api/notifications/stream".equals(request.getRequestURI())) {
+        if (isNotificationStreamRequest(request)) {
             String queryToken = request.getParameter("accessToken");
             if (queryToken != null && !queryToken.isBlank()) {
                 return queryToken;
@@ -82,5 +83,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return null;
+    }
+
+    private boolean isNotificationStreamRequest(HttpServletRequest request) {
+        return NOTIFICATION_STREAM_PATH.equals(normalizePath(request));
+    }
+
+    private String normalizePath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (uri == null || uri.isBlank()) {
+            return "/";
+        }
+
+        String contextPath = request.getContextPath();
+        if (contextPath != null && !contextPath.isBlank() && uri.startsWith(contextPath)) {
+            uri = uri.substring(contextPath.length());
+        }
+
+        String normalized = uri.replaceAll("/{2,}", "/");
+        if (normalized.isEmpty()) {
+            return "/";
+        }
+        if (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
     }
 }

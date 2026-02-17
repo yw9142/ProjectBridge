@@ -1,6 +1,10 @@
 ﻿import { clearAuthCookies, getAccessToken, getRefreshToken, redirectToLogin, setAuthCookies } from "./auth";
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
+function normalizeApiBase(base: string): string {
+  return base.replace(/\/+$/, "");
+}
+
+export const API_BASE = normalizeApiBase(process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080");
 
 const REQUEST_TIMEOUT_MS = 15000;
 const REFRESH_TIMEOUT_MS = 10000;

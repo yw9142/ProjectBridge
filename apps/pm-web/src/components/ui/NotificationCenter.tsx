@@ -25,7 +25,7 @@ export function NotificationCenter() {
     let stream: EventSource | null = null;
     let reconnectTimer: number | null = null;
     let reconnectAttempts = 0;
-    const MAX_RECONNECT_ATTEMPTS = 5;
+    const RECOVERING_MESSAGE_ATTEMPTS = 5;
     const MAX_RECONNECT_DELAY_MS = 10000;
     const BASE_RECONNECT_DELAY_MS = 1000;
 
@@ -42,13 +42,17 @@ export function NotificationCenter() {
       }
     };
 
-    const buildStreamUrl = () => {
+    const buildStreamRequest = () => {
       const token = getAccessToken();
       const apiOrigin = new URL(API_BASE, window.location.origin).origin;
       const sameOriginApi = apiOrigin === window.location.origin;
-      return sameOriginApi || !token
-        ? `${API_BASE}/api/notifications/stream`
-        : `${API_BASE}/api/notifications/stream?accessToken=${encodeURIComponent(token)}`;
+      const useCookieAuth = sameOriginApi || !token;
+      return {
+        url: useCookieAuth
+          ? `${API_BASE}/api/notifications/stream`
+          : `${API_BASE}/api/notifications/stream?accessToken=${encodeURIComponent(token)}`,
+        withCredentials: useCookieAuth,
+      };
     };
 
     const clearReconnectTimer = () => {
@@ -89,17 +93,15 @@ export function NotificationCenter() {
       if (!active || reconnectTimer !== null) {
         return;
       }
-      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-        if (active) {
-          setError("실시간 연결이 끊겼습니다. 페이지를 새로고침해 주세요.");
-        }
-        return;
-      }
 
       reconnectAttempts += 1;
       const delayMs = Math.min(BASE_RECONNECT_DELAY_MS * 2 ** (reconnectAttempts - 1), MAX_RECONNECT_DELAY_MS);
       if (active) {
-        setError(`실시간 연결 복구 중... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+        setError(
+          reconnectAttempts <= RECOVERING_MESSAGE_ATTEMPTS
+            ? `실시간 연결 복구 중... (${reconnectAttempts}/${RECOVERING_MESSAGE_ATTEMPTS})`
+            : "실시간 연결이 불안정합니다. 자동 복구를 계속 시도 중입니다."
+        );
       }
 
       reconnectTimer = window.setTimeout(() => {
@@ -133,7 +135,8 @@ export function NotificationCenter() {
 
     const connectStream = () => {
       closeStream();
-      stream = new EventSource(buildStreamUrl(), { withCredentials: true });
+      const request = buildStreamRequest();
+      stream = new EventSource(request.url, { withCredentials: request.withCredentials });
       stream.addEventListener("open", onOpen as EventListener);
       stream.addEventListener("notification.created", onCreated as EventListener);
       stream.addEventListener("error", onError as EventListener);
