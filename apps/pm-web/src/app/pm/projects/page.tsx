@@ -52,7 +52,7 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-bold text-slate-900">프로젝트 목록</h1>
           <div className="flex items-center gap-2">
             <PmLogoutButton />
-            <Link href="/pm/projects/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+            <Link href="/pm/projects/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
               새 프로젝트
             </Link>
           </div>
@@ -79,3 +79,4 @@ export default function ProjectsPage() {
     </main>
   );
 }
+

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
@@ -127,7 +127,7 @@ export default function ProjectMemberSettingsPage() {
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
         >
           계정 생성
         </button>
@@ -166,7 +166,7 @@ export default function ProjectMemberSettingsPage() {
                     <button
                       type="button"
                       onClick={() => void saveRole(member.id)}
-                      className="rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                      className="rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold !text-white hover:bg-slate-800"
                     >
                       역할 저장
                     </button>
@@ -219,7 +219,7 @@ export default function ProjectMemberSettingsPage() {
             <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
               취소
             </button>
-            <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+            <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
               생성
             </button>
           </div>

@@ -94,7 +94,7 @@ export default function GoogleIntegrationPage() {
             title="Google 연동 연결을 요청할까요?"
             onConfirm={connect}
             triggerVariant="primary"
-            triggerClassName="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            triggerClassName="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
           />
           <ConfirmActionButton
             label="연결 해제"
@@ -110,3 +110,4 @@ export default function GoogleIntegrationPage() {
     </main>
   );
 }
+

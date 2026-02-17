@@ -20,7 +20,7 @@ export function AdminProjectTabs({ projectId }: { projectId: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-2">
+    <nav className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1">
       {items.map((item) => {
         const href = `/admin/projects/${projectId}/${item.key}`;
         const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -28,7 +28,11 @@ export function AdminProjectTabs({ projectId }: { projectId: string }) {
           <Link
             key={item.key}
             href={href}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${active ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"}`}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              active
+                ? "border border-border bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
           >
             {item.label}
           </Link>

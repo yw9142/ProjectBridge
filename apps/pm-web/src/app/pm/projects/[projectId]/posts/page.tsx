@@ -62,7 +62,7 @@ export default function ProjectPostsPage() {
           <h1 className="text-xl font-bold text-slate-900">커뮤니케이션</h1>
           <p className="text-sm text-slate-500">게시판 형태로 글을 조회하고 상세에서 댓글을 작성합니다.</p>
         </div>
-        <Link href={`/pm/projects/${projectId}/posts/new`} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+        <Link href={`/pm/projects/${projectId}/posts/new`} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
           게시글 작성
         </Link>
       </div>
@@ -88,7 +88,7 @@ export default function ProjectPostsPage() {
                 onConfirm={() => removePost(post.id)}
                 triggerVariant="destructive"
                 triggerSize="sm"
-                triggerClassName="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                triggerClassName="rounded border border-red-700 bg-red-600 px-2 py-1 text-xs font-semibold !text-white hover:bg-red-700"
                 confirmVariant="destructive"
               />
             </div>

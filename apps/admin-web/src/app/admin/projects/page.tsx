@@ -53,7 +53,7 @@ export default function ProjectsPage() {
             <h1 className="text-2xl font-bold text-slate-900">프로젝트 목록</h1>
             <p className="text-sm text-slate-500">현재 선택한 테넌트의 프로젝트를 관리합니다.</p>
           </div>
-          <Link href="/admin/projects/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+          <Link href="/admin/projects/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
             새 프로젝트
           </Link>
         </div>
@@ -79,4 +79,5 @@ export default function ProjectsPage() {
     </AdminShell>
   );
 }
+
 

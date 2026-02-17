@@ -3,12 +3,12 @@ import { PmSidebar } from "./PmSidebar";
 
 export function ProjectRoomShell({ projectId, children }: { projectId: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background text-foreground">
       <PmSidebar projectId={projectId} />
-      <div className="ml-64 min-h-screen">
+      <div className="min-h-screen pl-64">
         <AppHeader />
-        <main className="p-6">
-          <div className="mx-auto max-w-7xl">{children}</div>
+        <main className="px-4 py-5 md:px-6">
+          <div className="mx-auto w-full max-w-[1320px]">{children}</div>
         </main>
       </div>
     </div>

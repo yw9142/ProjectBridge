@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
@@ -57,7 +57,7 @@ export default function NewTenantPage() {
             <label className="block text-sm font-medium text-slate-700">Slug</label>
             <input className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" value={slug} onChange={(e) => setSlug(e.target.value)} required />
           </div>
-          <button disabled={submitting} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
+          <button disabled={submitting} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60">
             {submitting ? "생성 중..." : "생성"}
           </button>
           {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}

@@ -14,7 +14,7 @@ export function AdminLogoutButton() {
         await logout("/admin/login");
       }}
       disabled={submitting}
-      className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+      className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-60"
     >
       {submitting ? "로그아웃 중..." : "로그아웃"}
     </button>

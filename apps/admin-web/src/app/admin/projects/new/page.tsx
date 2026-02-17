@@ -74,11 +74,12 @@ export default function NewProjectPage() {
             title="새 프로젝트를 생성할까요?"
             description="입력한 프로젝트명과 설명으로 프로젝트가 생성됩니다."
             disabled={submitting}
-            triggerClassName="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-60"
+            triggerClassName="rounded-lg bg-indigo-600 px-4 py-2 !text-white hover:bg-indigo-700 disabled:opacity-60"
           />
         </form>
       </section>
     </AdminShell>
   );
 }
+
 

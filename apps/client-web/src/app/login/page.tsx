@@ -75,103 +75,112 @@ function LoginForm() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#020617] p-4">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(14,165,233,0.45),transparent_35%),radial-gradient(circle_at_84%_20%,rgba(20,184,166,0.34),transparent_32%),linear-gradient(165deg,#020617,#0f172a_50%,#1f2937)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(15,23,42,0.11),transparent_32%),radial-gradient(circle_at_87%_20%,rgba(15,23,42,0.08),transparent_30%)]"
       />
-      <form
-        onSubmit={onSubmit}
-        className="relative z-10 w-full max-w-md rounded-3xl border border-cyan-300/30 bg-slate-900/80 p-7 shadow-[0_24px_80px_-36px_rgba(14,165,233,0.75)] backdrop-blur"
-      >
-        <h1 className="text-2xl font-bold text-white">Client 로그인</h1>
-        <p className="mt-1 text-sm text-slate-300">클라이언트 작업 공간에 로그인하세요.</p>
-
-        <label htmlFor="client-email" className="mt-5 block text-sm font-medium text-slate-200">
-          이메일
-        </label>
-        <input
-          id="client-email"
-          type="email"
-          autoComplete="username"
-          inputMode="email"
-          className="mt-1 w-full rounded-xl border border-slate-600 bg-slate-950/80 px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setTenantOptions(null);
-            setSelectedTenantSlug("");
-          }}
-          disabled={Boolean(tenantOptions)}
-          required
-        />
-
-        <label htmlFor="client-password" className="mt-4 block text-sm font-medium text-slate-200">
-          비밀번호
-        </label>
-        <input
-          id="client-password"
-          type="password"
-          autoComplete="current-password"
-          className="mt-1 w-full rounded-xl border border-slate-600 bg-slate-950/80 px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            setTenantOptions(null);
-            setSelectedTenantSlug("");
-          }}
-          disabled={Boolean(tenantOptions)}
-          required
-        />
-
-        {tenantOptions ? (
-          <div className="mt-4 space-y-2">
-            <label htmlFor="client-tenant" className="block text-sm font-medium text-slate-200">
-              테넌트 선택
-            </label>
-            <select
-              id="client-tenant"
-              className="w-full rounded-xl border border-slate-600 bg-slate-950/80 px-3 py-2.5 text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-              value={selectedTenantSlug}
-              onChange={(e) => setSelectedTenantSlug(e.target.value)}
-            >
-              {tenantOptions.map((option) => (
-                <option key={option.tenantId} value={option.tenantSlug}>
-                  {option.tenantName} ({option.role})
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                setTenantOptions(null);
-                setSelectedTenantSlug("");
-              }}
-              className="text-xs font-medium text-cyan-200 underline underline-offset-4 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-            >
-              다른 계정으로 다시 입력
-            </button>
+      <div className="relative z-10 grid w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl lg:grid-cols-2">
+        <section className="hidden border-r border-border bg-muted/40 p-8 lg:flex lg:flex-col lg:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
+            <p className="text-sm font-semibold text-foreground">Bridge Client</p>
           </div>
-        ) : null}
-
-        {error ? (
-          <p id="client-login-error" role="alert" aria-live="polite" className="mt-4 rounded-xl bg-red-500/15 p-2.5 text-sm text-red-100">
-            {error}
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            요청 승인, 파일 검토, 계약 진행 상태를 한 화면에서 빠르게 확인할 수 있습니다.
           </p>
-        ) : null}
+        </section>
 
-        <button
-          disabled={submitting}
-          className="mt-6 min-h-11 w-full rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition-colors hover:bg-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {submitting ? "처리 중..." : tenantOptions ? "선택한 테넌트로 입장" : "로그인"}
-        </button>
-      </form>
+        <form onSubmit={onSubmit} className="p-6 sm:p-8">
+          <h1 className="text-2xl font-semibold text-foreground">Client 로그인</h1>
+          <p className="mt-1 text-sm text-muted-foreground">클라이언트 작업 공간에 로그인하세요.</p>
+
+          <label htmlFor="client-email" className="mt-6 block text-sm font-medium text-foreground">
+            이메일
+          </label>
+          <input
+            id="client-email"
+            type="email"
+            autoComplete="username"
+            inputMode="email"
+            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setTenantOptions(null);
+              setSelectedTenantSlug("");
+            }}
+            disabled={Boolean(tenantOptions)}
+            required
+          />
+
+          <label htmlFor="client-password" className="mt-4 block text-sm font-medium text-foreground">
+            비밀번호
+          </label>
+          <input
+            id="client-password"
+            type="password"
+            autoComplete="current-password"
+            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setTenantOptions(null);
+              setSelectedTenantSlug("");
+            }}
+            disabled={Boolean(tenantOptions)}
+            required
+          />
+
+          {tenantOptions ? (
+            <div className="mt-4 space-y-2">
+              <label htmlFor="client-tenant" className="block text-sm font-medium text-foreground">
+                테넌트 선택
+              </label>
+              <select
+                id="client-tenant"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={selectedTenantSlug}
+                onChange={(e) => setSelectedTenantSlug(e.target.value)}
+              >
+                {tenantOptions.map((option) => (
+                  <option key={option.tenantId} value={option.tenantSlug}>
+                    {option.tenantName} ({option.role})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  setTenantOptions(null);
+                  setSelectedTenantSlug("");
+                }}
+                className="text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                다른 계정으로 다시 입력
+              </button>
+            </div>
+          ) : null}
+
+          {error ? (
+            <p id="client-login-error" role="alert" aria-live="polite" className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            disabled={submitting}
+            className="mt-6 inline-flex h-9 w-full items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium !text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? "처리 중..." : tenantOptions ? "선택한 테넌트로 입장" : "로그인"}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }
 
 function LoginPageFallback() {
-  return <main className="min-h-screen bg-slate-950" />;
+  return <main className="min-h-screen bg-background" />;
 }
 

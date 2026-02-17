@@ -121,7 +121,7 @@ export default function TenantDetailPage() {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
           >
             PM 사용자 추가
           </button>
@@ -269,7 +269,7 @@ export default function TenantDetailPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60"
               >
                 {submitting ? "생성 중..." : "생성"}
               </button>

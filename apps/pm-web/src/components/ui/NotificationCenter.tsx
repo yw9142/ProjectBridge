@@ -69,26 +69,26 @@ export function NotificationCenter() {
   return (
     <div className="relative">
       <button
-        className="relative min-h-11 min-w-11 rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         onClick={() => setOpen((v) => !v)}
         aria-label="알림 열기"
         aria-expanded={open}
         aria-haspopup="dialog"
       >
         <Bell className="h-5 w-5" />
-        {unread > 0 ? <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" /> : null}
+        {unread > 0 ? <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-red-500" /> : null}
       </button>
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-80 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-          <p className="mb-2 text-sm font-semibold text-slate-900">알림 센터</p>
+        <div className="absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-xl">
+          <p className="mb-2 text-sm font-semibold text-foreground">알림 센터</p>
           <div className="max-h-72 space-y-2 overflow-auto">
-            {error ? <p className="text-xs text-red-600">{error}</p> : null}
-            {items.length === 0 ? <p className="text-sm text-slate-500">새 알림이 없습니다.</p> : null}
+            {error ? <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</p> : null}
+            {items.length === 0 ? <p className="rounded-md border border-dashed border-border p-2 text-sm text-muted-foreground">새 알림이 없습니다.</p> : null}
             {items.map((item) => (
-              <article key={item.id} className="rounded-lg border border-slate-100 bg-slate-50 p-2">
-                <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                <p className="text-xs text-slate-600">{item.message}</p>
-                <p className="mt-1 text-[11px] text-slate-400">{item.eventType}</p>
+              <article key={item.id} className="rounded-lg border border-border bg-muted/30 p-2">
+                <p className="text-sm font-medium text-foreground">{item.title}</p>
+                <p className="text-xs text-muted-foreground">{item.message}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{item.eventType}</p>
               </article>
             ))}
           </div>

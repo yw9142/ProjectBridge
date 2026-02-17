@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
@@ -183,7 +183,7 @@ export default function PostDetailPage() {
             title="댓글을 등록할까요?"
             description="현재 게시글에 댓글이 추가됩니다."
             triggerVariant="default"
-            triggerClassName="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            triggerClassName="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold !text-white"
           />
         </form>
 
@@ -209,7 +209,7 @@ export default function PostDetailPage() {
                     <button
                       type="button"
                       onClick={() => void updateComment(comment.id)}
-                      className="rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                      className="rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold !text-white hover:bg-slate-800"
                     >
                       저장
                     </button>

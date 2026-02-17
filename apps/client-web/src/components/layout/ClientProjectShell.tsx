@@ -21,51 +21,66 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <aside className="fixed left-0 top-0 h-screen w-64 border-r border-slate-800 bg-slate-900 p-4 text-slate-300">
-        <Link href="/client/projects" className="mb-6 flex items-center gap-2 px-2 py-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 font-semibold text-white">B</span>
-          <span className="font-semibold text-white">Bridge Client</span>
-        </Link>
-        <nav className="space-y-1">
-          {menu.map((item) => {
-            const href = `/client/projects/${projectId}/${item.key}`;
-            const Icon = item.icon;
-            const active = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                key={item.key}
-                href={href}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${active ? "bg-indigo-600 text-white" : "hover:bg-slate-800 hover:text-white"}`}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+    <div className="min-h-screen bg-background text-foreground">
+      <aside className="fixed inset-y-0 left-0 z-30 w-64 border-r border-border bg-card/95 backdrop-blur">
+        <div className="flex h-14 items-center border-b border-border px-4">
+          <Link href="/client/projects" className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
+            <div className="leading-tight">
+              <p className="text-sm font-semibold text-foreground">Bridge Client</p>
+              <p className="text-xs text-muted-foreground">Collaboration Space</p>
+            </div>
+          </Link>
+        </div>
+
+        <div className="p-2">
+          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Project Navigation</p>
+          <nav className="space-y-0.5">
+            {menu.map((item) => {
+              const href = `/client/projects/${projectId}/${item.key}`;
+              const Icon = item.icon;
+              const active = pathname === href || pathname.startsWith(`${href}/`);
+              return (
+                <Link
+                  key={item.key}
+                  href={href}
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                    active ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className={active ? "!text-white" : undefined}>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </aside>
-      <div className="ml-64 min-h-screen">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-6 backdrop-blur">
-          <div>
-            <p className="text-sm text-slate-500">Client Workspace</p>
-            <h2 className="text-base font-semibold text-slate-900">프로젝트 협업 공간</h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <NotificationCenter />
-            <div className="h-8 w-px bg-slate-200" />
-            <ClientLogoutButton />
-            <div className="h-8 w-px bg-slate-200" />
-            <div className="text-right">
-              <p className="text-sm font-medium text-slate-900">Client 사용자</p>
-              <p className="text-xs text-slate-500">CLIENT_OWNER</p>
+
+      <div className="min-h-screen pl-64">
+        <header className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur">
+          <div className="mx-auto flex h-14 w-full max-w-[1320px] items-center justify-between px-4 md:px-6">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Client Workspace</p>
+              <h2 className="text-sm font-semibold text-foreground">프로젝트 협업 공간</h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <NotificationCenter />
+              <div className="h-6 w-px bg-border" />
+              <ClientLogoutButton />
+              <div className="hidden text-right sm:block">
+                <p className="text-sm font-medium text-foreground">Client 사용자</p>
+                <p className="text-xs text-muted-foreground">CLIENT_OWNER</p>
+              </div>
             </div>
           </div>
         </header>
-        <main className="p-6">
-          <div className="mx-auto max-w-7xl">{children}</div>
+
+        <main className="px-4 py-5 md:px-6">
+          <div className="mx-auto w-full max-w-[1320px]">{children}</div>
         </main>
       </div>
     </div>
   );
 }
+

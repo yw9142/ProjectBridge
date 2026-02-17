@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -93,7 +93,7 @@ export default function TenantsPage() {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
           >
             테넌트 생성
           </button>
@@ -182,7 +182,7 @@ export default function TenantsPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60"
               >
                 {submitting ? "생성 중..." : "생성"}
               </button>
@@ -195,3 +195,4 @@ export default function TenantsPage() {
     </AdminShell>
   );
 }
+

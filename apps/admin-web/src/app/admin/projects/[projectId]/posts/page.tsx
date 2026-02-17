@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -62,7 +62,7 @@ export default function ProjectPostsPage() {
           <h1 className="text-xl font-bold text-slate-900">커뮤니케이션</h1>
           <p className="text-sm text-slate-500">게시판 형태로 글을 조회하고 상세에서 댓글을 작성합니다.</p>
         </div>
-        <Link href={`/admin/projects/${projectId}/posts/new`} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+        <Link href={`/admin/projects/${projectId}/posts/new`} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
           게시글 작성
         </Link>
       </div>
