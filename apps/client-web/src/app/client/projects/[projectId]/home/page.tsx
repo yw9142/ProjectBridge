@@ -54,6 +54,19 @@ type Activity = {
 };
 
 const terminalRequestStatuses = new Set<RequestStatus>(["DONE", "REJECTED", "CANCELLED"]);
+const statusLabels: Record<string, string> = {
+  DRAFT: "초안",
+  SENT: "발송",
+  ACKED: "확인",
+  IN_PROGRESS: "진행 중",
+  DONE: "완료",
+  REJECTED: "반려",
+  CANCELLED: "취소",
+};
+
+function formatStatusLabel(status: string) {
+  return statusLabels[status] ?? status.replaceAll("_", " ");
+}
 
 function getWeekStart(date: Date) {
   const value = new Date(date);
@@ -177,7 +190,7 @@ export default function ClientHomePage() {
       .map((item) => ({
         id: `request-${item.id}`,
         title: "요청 업데이트",
-        message: `${item.title} · ${item.status}`,
+        message: `${item.title} · ${formatStatusLabel(item.status)}`,
         createdAt: item.createdAt as string,
       }));
     const postActions = posts

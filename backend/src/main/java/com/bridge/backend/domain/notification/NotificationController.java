@@ -39,11 +39,14 @@ public class NotificationController {
     }
 
     @GetMapping
-    public ApiSuccess<List<NotificationEntity>> list() {
+    public ApiSuccess<List<Map<String, Object>>> list() {
         var principal = SecurityUtils.requirePrincipal();
-        return ApiSuccess.of(notificationRepository.findByUserIdAndTenantIdAndDeletedAtIsNullOrderByCreatedAtDesc(
-                principal.getUserId(), principal.getTenantId()
-        ));
+        List<Map<String, Object>> notifications = notificationRepository
+                .findByUserIdAndTenantIdAndDeletedAtIsNullOrderByCreatedAtDesc(principal.getUserId(), principal.getTenantId())
+                .stream()
+                .map(this::toNotificationResponse)
+                .collect(Collectors.toList());
+        return ApiSuccess.of(notifications);
     }
 
     @PostMapping("/{id}/read")
@@ -101,17 +104,32 @@ public class NotificationController {
         if (actorMember == null || !isPmRole(actorMember.getRole())) {
             return null;
         }
+        String rawEventType = event.getEventType();
+        String title = String.valueOf(payload.getOrDefault("title", ""));
+        String message = String.valueOf(payload.getOrDefault("message", ""));
+
         return Map.of(
                 "id", event.getId(),
-                "eventType", event.getEventType(),
+                "eventType", NotificationTextLocalizer.localizeEventType(rawEventType),
                 "aggregateType", event.getAggregateType(),
                 "aggregateId", event.getAggregateId(),
-                "title", String.valueOf(payload.getOrDefault("title", "")),
-                "message", String.valueOf(payload.getOrDefault("message", "")),
+                "title", NotificationTextLocalizer.localizeTitle(rawEventType, title),
+                "message", NotificationTextLocalizer.localizeMessage(rawEventType, message),
                 "actorUserId", actorUserId,
                 "actorRole", actorMember.getRole().name(),
                 "projectId", eventProjectId,
                 "createdAt", event.getCreatedAt()
+        );
+    }
+
+    private Map<String, Object> toNotificationResponse(NotificationEntity notification) {
+        String rawEventType = notification.getEventType();
+        return Map.of(
+                "id", notification.getId(),
+                "title", NotificationTextLocalizer.localizeTitle(rawEventType, notification.getTitle()),
+                "message", NotificationTextLocalizer.localizeMessage(rawEventType, notification.getMessage()),
+                "eventType", NotificationTextLocalizer.localizeEventType(rawEventType),
+                "createdAt", notification.getCreatedAt()
         );
     }
 

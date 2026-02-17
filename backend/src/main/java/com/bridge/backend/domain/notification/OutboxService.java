@@ -88,19 +88,24 @@ public class OutboxService {
     }
 
     private void createNotification(OutboxEventEntity event, UUID recipientId, Map<String, Object> payload) {
+        String rawEventType = event.getEventType();
+        String localizedTitle = NotificationTextLocalizer.localizeTitle(rawEventType, String.valueOf(payload.get("title")));
+        String localizedMessage = NotificationTextLocalizer.localizeMessage(rawEventType, String.valueOf(payload.get("message")));
+        String localizedEventType = NotificationTextLocalizer.localizeEventType(rawEventType);
+
         NotificationEntity notification = new NotificationEntity();
         notification.setTenantId(event.getTenantId());
         notification.setUserId(recipientId);
-        notification.setEventType(event.getEventType());
-        notification.setTitle(String.valueOf(payload.get("title")));
-        notification.setMessage(String.valueOf(payload.get("message")));
+        notification.setEventType(rawEventType);
+        notification.setTitle(localizedTitle);
+        notification.setMessage(localizedMessage);
         notificationRepository.save(notification);
 
         notificationStreamService.send(recipientId, "notification.created", Map.of(
                 "id", notification.getId(),
                 "title", notification.getTitle(),
                 "message", notification.getMessage(),
-                "eventType", notification.getEventType(),
+                "eventType", localizedEventType,
                 "createdAt", notification.getCreatedAt()
         ));
     }
