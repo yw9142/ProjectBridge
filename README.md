@@ -1,6 +1,6 @@
 ﻿# Bridge Monorepo
 
-Bridge는 PM(벤더)와 클라이언트가 프로젝트 진행을 한 공간에서 협업하도록 돕는 SaaS입니다.
+Bridge는 PM(벤더)와 클라이언트를 위한 B2B 멀티테넌트 프로젝트 협업 플랫폼입니다.
 
 ## Tech Stack
 - Monorepo: `pnpm` + `turborepo`
