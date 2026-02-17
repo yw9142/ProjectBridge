@@ -92,6 +92,33 @@ pnpm -C apps/client-web lint && pnpm -C apps/client-web build
 pnpm -C apps/admin-web lint && pnpm -C apps/admin-web build
 ```
 
+## E2E Demo Scenarios (DoD 1~9)
+1. admin: tenant 생성, PM 생성
+2. pm: 프로젝트 생성, 클라이언트 초대
+3. client: 초대 수락
+4. 프로젝트 룸: Post/Request/Decision
+5. Files: 업로드/버전/주석
+6. Meetings: 생성 -> client 확인/응답
+7. Contracts: envelope/fields/send -> client sign -> 완료본 생성
+8. Billing: invoice 발행/확인/증빙
+9. Vault: 정책/secret 생성 -> 접근요청/승인 -> reveal(열람 이벤트)
+
+상세 체크리스트:
+- `docs/DOD_DEMO_CHECKLIST.md`
+- `docs/PLAYWRIGHT_MCP_E2E.md`
+
+## Deployment Strategy (Draft)
+- Frontend: Vercel
+- Backend: AWS
+
+운영 배포 상세:
+- `docs/DEPLOYMENT_RUNBOOK.md`
+
+백엔드 컨테이너 이미지 빌드:
+```bash
+docker build -f backend/Dockerfile -t bridge-backend:local ./backend
+```
+
 ## Notes
 - Next.js 앱은 기본 포트가 동일하므로 동시에 여러 앱을 띄우려면 포트를 분리해 실행하세요.
 - 알림 스트림(SSE)은 로그인 세션 기반으로 동작합니다.

@@ -14,7 +14,7 @@ const menu = [
   { key: "meetings", label: "회의", icon: Calendar },
   { key: "contracts", label: "계약", icon: FileSignature },
   { key: "billing", label: "정산", icon: Receipt },
-  { key: "vault", label: "Vault", icon: Lock },
+  { key: "vault", label: "금고", icon: Lock },
 ];
 
 export function ClientProjectShell({ projectId, children }: { projectId: string; children: React.ReactNode }) {
@@ -28,14 +28,14 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
             <div className="leading-tight">
               <p className="text-sm font-semibold text-foreground">Bridge Client</p>
-              <p className="text-xs text-muted-foreground">Collaboration Space</p>
+              <p className="text-xs text-muted-foreground">협업 작업공간</p>
             </div>
           </Link>
         </div>
 
         <div className="p-2">
-          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Project Navigation</p>
-          <nav className="space-y-0.5">
+          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">프로젝트 내비게이션</p>
+          <nav className="space-y-0.5" aria-label="클라이언트 프로젝트 메뉴">
             {menu.map((item) => {
               const href = `/client/projects/${projectId}/${item.key}`;
               const Icon = item.icon;
@@ -44,6 +44,7 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
                 <Link
                   key={item.key}
                   href={href}
+                  aria-current={active ? "page" : undefined}
                   className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                     active ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
@@ -61,7 +62,7 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
         <header className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur">
           <div className="mx-auto flex h-14 w-full max-w-[1320px] items-center justify-between px-4 md:px-6">
             <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Client Workspace</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">클라이언트 작업공간</p>
               <h2 className="text-sm font-semibold text-foreground">프로젝트 협업 공간</h2>
             </div>
             <div className="flex items-center gap-3">

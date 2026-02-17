@@ -21,7 +21,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
             <div className="leading-tight">
               <p className="text-sm font-semibold">Bridge Admin</p>
-              <p className="text-xs text-muted-foreground">Platform Console</p>
+              <p className="text-xs text-muted-foreground">운영 콘솔</p>
             </div>
           </Link>
           <div className="flex items-center gap-3">
@@ -36,8 +36,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </header>
       <div className="mx-auto grid w-full max-w-[1400px] gap-5 px-4 py-5 md:px-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="h-fit rounded-xl border border-border bg-card p-2 shadow-sm">
-          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Navigation</p>
-          <nav className="space-y-0.5">
+          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">내비게이션</p>
+          <nav className="space-y-0.5" aria-label="관리자 메뉴">
             {nav.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
@@ -45,6 +45,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={active ? "page" : undefined}
                   className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                     active ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}

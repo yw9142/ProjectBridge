@@ -6,7 +6,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-[1320px] items-center justify-between px-4 md:px-6">
         <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">PM Workspace</p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">PM 작업공간</p>
           <h2 className="text-sm font-semibold text-foreground">Bridge 프로젝트 룸</h2>
         </div>
         <div className="flex items-center gap-3">

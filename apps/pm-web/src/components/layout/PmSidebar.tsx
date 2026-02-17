@@ -12,7 +12,7 @@ const items = [
   { key: "meetings", label: "회의", icon: Calendar },
   { key: "contracts", label: "계약", icon: FileSignature },
   { key: "billing", label: "정산", icon: Receipt },
-  { key: "vault", label: "Vault", icon: Lock },
+  { key: "vault", label: "금고", icon: Lock },
   { key: "events", label: "변경 이력", icon: History },
 ];
 
@@ -26,14 +26,14 @@ export function PmSidebar({ projectId }: { projectId: string }) {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
           <div className="leading-tight">
             <p className="text-sm font-semibold text-foreground">Bridge PM</p>
-            <p className="text-xs text-muted-foreground">Project Workspace</p>
+            <p className="text-xs text-muted-foreground">프로젝트 작업공간</p>
           </div>
         </Link>
       </div>
 
       <div className="p-2">
-        <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Project Navigation</p>
-        <nav className="space-y-0.5">
+        <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">프로젝트 내비게이션</p>
+        <nav className="space-y-0.5" aria-label="PM 프로젝트 메뉴">
           {items.map((item) => {
             const href = `/pm/projects/${projectId}/${item.key}`;
             const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -42,6 +42,7 @@ export function PmSidebar({ projectId }: { projectId: string }) {
               <Link
                 key={item.key}
                 href={href}
+                aria-current={active ? "page" : undefined}
                 className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                   active ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
@@ -53,6 +54,7 @@ export function PmSidebar({ projectId }: { projectId: string }) {
           })}
           <Link
             href={`/pm/projects/${projectId}/settings/members`}
+            aria-current={pathname.includes("/settings/members") ? "page" : undefined}
             className={`mt-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
               pathname.includes("/settings/members")
                 ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white"

@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { Bell } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { getAccessToken } from "@/lib/auth";
 import { API_BASE, apiFetch, handleAuthError } from "@/lib/api";
 
@@ -17,6 +17,8 @@ export function NotificationCenter() {
   const [items, setItems] = useState<Notice[]>([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelId = useId();
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -64,22 +66,55 @@ export function NotificationCenter() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    const onMouseDown = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("mousedown", onMouseDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("mousedown", onMouseDown);
+    };
+  }, [open]);
+
   const unread = useMemo(() => items.length, [items]);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         onClick={() => setOpen((v) => !v)}
         aria-label="알림 열기"
         aria-expanded={open}
         aria-haspopup="dialog"
+        aria-controls={open ? panelId : undefined}
       >
         <Bell className="h-5 w-5" />
         {unread > 0 ? <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-red-500" /> : null}
       </button>
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-xl">
+        <div
+          id={panelId}
+          role="dialog"
+          aria-modal="false"
+          aria-label="알림 센터"
+          className="absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-xl"
+        >
           <p className="mb-2 text-sm font-semibold text-foreground">알림 센터</p>
           <div className="max-h-72 space-y-2 overflow-auto">
             {error ? <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</p> : null}

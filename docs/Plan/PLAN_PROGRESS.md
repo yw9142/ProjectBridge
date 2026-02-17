@@ -60,14 +60,14 @@
 
 | Phase | 상태 | 비고 |
 |---|---|---|
-| Phase 0 환경 게이트 | 부분완료 | Docker/런타임 확인, Playwright 시나리오는 미실행 |
+| Phase 0 환경 게이트 | 완료 | Docker/런타임 확인, Playwright MCP 스모크 시나리오 수행 완료 |
 | Phase 1 부트스트랩 | 대부분 완료 | 모노레포/워크스페이스/3개 Next 앱/Backend 스캐폴드 완료 |
 | Phase 2 백엔드 기반 | 완료(1차) | Flyway/JPA/JWT/RBAC/SSE/Outbox/API 매핑 완료 |
 | Phase 3 Core Project Room | 백엔드 완료 | 프론트 화면 미완료 |
 | Phase 4 Contracts & eSign | 백엔드 완료 | 프론트 화면 미완료 |
 | Phase 5 Billing & Vault | 백엔드 완료 | 프론트 화면 미완료 |
-| Phase 6 프론트 3앱 | 진행중(1차) | 3앱 라우트/로그인 가드/서명 경로 1차 구현 완료, 상세 API 연동·E2E 남음 |
-| Phase 7 하드닝/문서화 | 일부 완료 | 기본 README/env/docker 작성, 최종 문서화 미완료 |
+| Phase 6 프론트 3앱 | 진행중(2차) | 3앱 라우트/로그인 가드/서명 경로 + Playwright MCP 스모크 + UI/UX 품질 게이트 완료 |
+| Phase 7 하드닝/문서화 | 진행중 | 배포 런북/DoD 체크리스트 문서화 완료, DoD 1~9 실증만 남음 |
 
 ## 2.2 완료된 작업(백엔드 중심)
 
@@ -130,8 +130,7 @@
   - 세부 화면의 실제 도메인 API(read/write) 연동 보강
   - refresh 토큰 자동 갱신/세션 만료 복구 시나리오 보강
   - SSE 인증 헤더 제약을 고려한 구독 방식 보강(현재 브라우저 EventSource 기본 연결만 적용)
-  - Playwright MCP 프론트 시나리오 미수행
-  - `ref` 디자인 반영 최종 품질 게이트 미수행
+  - DoD 데모 시나리오 1~9 실증(도메인 전체 플로우)
 
 ---
 
@@ -153,19 +152,18 @@
 - [x] pm-web 라우트 전량
 - [x] client-web 라우트 전량
 - [x] `/sign/[recipientToken]` 로그인 강제 + 소유권 검증 UI 흐름
-- [ ] Playwright MCP E2E
-- [ ] UI/UX Quality Gate(Phase 6/7)
+- [x] Playwright MCP E2E
+- [x] UI/UX Quality Gate(Phase 6/7)
 - [ ] 최종 DoD 데모 시나리오 1~9
 
 ---
 
 ## 4) 다음 재개 시 우선순위
-1. `pm-web`/`client-web`/`admin-web` 핵심 화면을 실제 도메인 API로 연결(read/write)
-2. refresh 토큰 자동 갱신 + 세션 만료 시 로그인 복귀 처리 보강
-3. SSE 구독 경로를 인증 요구사항에 맞게 보강(중복 연결/루프 방지 포함)
-4. Playwright MCP 시나리오 작성/통과
-5. UI/UX Quality Gate(Phase 6/7) 수행
-6. DoD 데모 시나리오 1~9 검증 및 문서화
+1. DoD 데모 시나리오 1~9 실증(스크린샷/응답 증빙 포함)
+2. `pm-web`/`client-web`/`admin-web` 핵심 화면의 read/write API 잔여 구간 연결
+3. refresh 토큰 자동 갱신 + 세션 만료 시 로그인 복귀 처리 보강
+4. SSE 구독 경로를 인증 요구사항에 맞게 보강(중복 연결/루프 방지 포함)
+5. 배포 파이프라인 구현(Vercel 3앱 + AWS backend)
 
 ---
 
@@ -356,3 +354,41 @@
   - contracts review/signing-link 조회 (`/api/contracts/{id}/review`, `/api/contracts/{id}/envelopes`, `/api/envelopes/{id}`)
   - billing status (`/api/invoices/{id}/status`)
   - vault provision (`/api/vault/secrets/{id}/provision`)
+
+## 11) 2026-02-17 추가 업데이트 (남은 체크리스트 처리)
+
+### 11.1 UI/UX 품질 게이트 반영
+- 내비게이션 접근성 개선:
+  - `nav`의 `aria-label`, 활성 링크 `aria-current="page"` 적용
+- 알림센터 접근성 개선:
+  - `aria-controls`, 패널 `role="dialog"`/`aria-label` 적용
+  - ESC 닫기, 외부 클릭 닫기 처리
+- 문구 로컬라이징:
+  - 주요 레이아웃 영문 문구를 한국어 중심으로 정리
+- 근거 문서:
+  - `docs/UI_UX_QUALITY_GATE_PHASE6_7.md`
+
+### 11.2 Playwright MCP E2E 수행
+- PM/Client/Admin 보호 라우트 로그인 강제 + 로그인 후 복귀 확인
+- `/sign/[recipientToken]` 토큰 검증 동작 확인
+- 근거 문서:
+  - `docs/PLAYWRIGHT_MCP_E2E.md`
+
+### 11.3 DoD/배포 문서화
+- DoD 1~9 실증 체크리스트 추가:
+  - `docs/DOD_DEMO_CHECKLIST.md`
+- 배포 전략 초안 확정:
+  - 프론트 `Vercel`, 백엔드 `AWS`
+  - `docs/DEPLOYMENT_RUNBOOK.md`
+- 백엔드 컨테이너 빌드 산출물 추가:
+  - `backend/Dockerfile`
+  - `backend/.dockerignore`
+
+### 11.4 검증 결과
+- backend: `.\gradlew.bat test` ✅ 통과
+- pm-web: `pnpm -C apps/pm-web lint` ✅ 통과
+- pm-web: `pnpm -C apps/pm-web build` ✅ 통과
+- client-web: `pnpm -C apps/client-web lint` ✅ 통과
+- client-web: `pnpm -C apps/client-web build` ✅ 통과
+- admin-web: `pnpm -C apps/admin-web lint` ✅ 통과
+- admin-web: `pnpm -C apps/admin-web build` ✅ 통과

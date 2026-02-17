@@ -20,7 +20,7 @@ export function AdminProjectTabs({ projectId }: { projectId: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1">
+    <nav className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1" aria-label="관리자 프로젝트 탭">
       {items.map((item) => {
         const href = `/admin/projects/${projectId}/${item.key}`;
         const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -28,6 +28,7 @@ export function AdminProjectTabs({ projectId }: { projectId: string }) {
           <Link
             key={item.key}
             href={href}
+            aria-current={active ? "page" : undefined}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               active
                 ? "border border-border bg-background text-foreground shadow-sm"
