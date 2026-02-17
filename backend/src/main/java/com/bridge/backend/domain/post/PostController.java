@@ -4,9 +4,11 @@ import com.bridge.backend.common.api.ApiSuccess;
 import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.MemberRole;
 import com.bridge.backend.common.model.enums.PostType;
+import com.bridge.backend.common.model.enums.VisibilityScope;
 import com.bridge.backend.common.security.SecurityUtils;
 import com.bridge.backend.common.tenant.AccessGuardService;
 import com.bridge.backend.domain.notification.OutboxService;
+import com.bridge.backend.domain.project.ProjectMemberEntity;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
@@ -44,15 +46,25 @@ public class PostController {
     @GetMapping("/api/projects/{projectId}/posts")
     public ApiSuccess<List<PostEntity>> list(@PathVariable UUID projectId) {
         var principal = SecurityUtils.requirePrincipal();
-        guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
-        return ApiSuccess.of(postRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId()));
+        ProjectMemberEntity member = guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
+        List<PostEntity> posts = postRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId());
+        if (isClientRole(member.getRole())) {
+            posts = posts.stream()
+                    .filter(post -> post.getVisibilityScope() != VisibilityScope.INTERNAL)
+                    .toList();
+        }
+        return ApiSuccess.of(posts);
     }
 
     @PostMapping("/api/projects/{projectId}/posts")
     public ApiSuccess<PostEntity> create(@PathVariable UUID projectId, @RequestBody @Valid PostRequest request) {
         var principal = SecurityUtils.requirePrincipal();
-        guardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
+        ProjectMemberEntity member = guardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
                 Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER, MemberRole.CLIENT_OWNER, MemberRole.CLIENT_MEMBER));
+        VisibilityScope visibilityScope = resolveVisibilityScope(request.visibilityScope());
+        if (isClientRole(member.getRole()) && visibilityScope == VisibilityScope.INTERNAL) {
+            throw new AppException(HttpStatus.FORBIDDEN, "POST_VISIBILITY_FORBIDDEN", "클라이언트는 내부용 게시글을 생성할 수 없습니다.");
+        }
         PostEntity post = new PostEntity();
         post.setTenantId(principal.getTenantId());
         post.setProjectId(projectId);
@@ -60,6 +72,7 @@ public class PostController {
         post.setTitle(request.title());
         post.setBody(request.body());
         post.setPinned(Boolean.TRUE.equals(request.pinned()));
+        post.setVisibilityScope(visibilityScope);
         post.setCreatedBy(principal.getUserId());
         post.setUpdatedBy(principal.getUserId());
         PostEntity saved = postRepository.save(post);
@@ -72,7 +85,8 @@ public class PostController {
     public ApiSuccess<PostEntity> get(@PathVariable UUID postId) {
         var principal = SecurityUtils.requirePrincipal();
         PostEntity post = requireActivePost(postId);
-        guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ProjectMemberEntity member = guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ensureVisibleToMember(post, member);
         return ApiSuccess.of(post);
     }
 
@@ -80,10 +94,17 @@ public class PostController {
     public ApiSuccess<PostEntity> patch(@PathVariable UUID postId, @RequestBody PostPatchRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         PostEntity post = requireActivePost(postId);
-        guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ProjectMemberEntity member = guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ensureVisibleToMember(post, member);
         if (request.title() != null) post.setTitle(request.title());
         if (request.body() != null) post.setBody(request.body());
         if (request.pinned() != null) post.setPinned(request.pinned());
+        if (request.visibilityScope() != null) {
+            if (isClientRole(member.getRole()) && request.visibilityScope() == VisibilityScope.INTERNAL) {
+                throw new AppException(HttpStatus.FORBIDDEN, "POST_VISIBILITY_FORBIDDEN", "클라이언트는 내부용 게시글로 변경할 수 없습니다.");
+            }
+            post.setVisibilityScope(request.visibilityScope());
+        }
         post.setUpdatedBy(principal.getUserId());
         return ApiSuccess.of(postRepository.save(post));
     }
@@ -92,7 +113,8 @@ public class PostController {
     public ApiSuccess<Map<String, Object>> delete(@PathVariable UUID postId) {
         var principal = SecurityUtils.requirePrincipal();
         PostEntity post = requireActivePost(postId);
-        guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ProjectMemberEntity member = guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ensureVisibleToMember(post, member);
         post.setDeletedAt(OffsetDateTime.now());
         post.setUpdatedBy(principal.getUserId());
         postRepository.save(post);
@@ -103,7 +125,8 @@ public class PostController {
     public ApiSuccess<List<PostCommentEntity>> comments(@PathVariable UUID postId) {
         var principal = SecurityUtils.requirePrincipal();
         PostEntity post = requireActivePost(postId);
-        guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ProjectMemberEntity member = guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ensureVisibleToMember(post, member);
         return ApiSuccess.of(postCommentRepository.findByPostIdAndTenantIdAndDeletedAtIsNull(postId, principal.getTenantId()));
     }
 
@@ -111,7 +134,8 @@ public class PostController {
     public ApiSuccess<PostCommentEntity> createComment(@PathVariable UUID postId, @RequestBody @Valid CommentRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         PostEntity post = requireActivePost(postId);
-        guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ProjectMemberEntity member = guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ensureVisibleToMember(post, member);
         PostCommentEntity comment = new PostCommentEntity();
         comment.setTenantId(principal.getTenantId());
         comment.setPostId(postId);
@@ -130,6 +154,7 @@ public class PostController {
         PostCommentEntity comment = requireActiveComment(commentId);
         PostEntity post = requireActivePost(comment.getPostId());
         var member = guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ensureVisibleToMember(post, member);
         if (!principal.getUserId().equals(comment.getCreatedBy()) && !isPmRole(member.getRole())) {
             throw new AppException(HttpStatus.FORBIDDEN, "COMMENT_EDIT_FORBIDDEN", "댓글 수정 권한이 없습니다.");
         }
@@ -144,6 +169,7 @@ public class PostController {
         PostCommentEntity comment = requireActiveComment(commentId);
         PostEntity post = requireActivePost(comment.getPostId());
         var member = guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
+        ensureVisibleToMember(post, member);
         if (!principal.getUserId().equals(comment.getCreatedBy()) && !isPmRole(member.getRole())) {
             throw new AppException(HttpStatus.FORBIDDEN, "COMMENT_DELETE_FORBIDDEN", "댓글 삭제 권한이 없습니다.");
         }
@@ -175,10 +201,28 @@ public class PostController {
         return role == MemberRole.PM_OWNER || role == MemberRole.PM_MEMBER;
     }
 
-    public record PostRequest(PostType type, @NotBlank String title, @NotBlank String body, Boolean pinned) {
+    private boolean isClientRole(MemberRole role) {
+        return role == MemberRole.CLIENT_OWNER || role == MemberRole.CLIENT_MEMBER;
     }
 
-    public record PostPatchRequest(String title, String body, Boolean pinned) {
+    private VisibilityScope resolveVisibilityScope(VisibilityScope scope) {
+        return scope == null ? VisibilityScope.SHARED : scope;
+    }
+
+    private void ensureVisibleToMember(PostEntity post, ProjectMemberEntity member) {
+        if (isClientRole(member.getRole()) && post.getVisibilityScope() == VisibilityScope.INTERNAL) {
+            throw new AppException(HttpStatus.FORBIDDEN, "POST_NOT_VISIBLE", "클라이언트에게 비공개 게시글입니다.");
+        }
+    }
+
+    public record PostRequest(PostType type,
+                              @NotBlank String title,
+                              @NotBlank String body,
+                              Boolean pinned,
+                              VisibilityScope visibilityScope) {
+    }
+
+    public record PostPatchRequest(String title, String body, Boolean pinned, VisibilityScope visibilityScope) {
     }
 
     public record CommentRequest(@NotBlank String body) {

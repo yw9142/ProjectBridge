@@ -4,9 +4,11 @@ import com.bridge.backend.common.api.ApiSuccess;
 import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.FileCommentStatus;
 import com.bridge.backend.common.model.enums.MemberRole;
+import com.bridge.backend.common.model.enums.VisibilityScope;
 import com.bridge.backend.common.security.SecurityUtils;
 import com.bridge.backend.common.tenant.AccessGuardService;
 import com.bridge.backend.domain.notification.OutboxService;
+import com.bridge.backend.domain.project.ProjectMemberEntity;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
@@ -51,21 +53,32 @@ public class FileController {
     @GetMapping("/api/projects/{projectId}/files")
     public ApiSuccess<List<FileEntity>> list(@PathVariable UUID projectId) {
         var principal = SecurityUtils.requirePrincipal();
-        guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
-        return ApiSuccess.of(fileRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId()));
+        ProjectMemberEntity member = guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
+        List<FileEntity> files = fileRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId());
+        if (isClientRole(member.getRole())) {
+            files = files.stream()
+                    .filter(file -> file.getVisibilityScope() != VisibilityScope.INTERNAL)
+                    .toList();
+        }
+        return ApiSuccess.of(files);
     }
 
     @PostMapping("/api/projects/{projectId}/files")
     public ApiSuccess<FileEntity> create(@PathVariable UUID projectId, @RequestBody @Valid CreateFileRequest request) {
         var principal = SecurityUtils.requirePrincipal();
-        guardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
+        ProjectMemberEntity member = guardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
                 Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER, MemberRole.CLIENT_OWNER, MemberRole.CLIENT_MEMBER));
+        VisibilityScope visibilityScope = resolveVisibilityScope(request.visibilityScope());
+        if (isClientRole(member.getRole()) && visibilityScope == VisibilityScope.INTERNAL) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FILE_VISIBILITY_FORBIDDEN", "클라이언트는 내부용 파일을 생성할 수 없습니다.");
+        }
         FileEntity file = new FileEntity();
         file.setTenantId(principal.getTenantId());
         file.setProjectId(projectId);
         file.setName(request.name());
         file.setDescription(request.description());
         file.setFolder(request.folder() == null ? "/" : request.folder());
+        file.setVisibilityScope(visibilityScope);
         file.setCreatedBy(principal.getUserId());
         file.setUpdatedBy(principal.getUserId());
         return ApiSuccess.of(fileRepository.save(file));
@@ -85,6 +98,9 @@ public class FileController {
         }
         if (request.folder() != null) {
             file.setFolder(request.folder());
+        }
+        if (request.visibilityScope() != null) {
+            file.setVisibilityScope(request.visibilityScope());
         }
         file.setUpdatedBy(principal.getUserId());
         return ApiSuccess.of(fileRepository.save(file));
@@ -106,15 +122,20 @@ public class FileController {
     public ApiSuccess<List<FileVersionEntity>> versions(@PathVariable UUID fileId) {
         var principal = SecurityUtils.requirePrincipal();
         FileEntity file = requireActiveFile(fileId);
-        guardService.requireProjectMember(file.getProjectId(), principal.getUserId(), principal.getTenantId());
+        requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         return ApiSuccess.of(fileVersionRepository.findByFileIdAndTenantIdAndDeletedAtIsNullOrderByVersionDesc(fileId, principal.getTenantId()));
     }
 
     @GetMapping("/api/projects/{projectId}/file-versions")
     public ApiSuccess<List<FileVersionSummary>> fileVersionsByProject(@PathVariable UUID projectId) {
         var principal = SecurityUtils.requirePrincipal();
-        guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
+        ProjectMemberEntity member = guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
         List<FileEntity> files = fileRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId());
+        if (isClientRole(member.getRole())) {
+            files = files.stream()
+                    .filter(file -> file.getVisibilityScope() != VisibilityScope.INTERNAL)
+                    .toList();
+        }
         List<FileVersionSummary> summaries = new ArrayList<>();
         for (FileEntity file : files) {
             List<FileVersionEntity> versions = fileVersionRepository
@@ -139,7 +160,7 @@ public class FileController {
     public ApiSuccess<Map<String, Object>> presign(@PathVariable UUID fileId, @RequestBody @Valid PresignRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         FileEntity file = requireActiveFile(fileId);
-        guardService.requireProjectMember(file.getProjectId(), principal.getUserId(), principal.getTenantId());
+        requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         int nextVersion = fileVersionRepository.findByFileIdAndTenantIdAndDeletedAtIsNullOrderByVersionDesc(fileId, principal.getTenantId())
                 .stream()
                 .findFirst()
@@ -152,7 +173,7 @@ public class FileController {
     public ApiSuccess<FileVersionEntity> complete(@PathVariable UUID fileId, @RequestBody @Valid CompleteRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         FileEntity file = requireActiveFile(fileId);
-        guardService.requireProjectMember(file.getProjectId(), principal.getUserId(), principal.getTenantId());
+        requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         fileVersionRepository.findByFileIdAndTenantIdAndDeletedAtIsNullOrderByVersionDesc(fileId, principal.getTenantId())
                 .forEach(v -> {
                     if (v.isLatest()) {
@@ -186,7 +207,7 @@ public class FileController {
             throw new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다.");
         }
         FileEntity file = requireActiveFile(version.getFileId());
-        guardService.requireProjectMember(file.getProjectId(), principal.getUserId(), principal.getTenantId());
+        requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         return ApiSuccess.of(Map.of("downloadUrl", storageService.createDownloadPresign(version.getObjectKey())));
     }
 
@@ -196,7 +217,7 @@ public class FileController {
         FileVersionEntity version = fileVersionRepository.findById(fileVersionId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
         FileEntity file = requireActiveFile(version.getFileId());
-        guardService.requireProjectMember(file.getProjectId(), principal.getUserId(), principal.getTenantId());
+        requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         FileCommentEntity comment = new FileCommentEntity();
         comment.setTenantId(principal.getTenantId());
         comment.setFileVersionId(fileVersionId);
@@ -219,7 +240,7 @@ public class FileController {
         FileVersionEntity version = fileVersionRepository.findById(fileVersionId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
         FileEntity file = requireActiveFile(version.getFileId());
-        guardService.requireProjectMember(file.getProjectId(), principal.getUserId(), principal.getTenantId());
+        requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         return ApiSuccess.of(fileCommentRepository.findByFileVersionIdAndTenantIdAndDeletedAtIsNull(fileVersionId, principal.getTenantId()));
     }
 
@@ -234,7 +255,7 @@ public class FileController {
         FileVersionEntity version = fileVersionRepository.findById(comment.getFileVersionId())
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
         FileEntity file = requireActiveFile(version.getFileId());
-        guardService.requireProjectMember(file.getProjectId(), principal.getUserId(), principal.getTenantId());
+        requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         comment.setStatus(FileCommentStatus.RESOLVED);
         comment.setUpdatedBy(principal.getUserId());
         FileCommentEntity saved = fileCommentRepository.save(comment);
@@ -252,10 +273,30 @@ public class FileController {
         return file;
     }
 
-    public record CreateFileRequest(@NotBlank String name, String description, String folder) {
+    private ProjectMemberEntity requireVisibleFileMember(FileEntity file, UUID userId, UUID tenantId) {
+        ProjectMemberEntity member = guardService.requireProjectMember(file.getProjectId(), userId, tenantId);
+        ensureVisibleToMember(file, member);
+        return member;
     }
 
-    public record PatchFileRequest(String name, String description, String folder) {
+    private void ensureVisibleToMember(FileEntity file, ProjectMemberEntity member) {
+        if (isClientRole(member.getRole()) && file.getVisibilityScope() == VisibilityScope.INTERNAL) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FILE_NOT_VISIBLE", "클라이언트에게 비공개 파일입니다.");
+        }
+    }
+
+    private boolean isClientRole(MemberRole role) {
+        return role == MemberRole.CLIENT_OWNER || role == MemberRole.CLIENT_MEMBER;
+    }
+
+    private VisibilityScope resolveVisibilityScope(VisibilityScope scope) {
+        return scope == null ? VisibilityScope.SHARED : scope;
+    }
+
+    public record CreateFileRequest(@NotBlank String name, String description, String folder, VisibilityScope visibilityScope) {
+    }
+
+    public record PatchFileRequest(String name, String description, String folder, VisibilityScope visibilityScope) {
     }
 
     public record PresignRequest(@NotBlank String contentType) {

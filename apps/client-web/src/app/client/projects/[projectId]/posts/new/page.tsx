@@ -2,24 +2,23 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
-import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-action";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
-type VisibilityScope = "SHARED" | "INTERNAL";
 
 const postTypes: PostType[] = ["ANNOUNCEMENT", "GENERAL", "QA", "ISSUE", "MEETING_MINUTES", "RISK"];
 
-export default function NewPostPage() {
+export default function ClientNewPostPage() {
   const router = useRouter();
-  const projectId = useProjectId();
+  const params = useParams<{ projectId: string }>();
+  const projectId = params.projectId;
+
   const [type, setType] = useState<PostType>("GENERAL");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
-  const [visibilityScope, setVisibilityScope] = useState<VisibilityScope>("SHARED");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,9 +29,9 @@ export default function NewPostPage() {
     try {
       await apiFetch(`/api/projects/${projectId}/posts`, {
         method: "POST",
-        body: JSON.stringify({ type, title, body, pinned, visibilityScope }),
+        body: JSON.stringify({ type, title, body, pinned }),
       });
-      router.replace(`/pm/projects/${projectId}/posts`);
+      router.replace(`/client/projects/${projectId}/posts`);
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "게시글 생성에 실패했습니다.");
@@ -46,7 +45,7 @@ export default function NewPostPage() {
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">게시글 작성</h1>
-        <Link href={`/pm/projects/${projectId}/posts`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+        <Link href={`/client/projects/${projectId}/posts`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
           목록으로
         </Link>
       </div>
@@ -65,14 +64,6 @@ export default function NewPostPage() {
           <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
           상단 고정
         </label>
-        <select
-          className="w-full rounded-lg border border-slate-300 px-3 py-2"
-          value={visibilityScope}
-          onChange={(e) => setVisibilityScope(e.target.value as VisibilityScope)}
-        >
-          <option value="SHARED">공유용 (클라이언트 공개)</option>
-          <option value="INTERNAL">내부용 (PM 전용)</option>
-        </select>
         <ConfirmSubmitButton
           label={submitting ? "작성 중..." : "등록"}
           title="게시글을 등록할까요?"
@@ -86,3 +77,4 @@ export default function NewPostPage() {
     </section>
   );
 }
+

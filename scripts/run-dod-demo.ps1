@@ -388,17 +388,17 @@ $mdPath = Join-Path $OutputDir "dod-demo-$timestamp.md"
 $report | ConvertTo-Json -Depth 30 | Set-Content -Encoding UTF8 -Path $jsonPath
 
 $mdLines = @(
-    "# DoD 데모 시나리오 1~9 실증 결과",
+    "# DoD Demo Scenarios 1~9 Evidence",
     "",
-    "- 생성 시각(UTC): $($report.generatedAt)",
+    "- Generated At (UTC): $($report.generatedAt)",
     "- API Base: $BaseUrl",
     "- Tenant Slug: $tenantSlug",
-    "- PM 계정: $pmEmail",
-    "- Client 계정: $clientEmail",
+    "- PM Account: $pmEmail",
+    "- Client Account: $clientEmail",
     "",
-    "## 시나리오 결과",
+    "## Scenario Results",
     "",
-    "| 시나리오 | 상태 | 주요 증빙 |",
+    "| Scenario | Status | Evidence |",
     "|---|---|---|",
     "| 1 | DONE | tenantId=$tenantId, pmUserId=$pmUserId |",
     "| 2 | DONE | projectId=$projectId, invitationToken=$invitationToken |",
@@ -410,10 +410,10 @@ $mdLines = @(
     "| 8 | DONE | invoiceId=$invoiceId, status=$($invoiceStatus.data.status), attachments=$(@($invoiceAttachments.data).Count) |",
     "| 9 | DONE | secretId=$secretId, accessRequestId=$accessRequestId, revealVersion=$($revealSecret.data.version) |",
     "",
-    "## 상세 응답 로그",
+    "## API Logs",
     "",
-    "- JSON 로그: $(Resolve-Path -Path $jsonPath)",
-    "- 총 API 호출 수: $($script:RequestLog.Count)"
+    "- JSON: $(Resolve-Path -Path $jsonPath)",
+    "- Total API calls: $($script:RequestLog.Count)"
 )
 
 $mdLines | Set-Content -Encoding UTF8 -Path $mdPath

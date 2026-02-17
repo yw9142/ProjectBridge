@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
@@ -7,7 +7,6 @@ import { apiFetch, handleAuthError } from "@/lib/api";
 import { ConfirmActionButton, ConfirmSubmitButton } from "@/components/ui/confirm-action";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
-type VisibilityScope = "SHARED" | "INTERNAL";
 
 type Post = {
   id: string;
@@ -15,7 +14,7 @@ type Post = {
   title: string;
   body: string;
   pinned: boolean;
-  visibilityScope: VisibilityScope;
+  visibilityScope?: "SHARED" | "INTERNAL";
 };
 
 type Comment = {
@@ -38,11 +37,7 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function visibilityLabel(scope: VisibilityScope) {
-  return scope === "INTERNAL" ? "내부용" : "공유용";
-}
-
-export default function PostDetailPage() {
+export default function ClientPostDetailPage() {
   const params = useParams<{ projectId: string; postId: string }>();
   const projectId = params.projectId;
   const postId = params.postId;
@@ -61,6 +56,9 @@ export default function PostDetailPage() {
         apiFetch<Post>(`/api/posts/${postId}`),
         apiFetch<Comment[]>(`/api/posts/${postId}/comments`),
       ]);
+      if (postData.visibilityScope === "INTERNAL") {
+        throw new Error("접근할 수 없는 게시글입니다.");
+      }
       setPost(postData);
       setComments(commentData);
     } catch (e) {
@@ -128,7 +126,7 @@ export default function PostDetailPage() {
   if (!post) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <Link href={`/pm/projects/${projectId}/posts`} className="text-sm text-indigo-600 hover:underline">
+        <Link href={`/client/projects/${projectId}/posts`} className="text-sm text-indigo-600 hover:underline">
           목록으로
         </Link>
         <p className="mt-3 text-sm text-slate-500">게시글을 불러오는 중입니다.</p>
@@ -142,10 +140,10 @@ export default function PostDetailPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">게시글 상세</h1>
         <div className="flex items-center gap-2">
-          <Link href={`/pm/projects/${projectId}/posts/${postId}/edit`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+          <Link href={`/client/projects/${projectId}/posts/${postId}/edit`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
             수정
           </Link>
-          <Link href={`/pm/projects/${projectId}/posts`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+          <Link href={`/client/projects/${projectId}/posts`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
             목록으로
           </Link>
         </div>
@@ -155,7 +153,6 @@ export default function PostDetailPage() {
         <p className="text-xs text-slate-500">
           {post.type}
           {post.pinned ? " · 고정" : ""}
-          {` · ${visibilityLabel(post.visibilityScope)}`}
         </p>
         <h2 className="text-lg font-semibold text-slate-900">{post.title}</h2>
         <p className="whitespace-pre-wrap text-sm text-slate-700">{post.body}</p>
@@ -179,12 +176,7 @@ export default function PostDetailPage() {
             <div key={comment.id} className="rounded-lg border border-slate-200 p-3 text-sm">
               {editingCommentId === comment.id ? (
                 <div className="space-y-2">
-                  <textarea
-                    className="w-full rounded border border-slate-300 px-3 py-2"
-                    rows={3}
-                    value={editingCommentBody}
-                    onChange={(e) => setEditingCommentBody(e.target.value)}
-                  />
+                  <textarea className="w-full rounded border border-slate-300 px-3 py-2" rows={3} value={editingCommentBody} onChange={(e) => setEditingCommentBody(e.target.value)} />
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -196,11 +188,7 @@ export default function PostDetailPage() {
                     >
                       취소
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void updateComment(comment.id)}
-                      className="rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold !text-white hover:bg-slate-800"
-                    >
+                    <button type="button" onClick={() => void updateComment(comment.id)} className="rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold !text-white hover:bg-slate-800">
                       저장
                     </button>
                   </div>
@@ -245,4 +233,3 @@ export default function PostDetailPage() {
     </section>
   );
 }
-

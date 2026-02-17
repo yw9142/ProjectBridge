@@ -7,10 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 
+type VisibilityScope = "SHARED" | "INTERNAL";
+
 type FileItem = {
   id: string;
   name: string;
   description?: string | null;
+  visibilityScope: VisibilityScope;
   createdAt?: string;
 };
 
@@ -34,6 +37,14 @@ function formatDate(value?: string) {
   }).format(date);
 }
 
+function sortFilesByCreatedAt(items: FileItem[]) {
+  return [...items].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
 export default function ClientFilesPage() {
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
@@ -43,15 +54,7 @@ export default function ClientFilesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const sortedItems = useMemo(
-    () =>
-      [...items].sort((a, b) => {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
-      }),
-    [items],
-  );
+  const sharedItems = useMemo(() => sortFilesByCreatedAt(items), [items]);
 
   async function hydrateLatestVersions(fileItems: FileItem[]) {
     const nextMap: LatestVersionMap = {};
@@ -73,8 +76,9 @@ export default function ClientFilesPage() {
     setError(null);
     try {
       const data = await apiFetch<FileItem[]>(`/api/projects/${projectId}/files`);
-      setItems(data);
-      await hydrateLatestVersions(data);
+      const sharedData = data.filter((item) => item.visibilityScope === "SHARED");
+      setItems(sharedData);
+      await hydrateLatestVersions(sharedData);
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "파일 목록을 불러오지 못했습니다.");
@@ -101,25 +105,25 @@ export default function ClientFilesPage() {
     }
   }
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>파일</CardTitle>
-        <CardDescription>PM에서 등록한 파일 문서와 첨부를 확인합니다.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  function renderFileTable(title: string, description: string, rows: FileItem[]) {
+    return (
+      <div className="space-y-2">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+          <p className="text-xs text-slate-500">{description}</p>
+        </div>
         <div className="overflow-hidden rounded-lg border border-slate-200">
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow className="hover:bg-slate-50">
                 <TableHead>제목</TableHead>
                 <TableHead>내용</TableHead>
-                <TableHead>첨부파일</TableHead>
+                <TableHead>첨부 파일</TableHead>
                 <TableHead>생성 시각</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedItems.map((item) => {
+              {rows.map((item) => {
                 const latest = latestVersions[item.id] ?? null;
                 return (
                   <TableRow key={item.id}>
@@ -138,7 +142,7 @@ export default function ClientFilesPage() {
                   </TableRow>
                 );
               })}
-              {!loading && sortedItems.length === 0 ? (
+              {!loading && rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="py-6 text-center text-sm text-slate-500">
                     표시할 파일이 없습니다.
@@ -148,6 +152,18 @@ export default function ClientFilesPage() {
             </TableBody>
           </Table>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>파일</CardTitle>
+        <CardDescription>공유 파일 목록입니다.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {renderFileTable("파일 목록", "클라이언트와 공유되는 파일", sharedItems)}
         {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       </CardContent>
     </Card>

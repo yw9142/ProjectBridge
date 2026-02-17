@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, FileSignature, FolderOpen, House, Lock, MessageSquare, Receipt, SquareCheck } from "lucide-react";
+import { Calendar, FileSignature, FolderOpen, LayoutDashboard, Lock, MessageSquare, Receipt, SquareCheck } from "lucide-react";
 import { ClientLogoutButton } from "./ClientLogoutButton";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
 
 const menu = [
-  { key: "home", label: "대시보드", icon: House },
-  { key: "requests", label: "요청", icon: SquareCheck },
+  { key: "home", label: "대시보드", icon: LayoutDashboard },
   { key: "posts", label: "커뮤니케이션", icon: MessageSquare },
+  { key: "requests", label: "요청", icon: SquareCheck },
   { key: "files", label: "파일", icon: FolderOpen },
   { key: "meetings", label: "회의", icon: Calendar },
   { key: "contracts", label: "계약", icon: FileSignature },

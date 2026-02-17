@@ -2,6 +2,7 @@ package com.bridge.backend.domain.post;
 
 import com.bridge.backend.common.model.TenantScopedEntity;
 import com.bridge.backend.common.model.enums.PostType;
+import com.bridge.backend.common.model.enums.VisibilityScope;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,4 +29,8 @@ public class PostEntity extends TenantScopedEntity {
 
     @Column(nullable = false)
     private boolean pinned;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility_scope", nullable = false, length = 20)
+    private VisibilityScope visibilityScope = VisibilityScope.SHARED;
 }
