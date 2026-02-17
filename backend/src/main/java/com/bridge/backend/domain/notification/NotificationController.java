@@ -5,6 +5,7 @@ import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.MemberRole;
 import com.bridge.backend.common.security.SecurityUtils;
 import com.bridge.backend.domain.admin.TenantMemberRepository;
+import com.bridge.backend.domain.auth.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
@@ -23,17 +24,20 @@ public class NotificationController {
     private final NotificationRepository notificationRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final TenantMemberRepository tenantMemberRepository;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final NotificationStreamService streamService;
 
     public NotificationController(NotificationRepository notificationRepository,
                                   OutboxEventRepository outboxEventRepository,
                                   TenantMemberRepository tenantMemberRepository,
+                                  UserRepository userRepository,
                                   ObjectMapper objectMapper,
                                   NotificationStreamService streamService) {
         this.notificationRepository = notificationRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.tenantMemberRepository = tenantMemberRepository;
+        this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.streamService = streamService;
     }
@@ -104,21 +108,25 @@ public class NotificationController {
         if (actorMember == null || !isPmRole(actorMember.getRole())) {
             return null;
         }
+        String actorName = userRepository.findByIdAndDeletedAtIsNull(actorUserId)
+                .map(user -> user.getName())
+                .orElse(actorUserId.toString());
         String rawEventType = event.getEventType();
         String title = String.valueOf(payload.getOrDefault("title", ""));
         String message = String.valueOf(payload.getOrDefault("message", ""));
 
-        return Map.of(
-                "id", event.getId(),
-                "eventType", NotificationTextLocalizer.localizeEventType(rawEventType),
-                "aggregateType", event.getAggregateType(),
-                "aggregateId", event.getAggregateId(),
-                "title", NotificationTextLocalizer.localizeTitle(rawEventType, title),
-                "message", NotificationTextLocalizer.localizeMessage(rawEventType, message),
-                "actorUserId", actorUserId,
-                "actorRole", actorMember.getRole().name(),
-                "projectId", eventProjectId,
-                "createdAt", event.getCreatedAt()
+        return Map.ofEntries(
+                Map.entry("id", event.getId()),
+                Map.entry("eventType", NotificationTextLocalizer.localizeEventType(rawEventType)),
+                Map.entry("aggregateType", event.getAggregateType()),
+                Map.entry("aggregateId", event.getAggregateId()),
+                Map.entry("title", NotificationTextLocalizer.localizeTitle(rawEventType, title)),
+                Map.entry("message", NotificationTextLocalizer.localizeMessage(rawEventType, message)),
+                Map.entry("actorUserId", actorUserId),
+                Map.entry("actorName", actorName),
+                Map.entry("actorRole", actorMember.getRole().name()),
+                Map.entry("projectId", eventProjectId),
+                Map.entry("createdAt", event.getCreatedAt())
         );
     }
 

@@ -12,6 +12,8 @@ type VaultRequest = {
   requestReason?: string | null;
   credentialReady: boolean;
   providedAt?: string | null;
+  createdBy?: string;
+  createdByName?: string;
 };
 
 type CredentialPair = {
@@ -193,7 +195,10 @@ export default function ProjectVaultPage() {
                 <tr key={item.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                   <td className="px-4 py-3 text-slate-700">{item.siteUrl || "-"}</td>
-                  <td className="px-4 py-3 text-slate-700">{item.requestReason || "-"}</td>
+                  <td className="px-4 py-3 text-slate-700">
+                    <p>{item.requestReason || "-"}</p>
+                    <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
+                  </td>
                   <td className="px-4 py-3 text-slate-700">{item.credentialReady ? "입력 완료" : "요청"}</td>
                   <td className="px-4 py-3 text-slate-700">{credential?.id ?? "-"}</td>
                   <td className="px-4 py-3 text-slate-700">{credential?.password ?? "-"}</td>

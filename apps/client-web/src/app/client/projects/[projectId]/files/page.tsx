@@ -14,6 +14,8 @@ type FileItem = {
   name: string;
   description?: string | null;
   visibilityScope: VisibilityScope;
+  createdBy?: string;
+  createdByName?: string;
   createdAt?: string;
 };
 
@@ -128,7 +130,10 @@ export default function ClientFilesPage() {
                 return (
                   <TableRow key={item.id}>
                     <TableCell className="font-semibold text-slate-900">{item.name}</TableCell>
-                    <TableCell>{item.description || "-"}</TableCell>
+                    <TableCell>
+                      <p>{item.description || "-"}</p>
+                      <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
+                    </TableCell>
                     <TableCell>
                       {latest ? (
                         <Button size="sm" variant="outline" onClick={() => void openAttachment(latest.id)}>

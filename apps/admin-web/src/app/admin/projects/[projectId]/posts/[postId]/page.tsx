@@ -7,6 +7,7 @@ import { apiFetch, handleAuthError } from "@/lib/api";
 import { ConfirmActionButton, ConfirmSubmitButton } from "@/components/ui/confirm-action";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
+type VisibilityScope = "SHARED" | "INTERNAL";
 
 type Post = {
   id: string;
@@ -14,6 +15,9 @@ type Post = {
   title: string;
   body: string;
   pinned: boolean;
+  visibilityScope: VisibilityScope;
+  createdBy?: string;
+  createdByName?: string;
 };
 
 type Comment = {
@@ -34,6 +38,10 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function visibilityLabel(scope: VisibilityScope) {
+  return scope === "INTERNAL" ? "내부용" : "공유용";
 }
 
 export default function PostDetailPage() {
@@ -119,23 +127,6 @@ export default function PostDetailPage() {
     }
   }
 
-  async function updatePost(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!post) return;
-    setError(null);
-    try {
-      await apiFetch(`/api/posts/${postId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ title: post.title, body: post.body, pinned: post.pinned }),
-      });
-      await load();
-    } catch (e) {
-      if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "게시글 수정에 실패했습니다.");
-      }
-    }
-  }
-
   if (!post) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -152,27 +143,26 @@ export default function PostDetailPage() {
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">게시글 상세</h1>
-        <Link href={`/admin/projects/${projectId}/posts`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
-          목록으로
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/admin/projects/${projectId}/posts/${postId}/edit`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+            수정
+          </Link>
+          <Link href={`/admin/projects/${projectId}/posts`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+            목록으로
+          </Link>
+        </div>
       </div>
 
-      <form onSubmit={updatePost} className="space-y-3 rounded-lg border border-slate-200 p-4">
-        <p className="text-xs text-slate-500">{post.type}</p>
-        <input className="w-full rounded-lg border border-slate-300 px-3 py-2" value={post.title} onChange={(e) => setPost({ ...post, title: e.target.value })} required />
-        <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2" rows={8} value={post.body} onChange={(e) => setPost({ ...post, body: e.target.value })} required />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={post.pinned} onChange={(e) => setPost({ ...post, pinned: e.target.checked })} />
-          상단 고정
-        </label>
-        <ConfirmSubmitButton
-          label="게시글 수정"
-          title="게시글을 수정할까요?"
-          description="수정한 제목/본문/고정 상태가 저장됩니다."
-          triggerVariant="outline"
-          triggerClassName="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-        />
-      </form>
+      <article className="space-y-3 rounded-lg border border-slate-200 p-4">
+        <p className="text-xs text-slate-500">
+          {post.type}
+          {post.pinned ? " · 고정" : ""}
+          {` · ${visibilityLabel(post.visibilityScope)}`}
+        </p>
+        <p className="text-xs text-slate-500">작성자: {post.createdByName ?? post.createdBy ?? "-"}</p>
+        <h2 className="text-lg font-semibold text-slate-900">{post.title}</h2>
+        <p className="whitespace-pre-wrap text-sm text-slate-700">{post.body}</p>
+      </article>
 
       <article className="space-y-3 rounded-lg border border-slate-200 p-4">
         <h2 className="text-lg font-semibold text-slate-900">댓글</h2>
@@ -201,7 +191,10 @@ export default function PostDetailPage() {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setEditingCommentId(null)}
+                      onClick={() => {
+                        setEditingCommentId(null);
+                        setEditingCommentBody("");
+                      }}
                       className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
                       취소
@@ -219,7 +212,7 @@ export default function PostDetailPage() {
                 <>
                   <p className="text-slate-800">{comment.body}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    작성자: {comment.createdBy} · {formatDate(comment.createdAt)}
+                    작성자 {comment.createdBy} · {formatDate(comment.createdAt)}
                   </p>
                   <div className="mt-2 flex gap-2">
                     <button
@@ -255,4 +248,3 @@ export default function PostDetailPage() {
     </section>
   );
 }
-

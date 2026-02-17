@@ -15,6 +15,8 @@ type Post = {
   body: string;
   pinned: boolean;
   visibilityScope?: "SHARED" | "INTERNAL";
+  createdBy?: string;
+  createdByName?: string;
 };
 
 type Comment = {
@@ -154,6 +156,7 @@ export default function ClientPostDetailPage() {
           {post.type}
           {post.pinned ? " · 고정" : ""}
         </p>
+        <p className="text-xs text-slate-500">작성자: {post.createdByName ?? post.createdBy ?? "-"}</p>
         <h2 className="text-lg font-semibold text-slate-900">{post.title}</h2>
         <p className="whitespace-pre-wrap text-sm text-slate-700">{post.body}</p>
       </article>

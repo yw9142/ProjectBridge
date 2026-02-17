@@ -12,6 +12,7 @@ type PmEvent = {
   title: string;
   message: string;
   actorUserId: string;
+  actorName?: string;
   actorRole: string;
   createdAt: string;
 };
@@ -62,7 +63,7 @@ export default function ProjectEventsPage() {
             <p className="text-sm font-semibold text-slate-900">{item.title}</p>
             <p className="mt-1 text-sm text-slate-700">{item.message}</p>
             <p className="mt-2 text-xs text-slate-500">
-              {item.eventType} · {item.aggregateType} · {item.actorRole}
+              {item.eventType} · {item.aggregateType} · {item.actorName ?? item.actorUserId} ({item.actorRole})
             </p>
           </article>
         ))}
@@ -71,4 +72,5 @@ export default function ProjectEventsPage() {
     </section>
   );
 }
+
 

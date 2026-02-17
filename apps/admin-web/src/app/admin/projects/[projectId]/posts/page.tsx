@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -7,6 +7,7 @@ import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
+type VisibilityScope = "SHARED" | "INTERNAL";
 
 type Post = {
   id: string;
@@ -14,6 +15,9 @@ type Post = {
   title: string;
   body: string;
   pinned: boolean;
+  visibilityScope: VisibilityScope;
+  createdBy?: string;
+  createdByName?: string;
   createdAt: string;
 };
 
@@ -55,6 +59,48 @@ export default function ProjectPostsPage() {
     }
   }
 
+  const sharedPosts = posts.filter((post) => post.visibilityScope === "SHARED");
+  const internalPosts = posts.filter((post) => post.visibilityScope === "INTERNAL");
+
+  function renderPostSection(title: string, description: string, data: Post[]) {
+    return (
+      <div className="space-y-2">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+          <p className="text-xs text-slate-500">{description}</p>
+        </div>
+        <div className="space-y-2">
+          {data.map((post) => (
+            <article key={post.id} className="rounded-lg border border-slate-200 p-3">
+              <div className="flex items-start justify-between gap-4">
+                <Link href={`/admin/projects/${projectId}/posts/${post.id}`} className="block min-w-0 flex-1">
+                  <p className="text-xs text-slate-500">
+                    {post.type}
+                    {post.pinned ? " · 고정" : ""}
+                  </p>
+                  <p className="text-xs text-slate-500">작성자: {post.createdByName ?? post.createdBy ?? "-"}</p>
+                  <p className="truncate font-semibold text-slate-900">{post.title}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-slate-600">{post.body}</p>
+                </Link>
+                <ConfirmActionButton
+                  label="삭제"
+                  title="게시글을 삭제할까요?"
+                  description="삭제 후 되돌릴 수 없습니다."
+                  onConfirm={() => removePost(post.id)}
+                  triggerVariant="destructive"
+                  triggerSize="sm"
+                  triggerClassName="rounded border border-red-700 bg-red-600 px-2 py-1 text-xs font-semibold !text-white hover:bg-red-700"
+                  confirmVariant="destructive"
+                />
+              </div>
+            </article>
+          ))}
+          {!loading && data.length === 0 ? <p className="text-sm text-slate-500">게시글이 없습니다.</p> : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
@@ -69,36 +115,14 @@ export default function ProjectPostsPage() {
 
       {loading ? <p className="text-sm text-slate-500">불러오는 중...</p> : null}
 
-      <div className="space-y-2">
-        {posts.map((post) => (
-          <article key={post.id} className="rounded-lg border border-slate-200 p-3">
-            <div className="flex items-start justify-between gap-4">
-              <Link href={`/admin/projects/${projectId}/posts/${post.id}`} className="block min-w-0 flex-1">
-                <p className="text-xs text-slate-500">
-                  {post.type}
-                  {post.pinned ? " · 고정" : ""}
-                </p>
-                <p className="truncate font-semibold text-slate-900">{post.title}</p>
-                <p className="mt-1 line-clamp-2 text-sm text-slate-600">{post.body}</p>
-              </Link>
-              <ConfirmActionButton
-                label="삭제"
-                title="게시글을 삭제할까요?"
-                description="삭제 후 되돌릴 수 없습니다."
-                onConfirm={() => removePost(post.id)}
-                triggerVariant="destructive"
-                triggerSize="sm"
-                triggerClassName="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
-                confirmVariant="destructive"
-              />
-            </div>
-          </article>
-        ))}
-        {!loading && posts.length === 0 ? <p className="text-sm text-slate-500">게시글이 없습니다.</p> : null}
+      <div className="space-y-4">
+        {renderPostSection("공유용", "클라이언트와 함께 보는 게시글", sharedPosts)}
+        {renderPostSection("내부용", "PM 내부 소통 전용 게시글", internalPosts)}
       </div>
 
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
     </section>
   );
 }
+
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
@@ -8,6 +8,7 @@ import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-action";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
+type VisibilityScope = "SHARED" | "INTERNAL";
 
 const postTypes: PostType[] = ["ANNOUNCEMENT", "GENERAL", "QA", "ISSUE", "MEETING_MINUTES", "RISK"];
 
@@ -18,6 +19,7 @@ export default function NewPostPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
+  const [visibilityScope, setVisibilityScope] = useState<VisibilityScope>("SHARED");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,14 +28,14 @@ export default function NewPostPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const created = await apiFetch<{ id: string }>(`/api/projects/${projectId}/posts`, {
+      await apiFetch(`/api/projects/${projectId}/posts`, {
         method: "POST",
-        body: JSON.stringify({ type, title, body, pinned }),
+        body: JSON.stringify({ type, title, body, pinned, visibilityScope }),
       });
-      router.replace(`/admin/projects/${projectId}/posts/${created.id}`);
+      router.replace(`/admin/projects/${projectId}/posts`);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "게시글 생성에 실패했습니다.");
+        setError(e instanceof Error ? e.message : "寃뚯떆湲 ?앹꽦???ㅽ뙣?덉뒿?덈떎.");
       }
     } finally {
       setSubmitting(false);
@@ -43,9 +45,9 @@ export default function NewPostPage() {
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">게시글 작성</h1>
+        <h1 className="text-xl font-bold text-slate-900">寃뚯떆湲 ?묒꽦</h1>
         <Link href={`/admin/projects/${projectId}/posts`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
-          목록으로
+          紐⑸줉?쇰줈
         </Link>
       </div>
 
@@ -57,16 +59,24 @@ export default function NewPostPage() {
             </option>
           ))}
         </select>
-        <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} required />
-        <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2" rows={10} placeholder="본문" value={body} onChange={(e) => setBody(e.target.value)} required />
+        <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="?쒕ぉ" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2" rows={10} placeholder="蹂몃Ц" value={body} onChange={(e) => setBody(e.target.value)} required />
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
-          상단 고정
+          ?곷떒 怨좎젙
         </label>
+        <select
+          className="w-full rounded-lg border border-slate-300 px-3 py-2"
+          value={visibilityScope}
+          onChange={(e) => setVisibilityScope(e.target.value as VisibilityScope)}
+        >
+          <option value="SHARED">怨듭쑀??(?대씪?댁뼵??怨듦컻)</option>
+          <option value="INTERNAL">?대???(PM ?꾩슜)</option>
+        </select>
         <ConfirmSubmitButton
-          label={submitting ? "작성 중..." : "등록"}
-          title="게시글을 등록할까요?"
-          description="입력한 내용으로 게시글이 생성됩니다."
+          label={submitting ? "?묒꽦 以?.." : "?깅줉"}
+          title="寃뚯떆湲???깅줉?좉퉴??"
+          description="?낅젰???댁슜?쇰줈 寃뚯떆湲???앹꽦?⑸땲??"
           disabled={submitting}
           triggerClassName="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60"
         />
@@ -76,4 +86,5 @@ export default function NewPostPage() {
     </section>
   );
 }
+
 

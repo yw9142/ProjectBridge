@@ -14,6 +14,8 @@ type FileItem = {
   description?: string | null;
   folder: string;
   visibilityScope: VisibilityScope;
+  createdBy?: string;
+  createdByName?: string;
 };
 
 type FileVersion = {
@@ -282,7 +284,10 @@ export default function ProjectFilesPage() {
                   <tr key={item.id}>
                     <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                     <td className="px-4 py-3 text-slate-700">{visibilityLabel(item.visibilityScope)}</td>
-                    <td className="px-4 py-3 text-slate-700">{item.description || "-"}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      <p>{item.description || "-"}</p>
+                      <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
+                    </td>
                     <td className="px-4 py-3 text-slate-700">
                       {latest ? (
                         <button

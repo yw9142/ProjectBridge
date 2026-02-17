@@ -8,6 +8,7 @@ import jakarta.persistence.PreUpdate;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.Formula;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -28,6 +29,9 @@ public abstract class BaseEntity {
 
     @Column(name = "created_by")
     private UUID createdBy;
+
+    @Formula("(select u.name from users u where u.id = created_by)")
+    private String createdByName;
 
     @Column(name = "updated_by")
     private UUID updatedBy;

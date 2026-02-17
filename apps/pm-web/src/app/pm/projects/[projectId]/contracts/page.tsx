@@ -13,6 +13,8 @@ type Contract = {
   name: string;
   fileVersionId?: string | null;
   status: ContractStatus;
+  createdBy?: string;
+  createdByName?: string;
 };
 
 type FileVersionSummary = {
@@ -269,7 +271,10 @@ export default function ProjectContractsPage() {
               const version = contract.fileVersionId ? fileVersionMap.get(contract.fileVersionId) : undefined;
               return (
                 <tr key={contract.id}>
-                  <td className="px-4 py-3 font-medium text-slate-900">{contract.name}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900">
+                    <p>{contract.name}</p>
+                    <p className="mt-1 text-xs font-normal text-slate-500">등록자: {contract.createdByName ?? contract.createdBy ?? "-"}</p>
+                  </td>
                   <td className="px-4 py-3 text-slate-700">
                     {contract.fileVersionId ? (
                       <button

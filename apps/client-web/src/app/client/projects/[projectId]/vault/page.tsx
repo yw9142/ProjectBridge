@@ -15,6 +15,8 @@ type VaultAccountRequest = {
   requestReason?: string | null;
   credentialReady: boolean;
   providedAt?: string | null;
+  createdBy?: string;
+  createdByName?: string;
   createdAt?: string;
 };
 
@@ -123,7 +125,10 @@ export default function ClientVaultPage() {
                 <TableRow key={item.id}>
                   <TableCell className="font-semibold text-slate-900">{item.name}</TableCell>
                   <TableCell>{item.siteUrl || "-"}</TableCell>
-                  <TableCell>{item.requestReason || "-"}</TableCell>
+                  <TableCell>
+                    <p>{item.requestReason || "-"}</p>
+                    <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
+                  </TableCell>
                   <TableCell>{item.credentialReady ? "입력 완료" : "입력 대기"}</TableCell>
                   <TableCell>{formatDate(item.providedAt)}</TableCell>
                   <TableCell>

@@ -17,6 +17,8 @@ type RequestItem = {
   description?: string | null;
   type: RequestType;
   status: RequestStatus;
+  createdBy?: string;
+  createdByName?: string;
   createdAt?: string;
 };
 
@@ -132,7 +134,10 @@ export default function ClientRequestsPage() {
                 <TableRow key={item.id}>
                   <TableCell>{typeLabels[item.type] ?? item.type}</TableCell>
                   <TableCell className="font-semibold text-slate-900">{item.title}</TableCell>
-                  <TableCell>{item.description || "-"}</TableCell>
+                  <TableCell>
+                    <p>{item.description || "-"}</p>
+                    <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={item.status} />
                   </TableCell>

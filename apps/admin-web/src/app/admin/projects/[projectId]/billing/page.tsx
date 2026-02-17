@@ -18,6 +18,8 @@ type Invoice = {
   currency: string;
   status: InvoiceStatus;
   dueAt?: string | null;
+  createdBy?: string;
+  createdByName?: string;
 };
 
 type Presign = {
@@ -236,7 +238,10 @@ export default function ProjectBillingPage() {
           <tbody className="divide-y divide-slate-200 bg-white">
             {invoices.map((invoice) => (
               <tr key={invoice.id}>
-                <td className="px-4 py-3 text-slate-700">{phaseLabel(invoice.phase)}</td>
+                <td className="px-4 py-3 text-slate-700">
+                  <p>{phaseLabel(invoice.phase)}</p>
+                  <p className="mt-1 text-xs text-slate-500">등록자: {invoice.createdByName ?? invoice.createdBy ?? "-"}</p>
+                </td>
                 <td className="px-4 py-3 font-medium text-slate-900">{invoice.amount.toLocaleString("ko-KR")}</td>
                 <td className="px-4 py-3 text-slate-700">{invoice.currency}</td>
                 <td className="px-4 py-3 text-slate-700">{formatDateOnly(invoice.dueAt)}</td>

@@ -15,6 +15,8 @@ type RequestItem = {
   title: string;
   description?: string | null;
   status: RequestStatus;
+  createdBy?: string;
+  createdByName?: string;
   createdAt?: string;
 };
 
@@ -201,7 +203,10 @@ export default function ProjectRequestsPage() {
               <tr key={item.id}>
                 <td className="px-4 py-3 text-slate-700">{typeLabel(item.type)}</td>
                 <td className="px-4 py-3 font-medium text-slate-900">{item.title}</td>
-                <td className="px-4 py-3 text-slate-600">{item.description || "-"}</td>
+                <td className="px-4 py-3 text-slate-600">
+                  <p>{item.description || "-"}</p>
+                  <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
+                </td>
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${requestStatusBadgeStyles[item.status]}`}

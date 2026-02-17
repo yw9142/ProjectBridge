@@ -16,6 +16,8 @@ type Contract = {
   name: string;
   fileVersionId?: string | null;
   status: ContractStatus;
+  createdBy?: string;
+  createdByName?: string;
   createdAt?: string;
 };
 
@@ -190,7 +192,10 @@ export default function ClientContractsPage() {
 
                   return (
                     <TableRow key={contract.id}>
-                      <TableCell className="font-semibold text-slate-900">{contract.name}</TableCell>
+                      <TableCell className="font-semibold text-slate-900">
+                        <p>{contract.name}</p>
+                        <p className="mt-1 text-xs font-normal text-slate-500">등록자: {contract.createdByName ?? contract.createdBy ?? "-"}</p>
+                      </TableCell>
                       <TableCell>
                         {contract.fileVersionId ? (
                           <Button size="sm" variant="outline" onClick={() => void openContractPdf(contract.fileVersionId as string)}>

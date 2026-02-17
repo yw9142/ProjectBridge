@@ -16,6 +16,8 @@ type Post = {
   body: string;
   pinned: boolean;
   visibilityScope: VisibilityScope;
+  createdBy?: string;
+  createdByName?: string;
 };
 
 type Comment = {
@@ -157,6 +159,7 @@ export default function PostDetailPage() {
           {post.pinned ? " · 고정" : ""}
           {` · ${visibilityLabel(post.visibilityScope)}`}
         </p>
+        <p className="text-xs text-slate-500">작성자: {post.createdByName ?? post.createdBy ?? "-"}</p>
         <h2 className="text-lg font-semibold text-slate-900">{post.title}</h2>
         <p className="whitespace-pre-wrap text-sm text-slate-700">{post.body}</p>
       </article>
@@ -245,4 +248,3 @@ export default function PostDetailPage() {
     </section>
   );
 }
-

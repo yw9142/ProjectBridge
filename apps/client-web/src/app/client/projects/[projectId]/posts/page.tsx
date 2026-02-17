@@ -16,6 +16,8 @@ type Post = {
   body: string;
   pinned: boolean;
   visibilityScope: VisibilityScope;
+  createdBy?: string;
+  createdByName?: string;
   createdAt?: string;
 };
 
@@ -75,6 +77,7 @@ export default function ClientPostsPage() {
                     {post.type}
                     {post.pinned ? " · 고정" : ""}
                   </p>
+                  <p className="text-xs text-slate-500">작성자: {post.createdByName ?? post.createdBy ?? "-"}</p>
                   <p className="truncate font-semibold text-slate-900">{post.title}</p>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-600">{post.body}</p>
                 </Link>

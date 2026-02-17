@@ -19,6 +19,8 @@ type Invoice = {
   currency: string;
   status: InvoiceStatus;
   dueAt?: string | null;
+  createdBy?: string;
+  createdByName?: string;
   createdAt?: string;
 };
 
@@ -152,7 +154,10 @@ export default function ClientBillingPage() {
             <TableBody>
               {sortedItems.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>{phaseLabels[item.phase] ?? item.phase}</TableCell>
+                  <TableCell>
+                    <p>{phaseLabels[item.phase] ?? item.phase}</p>
+                    <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
+                  </TableCell>
                   <TableCell className="font-semibold text-slate-900">{item.amount.toLocaleString("ko-KR")}</TableCell>
                   <TableCell>{item.currency}</TableCell>
                   <TableCell>{formatDate(item.dueAt)}</TableCell>
