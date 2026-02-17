@@ -5,10 +5,12 @@ import com.bridge.backend.common.security.SecurityUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -47,6 +49,11 @@ public class AuthController {
         return ApiSuccess.of(Map.of("updated", true));
     }
 
+    @PostMapping("/switch-tenant")
+    public ApiSuccess<Map<String, Object>> switchTenant(@RequestBody @Valid SwitchTenantRequest request) {
+        return ApiSuccess.of(authService.switchTenant(SecurityUtils.currentUserId(), request.tenantId()));
+    }
+
     public record LoginRequest(@Email @NotBlank String email, @NotBlank String password, String tenantSlug) {
     }
 
@@ -57,5 +64,8 @@ public class AuthController {
     }
 
     public record SetPasswordRequest(@NotBlank String password) {
+    }
+
+    public record SwitchTenantRequest(@NotNull UUID tenantId) {
     }
 }

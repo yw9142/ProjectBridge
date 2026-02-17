@@ -105,7 +105,7 @@ export default function ProjectFilesPage() {
       await fetchLatestVersions(data);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "?뚯씪 紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+        setError(e instanceof Error ? e.message : "파일 목록을 불러오지 못했습니다.");
       }
     } finally {
       setLoading(false);
@@ -139,7 +139,7 @@ export default function ProjectFilesPage() {
     });
 
     if (!uploadResponse.ok) {
-      throw new Error("泥⑤? ?뚯씪 ?낅줈?쒖뿉 ?ㅽ뙣?덉뒿?덈떎.");
+      throw new Error("첨부 파일 업로드에 실패했습니다.");
     }
 
     const version = extractVersion(presign.objectKey);
@@ -158,7 +158,7 @@ export default function ProjectFilesPage() {
   async function createFile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!createAttachment) {
-      setError("?앹꽦 ??泥⑤? ?뚯씪? ?꾩닔?낅땲??");
+      setError("생성 시 첨부 파일은 필수입니다.");
       return;
     }
     setError(null);
@@ -184,7 +184,7 @@ export default function ProjectFilesPage() {
       await loadFiles();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "?뚯씪 ?앹꽦???ㅽ뙣?덉뒿?덈떎.");
+        setError(e instanceof Error ? e.message : "파일 생성에 실패했습니다.");
       }
     }
   }
@@ -220,7 +220,7 @@ export default function ProjectFilesPage() {
       await loadFiles();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "?뚯씪 ?섏젙???ㅽ뙣?덉뒿?덈떎.");
+        setError(e instanceof Error ? e.message : "파일 수정에 실패했습니다.");
       }
     }
   }
@@ -235,7 +235,7 @@ export default function ProjectFilesPage() {
       await loadFiles();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "?뚯씪 ??젣???ㅽ뙣?덉뒿?덈떎.");
+        setError(e instanceof Error ? e.message : "파일 삭제에 실패했습니다.");
       }
     }
   }
@@ -247,7 +247,7 @@ export default function ProjectFilesPage() {
       window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "泥⑤? ?뚯씪 ?닿린???ㅽ뙣?덉뒿?덈떎.");
+        setError(e instanceof Error ? e.message : "첨부 파일 열기에 실패했습니다.");
       }
     }
   }
@@ -270,11 +270,11 @@ export default function ProjectFilesPage() {
             </colgroup>
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">?쒕ぉ</th>
-                <th className="px-4 py-3">援щ텇</th>
-                <th className="px-4 py-3">?댁슜</th>
-                <th className="px-4 py-3">泥⑤? ?뚯씪</th>
-                <th className="px-4 py-3">?묒뾽</th>
+                <th className="px-4 py-3">제목</th>
+                <th className="px-4 py-3">구분</th>
+                <th className="px-4 py-3">내용</th>
+                <th className="px-4 py-3">첨부 파일</th>
+                <th className="px-4 py-3">작업</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -295,10 +295,10 @@ export default function ProjectFilesPage() {
                           onClick={() => void openAttachment(latest.id)}
                           className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                         >
-                          泥⑤? 蹂닿린
+                          첨부 보기
                         </button>
                       ) : (
-                        <span className="text-xs text-slate-500">泥⑤? ?놁쓬</span>
+                        <span className="text-xs text-slate-500">첨부 없음</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -308,12 +308,12 @@ export default function ProjectFilesPage() {
                           onClick={() => openEditModal(item)}
                           className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                         >
-                          ?섏젙
+                          수정
                         </button>
                         <ConfirmActionButton
-                          label="??젣"
-                          title="?뚯씪????젣?좉퉴??"
-                          description="??젣 ??蹂듦뎄?????놁뒿?덈떎."
+                          label="삭제"
+                          title="파일을 삭제할까요?"
+                          description="삭제 후 복구할 수 없습니다."
                           onConfirm={() => removeFile(item.id)}
                           triggerVariant="destructive"
                           triggerSize="sm"
@@ -328,7 +328,7 @@ export default function ProjectFilesPage() {
               {!loading && rows.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
-                    ?깅줉???뚯씪???놁뒿?덈떎.
+                    등록된 파일이 없습니다.
                   </td>
                 </tr>
               ) : null}
@@ -343,15 +343,15 @@ export default function ProjectFilesPage() {
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">?뚯씪</h1>
-          <p className="text-sm text-slate-500">怨듭쑀???대???援щ텇?쇰줈 ?뚯씪??愿由ы빀?덈떎.</p>
+          <h1 className="text-xl font-bold text-slate-900">파일</h1>
+          <p className="text-sm text-slate-500">공유/내부 구분으로 파일을 관리합니다.</p>
         </div>
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
         >
-          ?뚯씪 ?앹꽦
+          파일 생성
         </button>
       </div>
 
@@ -360,13 +360,13 @@ export default function ProjectFilesPage() {
         {renderSection("내부용", "PM 내부 소통 전용 파일", internalFiles)}
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="?뚯씪 ?앹꽦" description="?뚯씪 硫뷀??뺣낫? 媛?쒖꽦(visible)???ㅼ젙?⑸땲??">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="파일 생성" description="파일 메타정보와 가시성(visible)을 설정합니다.">
         <form onSubmit={createFile} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="?쒕ぉ" value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="제목" value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} required />
           <textarea
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             rows={5}
-            placeholder="?댁슜"
+            placeholder="내용"
             value={createContent}
             onChange={(e) => setCreateContent(e.target.value)}
           />
@@ -375,19 +375,19 @@ export default function ProjectFilesPage() {
             value={createVisibilityScope}
             onChange={(e) => setCreateVisibilityScope(e.target.value as VisibilityScope)}
           >
-            <option value="SHARED">怨듭쑀??(?대씪?댁뼵??怨듦컻)</option>
-            <option value="INTERNAL">?대???(PM ?꾩슜)</option>
+            <option value="SHARED">공유용 (클라이언트 공개)</option>
+            <option value="INTERNAL">내부용 (PM 전용)</option>
           </select>
           <div>
             <input type="file" accept="*/*" onChange={onPickCreateAttachment} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required />
-            {createAttachment ? <p className="mt-1 text-xs text-slate-500">?좏깮 ?뚯씪: {createAttachment.name}</p> : null}
+            {createAttachment ? <p className="mt-1 text-xs text-slate-500">선택 파일: {createAttachment.name}</p> : null}
           </div>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              痍⑥냼
+              취소
             </button>
             <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
-              ?앹꽦
+              생성
             </button>
           </div>
         </form>
@@ -396,8 +396,8 @@ export default function ProjectFilesPage() {
       <Modal
         open={Boolean(editingItem)}
         onClose={() => setEditingId(null)}
-        title="?뚯씪 ?섏젙"
-        description="?쒕ぉ/?댁슜/visible ?듭뀡???섏젙?섍퀬 ?꾩슂 ????踰꾩쟾???낅줈?쒗빀?덈떎."
+        title="파일 수정"
+        description="제목/내용/visible 옵션을 수정하고 필요 시 새 버전을 업로드합니다."
       >
         <form onSubmit={saveEdit} className="space-y-3">
           <input className="w-full rounded-lg border border-slate-300 px-3 py-2" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} required />
@@ -407,19 +407,20 @@ export default function ProjectFilesPage() {
             value={editVisibilityScope}
             onChange={(e) => setEditVisibilityScope(e.target.value as VisibilityScope)}
           >
-            <option value="SHARED">怨듭쑀??(?대씪?댁뼵??怨듦컻)</option>
-            <option value="INTERNAL">?대???(PM ?꾩슜)</option>
+            <option value="SHARED">공유용 (클라이언트 공개)</option>
+            <option value="INTERNAL">내부용 (PM 전용)</option>
           </select>
           <div>
             <input type="file" accept="*/*" onChange={onPickEditAttachment} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            {editAttachment ? <p className="mt-1 text-xs text-slate-500">援먯껜 ?뚯씪: {editAttachment.name}</p> : null}
+            {editAttachment ? <p className="mt-1 text-xs text-slate-500">교체 파일: {editAttachment.name}</p> : null}
           </div>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setEditingId(null)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              痍⑥냼
+              취소
             </button>
             <button type="submit" className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold !text-white hover:bg-slate-800">
-              ???            </button>
+              저장
+            </button>
           </div>
         </form>
       </Modal>

@@ -268,6 +268,23 @@ public class AuthService {
                 });
     }
 
+    @Transactional
+    public Map<String, Object> switchTenant(UUID userId, UUID tenantId) {
+        UserEntity user = userRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "USER_NOT_FOUND", "User not found."));
+        TenantEntity tenant = tenantRepository.findById(tenantId)
+                .filter(found -> found.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "TENANT_NOT_FOUND", "Tenant not found."));
+
+        if (user.isPlatformAdmin()) {
+            return issuePlatformAdminTokens(user, tenant);
+        }
+
+        TenantMemberEntity tenantMember = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId)
+                .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "TENANT_ACCESS_DENIED", "No tenant access."));
+        return issueTokens(user, tenant, tenantMember);
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> me(UUID userId) {
         UserEntity user = userRepository.findById(userId)

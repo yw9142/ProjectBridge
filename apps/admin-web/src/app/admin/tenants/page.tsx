@@ -1,11 +1,12 @@
 ﻿"use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Modal } from "@/components/ui/modal";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { setAuthCookies } from "@/lib/auth";
 
 type Tenant = {
   id: string;
@@ -27,11 +28,13 @@ function formatDate(value?: string) {
 }
 
 export default function TenantsPage() {
+  const router = useRouter();
   const [items, setItems] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [switchingTenantId, setSwitchingTenantId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,6 +76,28 @@ export default function TenantsPage() {
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function openTenantDetail(tenant: Tenant) {
+    setSwitchingTenantId(tenant.id);
+    setError(null);
+    try {
+      const switched = await apiFetch<{ accessToken: string; refreshToken: string }>("/api/auth/switch-tenant", {
+        method: "POST",
+        body: JSON.stringify({ tenantId: tenant.id }),
+      });
+      if (!switched?.accessToken || !switched?.refreshToken) {
+        throw new Error("테넌트 전환 응답이 올바르지 않습니다.");
+      }
+      setAuthCookies(switched.accessToken, switched.refreshToken);
+      router.push(`/admin/tenants/${tenant.id}`);
+    } catch (e) {
+      if (!handleAuthError(e, "/admin/login")) {
+        setError(e instanceof Error ? e.message : "테넌트 전환에 실패했습니다.");
+      }
+    } finally {
+      setSwitchingTenantId(null);
     }
   }
 
@@ -131,12 +156,14 @@ export default function TenantsPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-600">{formatDate(tenant.createdAt)}</td>
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/admin/tenants/${tenant.id}`}
+                    <button
+                      type="button"
+                      onClick={() => void openTenantDetail(tenant)}
+                      disabled={switchingTenantId === tenant.id}
                       className="inline-flex rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
-                      상세 보기
-                    </Link>
+                      {switchingTenantId === tenant.id ? "전환 중..." : "상세 보기"}
+                    </button>
                   </td>
                 </tr>
               ))}
