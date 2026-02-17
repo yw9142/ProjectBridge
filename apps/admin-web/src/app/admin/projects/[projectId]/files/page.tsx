@@ -629,6 +629,7 @@ export default function ProjectFilesPage() {
               <tr>
                 <th className="px-4 py-3">이름</th>
                 <th className="px-4 py-3">용도</th>
+                <th className="px-4 py-3">등록자</th>
                 <th className="px-4 py-3">크기</th>
                 <th className="px-4 py-3">버전</th>
                 <th className="px-4 py-3">업데이트 일시</th>
@@ -694,6 +695,7 @@ export default function ProjectFilesPage() {
                       <td className="px-4 py-3 text-slate-500">-</td>
                       <td className="px-4 py-3 text-slate-500">-</td>
                       <td className="px-4 py-3 text-slate-500">-</td>
+                      <td className="px-4 py-3 text-slate-500">-</td>
                       <td className="px-4 py-3">
                         {row.isRoot ? (
                           <span className="text-xs text-slate-500">{moving ? "이동 중..." : isDropTarget ? "여기에 놓기" : "-"}</span>
@@ -754,10 +756,10 @@ export default function ProjectFilesPage() {
                           {isDraggingRow ? <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">드래그 중</span> : null}
                         </div>
                         <p className="text-xs text-slate-500">{row.file.description || "-"}</p>
-                        <p className="text-xs text-slate-500">등록자: {row.file.createdByName ?? row.file.createdBy ?? "-"}</p>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-700">{visibilityLabel(row.file.visibilityScope)}</td>
+                    <td className="px-4 py-3 text-slate-700">{row.file.createdByName ?? row.file.createdBy ?? "-"}</td>
                     <td className="px-4 py-3 text-slate-700">{formatFileSize(latest?.size)}</td>
                     <td className="px-4 py-3 text-slate-700">
                       {latest ? <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">v{latest.version}</span> : "-"}
@@ -803,7 +805,7 @@ export default function ProjectFilesPage() {
               })}
               {!loading && treeRows.length === 1 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
+                  <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
                     등록된 파일이 없습니다.
                   </td>
                 </tr>

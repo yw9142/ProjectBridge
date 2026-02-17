@@ -241,6 +241,7 @@ export default function ClientFilesPage() {
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3">이름</th>
+                <th className="px-4 py-3">등록자</th>
                 <th className="px-4 py-3">크기</th>
                 <th className="px-4 py-3">버전</th>
                 <th className="px-4 py-3">업데이트 일시</th>
@@ -262,6 +263,7 @@ export default function ClientFilesPage() {
                       <td className="px-4 py-3 text-slate-500">-</td>
                       <td className="px-4 py-3 text-slate-500">-</td>
                       <td className="px-4 py-3 text-slate-500">-</td>
+                      <td className="px-4 py-3 text-slate-500">-</td>
                     </tr>
                   );
                 }
@@ -276,9 +278,9 @@ export default function ClientFilesPage() {
                           <span className="font-medium text-slate-900">{row.file.name}</span>
                         </div>
                         <p className="text-xs text-slate-500">{row.file.description || "-"}</p>
-                        <p className="text-xs text-slate-500">등록자: {row.file.createdByName ?? row.file.createdBy ?? "-"}</p>
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-slate-700">{row.file.createdByName ?? row.file.createdBy ?? "-"}</td>
                     <td className="px-4 py-3 text-slate-700">{formatFileSize(latest?.size)}</td>
                     <td className="px-4 py-3 text-slate-700">
                       {latest ? <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">v{latest.version}</span> : "-"}
@@ -303,7 +305,7 @@ export default function ClientFilesPage() {
               })}
               {!loading && treeRows.length === 1 ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-sm text-slate-500">
+                  <td colSpan={6} className="py-6 text-center text-sm text-slate-500">
                     표시할 파일이 없습니다.
                   </td>
                 </tr>
