@@ -104,10 +104,10 @@ pnpm -C apps/admin-web lint && pnpm -C apps/admin-web build
 9. Vault: 정책/secret 생성 -> 접근요청/승인 -> reveal(열람 이벤트)
 
 상세 체크리스트:
-- `docs/DOD_DEMO_CHECKLIST.md`
-- `docs/PLAYWRIGHT_MCP_E2E.md`
+- `docs/Test/DOD_DEMO_CHECKLIST.md`
+- `docs/Test/PLAYWRIGHT_MCP_E2E.md`
 
-## Deployment Strategy (Draft)
+## Deployment Strategy
 - Frontend: Vercel
 - Backend: AWS
 

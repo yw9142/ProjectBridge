@@ -1,79 +1,76 @@
-# Bridge Deployment Runbook (Draft)
+# Bridge Deployment Runbook
 
-작성일: 2026-02-17
+작성일: 2026-02-17  
+최종 수정: 2026-02-17
 
-## 1) 결정 사항
-- 프론트엔드: Vercel
-- 백엔드: AWS
+## 1) 배포 타깃
+- Frontend: Vercel (`pm-web`, `client-web`, `admin-web`)
+- Backend: AWS ECS (Fargate) + ECR
 
-## 2) 배포 단위
-- `pm-web` (`apps/pm-web`)
-- `client-web` (`apps/client-web`)
-- `admin-web` (`apps/admin-web`)
-- `backend` (`backend`)
+## 2) GitHub Actions 파이프라인
 
-## 3) 권장 프로덕션 아키텍처
-- Frontend: Vercel 프로젝트 3개 (PM/Client/Admin)
-- Backend: AWS ECS Fargate + ALB
-- Database: AWS RDS PostgreSQL
-- Object Storage: AWS S3 (`MINIO_*` 대체)
-- Secret 관리: AWS Secrets Manager
-- DNS:
-  - `pm.<domain>` -> Vercel (pm-web)
-  - `client.<domain>` -> Vercel (client-web)
-  - `admin.<domain>` -> Vercel (admin-web)
-  - `api.<domain>` -> AWS ALB (backend)
+### 2.1 Frontend (Vercel 3앱)
+- 워크플로우: `.github/workflows/deploy-web-vercel.yml`
+- 트리거:
+  - `main` push (웹 앱/공통 패키지 변경 시)
+  - 수동 실행(`workflow_dispatch`) 시 `preview` / `production` 선택
+- 동작:
+  - 모노레포 루트에서 `pnpm install --frozen-lockfile`
+  - 앱별 Vercel `pull -> build -> deploy --prebuilt`
 
-## 4) 환경 분리
-- `dev`: 로컬 도커/로컬 실행
-- `staging`: Vercel Preview + AWS Staging
-- `prod`: Vercel Production + AWS Production
+### 2.2 Backend (AWS ECS)
+- 워크플로우: `.github/workflows/deploy-backend-aws.yml`
+- 트리거:
+  - `main` push (backend 변경 시)
+  - 수동 실행(`workflow_dispatch`)
+- 동작:
+  - `backend/Dockerfile`로 이미지 빌드
+  - ECR push
+  - ECS task definition 렌더링 후 서비스 배포
 
-## 5) Vercel 설정 (모노레포 주의)
-`@bridge/shared-types`가 `workspace:*`이므로, 앱 폴더 단독 설치가 아니라 **레포 루트 기준 설치**가 필요합니다.
+## 3) GitHub Secrets
 
-- 공통 Install Command:
-  - `pnpm install --frozen-lockfile`
-- pm-web Build Command:
-  - `pnpm --filter pm-web build`
-- client-web Build Command:
-  - `pnpm --filter client-web build`
-- admin-web Build Command:
-  - `pnpm --filter admin-web build`
+### 3.1 Vercel
+- `VERCEL_TOKEN`
+- `VERCEL_PM_ORG_ID`
+- `VERCEL_PM_PROJECT_ID`
+- `VERCEL_CLIENT_ORG_ID`
+- `VERCEL_CLIENT_PROJECT_ID`
+- `VERCEL_ADMIN_ORG_ID`
+- `VERCEL_ADMIN_PROJECT_ID`
 
-프론트 공통 환경변수:
+### 3.2 AWS
+- `AWS_REGION`
+- `AWS_ROLE_TO_ASSUME` (OIDC assume role ARN)
+- `AWS_ECR_REPOSITORY`
+- `AWS_ECS_CLUSTER`
+- `AWS_ECS_SERVICE`
+- `AWS_ECS_CONTAINER_NAME`
+- `AWS_ECS_TASK_DEFINITION` (JSON 원문)
+
+## 4) 런타임 환경변수 기준
+
+### 4.1 Frontend
 - `NEXT_PUBLIC_API_BASE=https://api.<domain>`
 
-## 6) AWS 백엔드 설정
-백엔드는 컨테이너 배포를 기본으로 합니다.
+### 4.2 Backend
+- `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`
+- `JWT_SECRET`
+- `VAULT_MASTER_KEY`
+- `ALLOWED_ORIGINS` (3개 Vercel 도메인 포함)
+- `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`
 
-- 빌드 아티팩트: `backend/Dockerfile`
-- 런타임 포트: `8080`
-- 필수 환경변수:
-  - `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`
-  - `JWT_SECRET`
-  - `VAULT_MASTER_KEY`
-  - `ALLOWED_ORIGINS` (Vercel 도메인 포함)
-  - `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`
+운영에서는 object storage를 S3로 전환하고 민감정보는 AWS Secrets Manager에서 주입한다.
 
-운영 전환 시 스토리지 권장:
-- `MINIO_ENDPOINT`를 S3 엔드포인트로 전환
-- 접근키/시크릿은 Secrets Manager 주입
+## 5) 배포 순서 (권장)
+1. Backend Staging 배포
+2. Frontend 3앱 Preview 배포
+3. 스모크/E2E 확인 (`docs/Test/PLAYWRIGHT_MCP_E2E.md`)
+4. Backend Production 배포
+5. Frontend 3앱 Production 배포
+6. DoD 시나리오 확인 (`docs/Test/DOD_DEMO_CHECKLIST.md`)
 
-## 7) 배포 순서
-1. Backend(Staging) 배포
-2. Frontend 3개(Staging) 배포
-3. 스모크 테스트 (`docs/PLAYWRIGHT_MCP_E2E.md`)
-4. Backend(Prod) 배포
-5. Frontend 3개(Prod) 배포
-6. DoD 데모 시나리오 검증 (`docs/DOD_DEMO_CHECKLIST.md`)
-
-## 8) 롤백 규칙
+## 6) 롤백 규칙
 - Frontend: Vercel 이전 배포로 즉시 롤백
-- Backend: 이전 ECS Task Definition revision으로 롤백
-- DB: Flyway 다운그레이드 대신, forward-fix 원칙
-
-## 9) 미결정 항목
-- AWS 런타임 확정: `ECS Fargate` vs `App Runner` vs `EC2`
-- AWS IaC 도구 확정: `Terraform` vs `CDK`
-- 프론트 도메인 최종 네이밍
+- Backend: 이전 ECS task definition revision으로 롤백
+- DB: 다운그레이드보다 forward-fix 우선

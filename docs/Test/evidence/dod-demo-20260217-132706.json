@@ -1,0 +1,1021 @@
+﻿{
+    "generatedAt":  "2026-02-17T04:27:07.7625508Z",
+    "baseUrl":  "http://localhost:8080",
+    "tenantSlug":  "dod-20260217132706",
+    "users":  {
+                  "admin":  "admin@bridge.local",
+                  "pm":  "pm+20260217132706@bridge.local",
+                  "client":  "client+20260217132706@bridge.local"
+              },
+    "scenarios":  {
+                      "1":  {
+                                "status":  "DONE",
+                                "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                "pmUserId":  "bb46ca61-89a6-444d-9ebf-1497e876e226"
+                            },
+                      "2":  {
+                                "status":  "DONE",
+                                "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                "invitationToken":  "64542832a3b24d4abb5ddba0332aa999"
+                            },
+                      "3":  {
+                                "status":  "DONE",
+                                "accepted":  true
+                            },
+                      "4":  {
+                                "status":  "DONE",
+                                "postId":  "b8441311-4cca-4ae5-97b7-ebeda5c5ec86",
+                                "requestId":  "48506fcc-dd0e-4ded-afc9-76aebfa32bb5",
+                                "requestStatus":  "IN_PROGRESS",
+                                "decisionId":  "88b437cc-a567-4721-9268-0b37b9d9aedc",
+                                "decisionStatus":  "APPROVED"
+                            },
+                      "5":  {
+                                "status":  "DONE",
+                                "fileId":  "ad2b21e6-182a-436a-9c0a-ffcabce83526",
+                                "fileVersionId":  "9f43b285-4af5-4af5-8adb-167a858f3206",
+                                "commentId":  "b3c4acb0-4a06-4a15-95f2-7a0570d3f2c3",
+                                "commentStatus":  "RESOLVED"
+                            },
+                      "6":  {
+                                "status":  "DONE",
+                                "meetingId":  "43e7242c-0043-4443-b7ff-79bdeaf47ee2",
+                                "attendeeResponse":  "ACCEPTED"
+                            },
+                      "7":  {
+                                "status":  "DONE",
+                                "contractId":  "c32f3914-573e-46c1-b42a-bb9b02998fb9",
+                                "envelopeId":  "4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                "recipientId":  "09d48da5-c30b-42e0-8073-ac5997039ead",
+                                "signingCompleted":  true
+                            },
+                      "8":  {
+                                "status":  "DONE",
+                                "invoiceId":  "775b1925-a5d7-4a29-8a44-596520e6b8e9",
+                                "invoiceStatus":  "CONFIRMED",
+                                "attachmentCount":  1
+                            },
+                      "9":  {
+                                "status":  "DONE",
+                                "policyId":  "042918b1-8d03-4529-9272-09a9314c0586",
+                                "secretId":  "bd6eabde-2f85-4f43-8067-23f4891b51de",
+                                "accessRequestId":  "c3a860ed-4573-4706-b512-aca824633094",
+                                "accessStatus":  "APPROVED",
+                                "revealedVersion":  1
+                            }
+                  },
+    "requests":  [
+                     {
+                         "step":  "S1-admin-login",
+                         "method":  "POST",
+                         "path":  "/api/auth/login",
+                         "statusCode":  200,
+                         "request":  {
+                                         "email":  "admin@bridge.local",
+                                         "tenantSlug":  "bridge",
+                                         "password":  "__REDACTED_SECRET__"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "userId":  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                                                       "tenantId":  "11111111-1111-1111-1111-111111111111",
+                                                       "roles":  {
+                                                                     "Length":  14
+                                                                 },
+                                                       "accessToken":  "__REDACTED_TOKEN__",
+                                                       "refreshToken":  "__REDACTED_TOKEN__"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S1-create-tenant",
+                         "method":  "POST",
+                         "path":  "/api/admin/tenants",
+                         "statusCode":  200,
+                         "request":  {
+                                         "slug":  "dod-20260217132706",
+                                         "name":  "DoD Tenant 20260217-132706"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "createdAt":  "2026-02-17T04:27:06.8404058Z",
+                                                       "updatedAt":  "2026-02-17T04:27:06.8404058Z",
+                                                       "createdBy":  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                                                       "updatedBy":  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                                                       "deletedAt":  null,
+                                                       "name":  "DoD Tenant 20260217-132706",
+                                                       "slug":  "dod-20260217132706",
+                                                       "status":  "ACTIVE"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S1-create-pm-user",
+                         "method":  "POST",
+                         "path":  "/api/admin/tenants/48324b65-a11e-4c05-bf93-74f540284c4f/pm-users",
+                         "statusCode":  200,
+                         "request":  {
+                                         "name":  "DoD PM 20260217-132706",
+                                         "email":  "pm+20260217132706@bridge.local"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "status":  "INVITED",
+                                                       "email":  "pm+20260217132706@bridge.local",
+                                                       "userId":  "bb46ca61-89a6-444d-9ebf-1497e876e226"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S2-pm-login",
+                         "method":  "POST",
+                         "path":  "/api/auth/login",
+                         "statusCode":  200,
+                         "request":  {
+                                         "email":  "pm+20260217132706@bridge.local",
+                                         "tenantSlug":  "dod-20260217132706",
+                                         "password":  "__REDACTED_SECRET__"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "userId":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "roles":  {
+                                                                     "Length":  15
+                                                                 },
+                                                       "accessToken":  "__REDACTED_TOKEN__",
+                                                       "refreshToken":  "__REDACTED_TOKEN__"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S2-create-project",
+                         "method":  "POST",
+                         "path":  "/api/projects",
+                         "statusCode":  200,
+                         "request":  {
+                                         "name":  "DoD Project 20260217-132706",
+                                         "description":  "DoD scenario execution"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "createdAt":  "2026-02-17T04:27:07.0103672Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.0103672Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "name":  "DoD Project 20260217-132706",
+                                                       "description":  "DoD scenario execution",
+                                                       "status":  "ACTIVE"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S2-invite-client",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/members/invite",
+                         "statusCode":  200,
+                         "request":  {
+                                         "email":  "client+20260217132706@bridge.local",
+                                         "loginId":  "client+20260217132706@bridge.local",
+                                         "name":  "DoD Client 20260217-132706",
+                                         "password":  "__REDACTED_SECRET__",
+                                         "role":  "CLIENT_OWNER"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "invitationToken":  "64542832a3b24d4abb5ddba0332aa999",
+                                                       "expiresAt":  "2026-02-24T04:27:07.1470429Z"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S3-client-login",
+                         "method":  "POST",
+                         "path":  "/api/auth/login",
+                         "statusCode":  200,
+                         "request":  {
+                                         "email":  "client+20260217132706@bridge.local",
+                                         "tenantSlug":  "dod-20260217132706",
+                                         "password":  "__REDACTED_SECRET__"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "userId":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "roles":  [
+                                                                     {
+                                                                         "Length":  12
+                                                                     },
+                                                                     {
+                                                                         "Length":  19
+                                                                     }
+                                                                 ],
+                                                       "accessToken":  "__REDACTED_TOKEN__",
+                                                       "refreshToken":  "__REDACTED_TOKEN__"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S3-accept-invitation",
+                         "method":  "POST",
+                         "path":  "/api/invitations/64542832a3b24d4abb5ddba0332aa999/accept",
+                         "statusCode":  200,
+                         "request":  null,
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "accepted":  true
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S4-create-post",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/posts",
+                         "statusCode":  200,
+                         "request":  {
+                                         "title":  "DoD Post 20260217-132706",
+                                         "body":  "post body",
+                                         "pinned":  false,
+                                         "type":  "GENERAL"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "b8441311-4cca-4ae5-97b7-ebeda5c5ec86",
+                                                       "createdAt":  "2026-02-17T04:27:07.2610234Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.2610234Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "type":  "GENERAL",
+                                                       "title":  "DoD Post 20260217-132706",
+                                                       "body":  "post body",
+                                                       "pinned":  false
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S4-create-request",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/requests",
+                         "statusCode":  200,
+                         "request":  {
+                                         "title":  "DoD Request 20260217-132706",
+                                         "description":  "request description",
+                                         "type":  "FEEDBACK"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "48506fcc-dd0e-4ded-afc9-76aebfa32bb5",
+                                                       "createdAt":  "2026-02-17T04:27:07.2819303Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.2819303Z",
+                                                       "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "type":  "FEEDBACK",
+                                                       "title":  "DoD Request 20260217-132706",
+                                                       "description":  "request description",
+                                                       "status":  "DRAFT",
+                                                       "assigneeUserId":  null,
+                                                       "dueAt":  null
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S4-update-request-status",
+                         "method":  "PATCH",
+                         "path":  "/api/requests/48506fcc-dd0e-4ded-afc9-76aebfa32bb5/status",
+                         "statusCode":  200,
+                         "request":  {
+                                         "status":  "IN_PROGRESS"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "48506fcc-dd0e-4ded-afc9-76aebfa32bb5",
+                                                       "createdAt":  "2026-02-17T04:27:07.28193Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.3008679Z",
+                                                       "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "type":  "FEEDBACK",
+                                                       "title":  "DoD Request 20260217-132706",
+                                                       "description":  "request description",
+                                                       "status":  "IN_PROGRESS",
+                                                       "assigneeUserId":  null,
+                                                       "dueAt":  null
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S4-create-decision",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/decisions",
+                         "statusCode":  200,
+                         "request":  {
+                                         "rationale":  "decision rationale",
+                                         "title":  "DoD Decision 20260217-132706"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "88b437cc-a567-4721-9268-0b37b9d9aedc",
+                                                       "createdAt":  "2026-02-17T04:27:07.3206541Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.3206541Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "title":  "DoD Decision 20260217-132706",
+                                                       "rationale":  "decision rationale",
+                                                       "status":  "PROPOSED",
+                                                       "relatedFileVersionId":  null
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S4-update-decision-status",
+                         "method":  "PATCH",
+                         "path":  "/api/decisions/88b437cc-a567-4721-9268-0b37b9d9aedc/status",
+                         "statusCode":  200,
+                         "request":  {
+                                         "status":  "APPROVED"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "88b437cc-a567-4721-9268-0b37b9d9aedc",
+                                                       "createdAt":  "2026-02-17T04:27:07.320654Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.3419264Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "title":  "DoD Decision 20260217-132706",
+                                                       "rationale":  "decision rationale",
+                                                       "status":  "APPROVED",
+                                                       "relatedFileVersionId":  null
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S5-create-file",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/files",
+                         "statusCode":  200,
+                         "request":  {
+                                         "description":  "DoD file",
+                                         "name":  "dod-spec-20260217132706.pdf",
+                                         "folder":  "/docs"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "ad2b21e6-182a-436a-9c0a-ffcabce83526",
+                                                       "createdAt":  "2026-02-17T04:27:07.3592533Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.3592533Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "name":  "dod-spec-20260217132706.pdf",
+                                                       "description":  "DoD file",
+                                                       "folder":  "/docs"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S5-complete-version",
+                         "method":  "POST",
+                         "path":  "/api/files/ad2b21e6-182a-436a-9c0a-ffcabce83526/versions/complete",
+                         "statusCode":  200,
+                         "request":  {
+                                         "contentType":  "application/pdf",
+                                         "objectKey":  "dod/d69731af-99c8-430b-abbf-5e0816522ee4/spec-v1.pdf",
+                                         "checksum":  "sha256-20260217132706",
+                                         "version":  1,
+                                         "size":  1024
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "9f43b285-4af5-4af5-8adb-167a858f3206",
+                                                       "createdAt":  "2026-02-17T04:27:07.3756722Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.3756722Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "fileId":  "ad2b21e6-182a-436a-9c0a-ffcabce83526",
+                                                       "version":  1,
+                                                       "objectKey":  "dod/d69731af-99c8-430b-abbf-5e0816522ee4/spec-v1.pdf",
+                                                       "contentType":  "application/pdf",
+                                                       "size":  1024,
+                                                       "checksum":  "sha256-20260217132706",
+                                                       "latest":  true
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S5-comment-file-version",
+                         "method":  "POST",
+                         "path":  "/api/file-versions/9f43b285-4af5-4af5-8adb-167a858f3206/comments",
+                         "statusCode":  200,
+                         "request":  {
+                                         "coordW":  120,
+                                         "body":  "please update title block",
+                                         "coordX":  10,
+                                         "coordY":  10,
+                                         "coordH":  40
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "b3c4acb0-4a06-4a15-95f2-7a0570d3f2c3",
+                                                       "createdAt":  "2026-02-17T04:27:07.4009892Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.4009892Z",
+                                                       "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "fileVersionId":  "9f43b285-4af5-4af5-8adb-167a858f3206",
+                                                       "body":  "please update title block",
+                                                       "coordX":  10.0,
+                                                       "coordY":  10.0,
+                                                       "coordW":  120.0,
+                                                       "coordH":  40.0,
+                                                       "status":  "OPEN"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S5-resolve-file-comment",
+                         "method":  "PATCH",
+                         "path":  "/api/file-comments/b3c4acb0-4a06-4a15-95f2-7a0570d3f2c3/resolve",
+                         "statusCode":  200,
+                         "request":  null,
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "b3c4acb0-4a06-4a15-95f2-7a0570d3f2c3",
+                                                       "createdAt":  "2026-02-17T04:27:07.400989Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.4395836Z",
+                                                       "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "fileVersionId":  "9f43b285-4af5-4af5-8adb-167a858f3206",
+                                                       "body":  "please update title block",
+                                                       "coordX":  10.0,
+                                                       "coordY":  10.0,
+                                                       "coordW":  120.0,
+                                                       "coordH":  40.0,
+                                                       "status":  "RESOLVED"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S6-create-meeting",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/meetings",
+                         "statusCode":  200,
+                         "request":  {
+                                         "title":  "DoD Weekly Sync",
+                                         "meetUrl":  "https://meet.example.com/20260217132706",
+                                         "startAt":  "2026-02-18T04:27:07.4463331Z",
+                                         "endAt":  "2026-02-18T05:27:07.4518760Z"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "43e7242c-0043-4443-b7ff-79bdeaf47ee2",
+                                                       "createdAt":  "2026-02-17T04:27:07.4644319Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.4644319Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "title":  "DoD Weekly Sync",
+                                                       "startAt":  "2026-02-18T04:27:07.4463331Z",
+                                                       "endAt":  "2026-02-18T05:27:07.451876Z",
+                                                       "meetUrl":  "https://meet.example.com/20260217132706",
+                                                       "status":  "SCHEDULED"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S6-client-respond-meeting",
+                         "method":  "POST",
+                         "path":  "/api/meetings/43e7242c-0043-4443-b7ff-79bdeaf47ee2/respond",
+                         "statusCode":  200,
+                         "request":  {
+                                         "response":  "ACCEPTED"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "b4be3da6-fa3b-4a38-94ec-5918b42a5627",
+                                                       "createdAt":  "2026-02-17T04:27:07.4840565Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.4840565Z",
+                                                       "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "meetingId":  "43e7242c-0043-4443-b7ff-79bdeaf47ee2",
+                                                       "userId":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "response":  "ACCEPTED"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S7-create-contract",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/contracts",
+                         "statusCode":  200,
+                         "request":  {
+                                         "name":  "DoD Contract 20260217-132706",
+                                         "fileVersionId":  "9f43b285-4af5-4af5-8adb-167a858f3206"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "c32f3914-573e-46c1-b42a-bb9b02998fb9",
+                                                       "createdAt":  "2026-02-17T04:27:07.5033644Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.5033644Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "name":  "DoD Contract 20260217-132706",
+                                                       "fileVersionId":  "9f43b285-4af5-4af5-8adb-167a858f3206",
+                                                       "status":  "DRAFT"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S7-create-envelope",
+                         "method":  "POST",
+                         "path":  "/api/contracts/c32f3914-573e-46c1-b42a-bb9b02998fb9/envelopes",
+                         "statusCode":  200,
+                         "request":  {
+                                         "title":  "DoD Sign Envelope"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                                       "createdAt":  "2026-02-17T04:27:07.5207597Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.5207597Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "contractId":  "c32f3914-573e-46c1-b42a-bb9b02998fb9",
+                                                       "title":  "DoD Sign Envelope",
+                                                       "status":  "DRAFT",
+                                                       "sentAt":  null,
+                                                       "completedAt":  null
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S7-add-recipient",
+                         "method":  "POST",
+                         "path":  "/api/envelopes/4af68227-4295-4971-ae2f-3ca34cc6a35c/recipients",
+                         "statusCode":  200,
+                         "request":  {
+                                         "email":  "client+20260217132706@bridge.local",
+                                         "name":  "DoD Client Signer",
+                                         "signingOrder":  1
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "09d48da5-c30b-42e0-8073-ac5997039ead",
+                                                       "createdAt":  "2026-02-17T04:27:07.5355216Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.5355216Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "envelopeId":  "4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                                       "recipientEmail":  "client+20260217132706@bridge.local",
+                                                       "recipientName":  "DoD Client Signer",
+                                                       "recipientToken":  "d26f2cf7e34a4fd68f405663d12e7f97",
+                                                       "signingOrder":  1,
+                                                       "status":  "PENDING"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S7-add-signature-field",
+                         "method":  "POST",
+                         "path":  "/api/envelopes/4af68227-4295-4971-ae2f-3ca34cc6a35c/fields",
+                         "statusCode":  200,
+                         "request":  {
+                                         "recipientId":  "09d48da5-c30b-42e0-8073-ac5997039ead",
+                                         "coordX":  100,
+                                         "coordH":  40,
+                                         "coordW":  120,
+                                         "type":  "SIGNATURE",
+                                         "page":  1,
+                                         "coordY":  200
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "89a015d0-dbdc-485c-8daf-64ce11c543f0",
+                                                       "createdAt":  "2026-02-17T04:27:07.550623Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.550623Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "envelopeId":  "4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                                       "recipientId":  "09d48da5-c30b-42e0-8073-ac5997039ead",
+                                                       "type":  "SIGNATURE",
+                                                       "page":  1,
+                                                       "coordX":  100.0,
+                                                       "coordY":  200.0,
+                                                       "coordW":  120.0,
+                                                       "coordH":  40.0
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S7-send-envelope",
+                         "method":  "POST",
+                         "path":  "/api/envelopes/4af68227-4295-4971-ae2f-3ca34cc6a35c/send",
+                         "statusCode":  200,
+                         "request":  null,
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                                       "createdAt":  "2026-02-17T04:27:07.52076Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.5680554Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "contractId":  "c32f3914-573e-46c1-b42a-bb9b02998fb9",
+                                                       "title":  "DoD Sign Envelope",
+                                                       "status":  "SENT",
+                                                       "sentAt":  "2026-02-17T04:27:07.5675391Z",
+                                                       "completedAt":  null
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S7-view-signing",
+                         "method":  "POST",
+                         "path":  "/api/signing/d26f2cf7e34a4fd68f405663d12e7f97/viewed",
+                         "statusCode":  200,
+                         "request":  null,
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "viewed":  true
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S7-submit-signing",
+                         "method":  "POST",
+                         "path":  "/api/signing/d26f2cf7e34a4fd68f405663d12e7f97/submit",
+                         "statusCode":  200,
+                         "request":  null,
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "completedPdfUrl":  "/api/envelopes/4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                                       "signed":  true,
+                                                       "completed":  true
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S7-signature-events",
+                         "method":  "GET",
+                         "path":  "/api/envelopes/4af68227-4295-4971-ae2f-3ca34cc6a35c/events",
+                         "statusCode":  200,
+                         "request":  null,
+                         "response":  {
+                                          "success":  true,
+                                          "data":  [
+                                                       {
+                                                           "id":  "82abf9d0-18d3-4e4f-b22b-52baab2bf4c3",
+                                                           "createdAt":  "2026-02-17T04:27:07.570459Z",
+                                                           "updatedAt":  "2026-02-17T04:27:07.570459Z",
+                                                           "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                           "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                           "deletedAt":  null,
+                                                           "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                           "envelopeId":  "4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                                           "recipientId":  null,
+                                                           "eventType":  "SENT",
+                                                           "eventPayload":  "{envelopeId=4af68227-4295-4971-ae2f-3ca34cc6a35c}"
+                                                       },
+                                                       {
+                                                           "id":  "18369a52-2129-4326-a6e2-9460cdf2b83e",
+                                                           "createdAt":  "2026-02-17T04:27:07.585132Z",
+                                                           "updatedAt":  "2026-02-17T04:27:07.585132Z",
+                                                           "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                           "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                           "deletedAt":  null,
+                                                           "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                           "envelopeId":  "4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                                           "recipientId":  "09d48da5-c30b-42e0-8073-ac5997039ead",
+                                                           "eventType":  "VIEWED",
+                                                           "eventPayload":  "{recipientId=09d48da5-c30b-42e0-8073-ac5997039ead}"
+                                                       },
+                                                       {
+                                                           "id":  "b5e05a2b-520e-482e-8f8c-a2dd5dd43327",
+                                                           "createdAt":  "2026-02-17T04:27:07.600275Z",
+                                                           "updatedAt":  "2026-02-17T04:27:07.600275Z",
+                                                           "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                           "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                           "deletedAt":  null,
+                                                           "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                           "envelopeId":  "4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                                           "recipientId":  "09d48da5-c30b-42e0-8073-ac5997039ead",
+                                                           "eventType":  "SIGNED",
+                                                           "eventPayload":  "{recipientId=09d48da5-c30b-42e0-8073-ac5997039ead}"
+                                                       },
+                                                       {
+                                                           "id":  "790672ce-14e5-4634-b243-9f8545e3019f",
+                                                           "createdAt":  "2026-02-17T04:27:07.608128Z",
+                                                           "updatedAt":  "2026-02-17T04:27:07.608128Z",
+                                                           "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                           "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                           "deletedAt":  null,
+                                                           "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                           "envelopeId":  "4af68227-4295-4971-ae2f-3ca34cc6a35c",
+                                                           "recipientId":  "09d48da5-c30b-42e0-8073-ac5997039ead",
+                                                           "eventType":  "COMPLETED",
+                                                           "eventPayload":  "{envelopeId=4af68227-4295-4971-ae2f-3ca34cc6a35c}"
+                                                       }
+                                                   ]
+                                      }
+                     },
+                     {
+                         "step":  "S8-create-invoice",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/invoices",
+                         "statusCode":  200,
+                         "request":  {
+                                         "amount":  1000000,
+                                         "currency":  "KRW",
+                                         "phase":  "FINAL",
+                                         "dueAt":  "2026-02-24T04:27:07.6263193Z",
+                                         "invoiceNumber":  "INV-20260217132706"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "775b1925-a5d7-4a29-8a44-596520e6b8e9",
+                                                       "createdAt":  "2026-02-17T04:27:07.6360548Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.6360548Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "invoiceNumber":  "INV-20260217132706",
+                                                       "phase":  "FINAL",
+                                                       "amount":  1000000,
+                                                       "currency":  "KRW",
+                                                       "status":  "DRAFT",
+                                                       "dueAt":  "2026-02-24T04:27:07.6263193Z"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S8-confirm-invoice",
+                         "method":  "PATCH",
+                         "path":  "/api/invoices/775b1925-a5d7-4a29-8a44-596520e6b8e9/status",
+                         "statusCode":  200,
+                         "request":  {
+                                         "status":  "CONFIRMED"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "775b1925-a5d7-4a29-8a44-596520e6b8e9",
+                                                       "createdAt":  "2026-02-17T04:27:07.636055Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.6495165Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "invoiceNumber":  "INV-20260217132706",
+                                                       "phase":  "FINAL",
+                                                       "amount":  1000000,
+                                                       "currency":  "KRW",
+                                                       "status":  "CONFIRMED",
+                                                       "dueAt":  "2026-02-24T04:27:07.626319Z"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S8-add-attachment",
+                         "method":  "POST",
+                         "path":  "/api/invoices/775b1925-a5d7-4a29-8a44-596520e6b8e9/attachments/complete",
+                         "statusCode":  200,
+                         "request":  {
+                                         "attachmentType":  "PROOF",
+                                         "objectKey":  "dod/d69731af-99c8-430b-abbf-5e0816522ee4/invoice-proof.pdf"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "00991b3d-2111-4919-b205-10e40027a9aa",
+                                                       "createdAt":  "2026-02-17T04:27:07.6624153Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.6624153Z",
+                                                       "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "invoiceId":  "775b1925-a5d7-4a29-8a44-596520e6b8e9",
+                                                       "attachmentType":  "PROOF",
+                                                       "objectKey":  "dod/d69731af-99c8-430b-abbf-5e0816522ee4/invoice-proof.pdf"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S8-list-attachments",
+                         "method":  "GET",
+                         "path":  "/api/invoices/775b1925-a5d7-4a29-8a44-596520e6b8e9/attachments",
+                         "statusCode":  200,
+                         "request":  null,
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "00991b3d-2111-4919-b205-10e40027a9aa",
+                                                       "createdAt":  "2026-02-17T04:27:07.662415Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.662415Z",
+                                                       "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "invoiceId":  "775b1925-a5d7-4a29-8a44-596520e6b8e9",
+                                                       "attachmentType":  "PROOF",
+                                                       "objectKey":  "dod/d69731af-99c8-430b-abbf-5e0816522ee4/invoice-proof.pdf"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S9-create-policy",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/vault/policies",
+                         "statusCode":  200,
+                         "request":  {
+                                         "ruleJson":  "{\"allow\":[\"REQUEST\",\"REVEAL\"]}",
+                                         "name":  "DoD Vault Policy"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "042918b1-8d03-4529-9272-09a9314c0586",
+                                                       "createdAt":  "2026-02-17T04:27:07.6868413Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.6868413Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "name":  "DoD Vault Policy",
+                                                       "ruleJson":  "{\"allow\":[\"REQUEST\",\"REVEAL\"]}"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S9-create-secret",
+                         "method":  "POST",
+                         "path":  "/api/projects/d69731af-99c8-430b-abbf-5e0816522ee4/vault/secrets",
+                         "statusCode":  200,
+                         "request":  {
+                                         "plainSecret":  "__REDACTED_SECRET__",
+                                         "name":  "DoD Production DB",
+                                         "requestReason":  "E2E DoD validation",
+                                         "type":  "DB",
+                                         "siteUrl":  "https://db.internal"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "bd6eabde-2f85-4f43-8067-23f4891b51de",
+                                                       "createdAt":  "2026-02-17T04:27:07.7028676Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.7028676Z",
+                                                       "createdBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "projectId":  "d69731af-99c8-430b-abbf-5e0816522ee4",
+                                                       "name":  "DoD Production DB",
+                                                       "siteUrl":  "https://db.internal",
+                                                       "requestReason":  "E2E DoD validation",
+                                                       "requestedByUserId":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "providedByUserId":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "providedAt":  "2026-02-17T04:27:07.7023545Z",
+                                                       "credentialReady":  true,
+                                                       "type":  "DB",
+                                                       "secretCiphertext":  "__REDACTED_SECRET__",
+                                                       "nonce":  "__REDACTED_SECRET__",
+                                                       "version":  1,
+                                                       "status":  "ACTIVE"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S9-request-access",
+                         "method":  "POST",
+                         "path":  "/api/vault/secrets/bd6eabde-2f85-4f43-8067-23f4891b51de/access-requests",
+                         "statusCode":  200,
+                         "request":  null,
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "c3a860ed-4573-4706-b512-aca824633094",
+                                                       "createdAt":  "2026-02-17T04:27:07.7180713Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.7180713Z",
+                                                       "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "updatedBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "secretId":  "bd6eabde-2f85-4f43-8067-23f4891b51de",
+                                                       "requesterUserId":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "approverUserId":  null,
+                                                       "status":  "REQUESTED",
+                                                       "expiresAt":  "2026-02-18T04:27:07.7175487Z"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S9-approve-access",
+                         "method":  "PATCH",
+                         "path":  "/api/vault/access-requests/c3a860ed-4573-4706-b512-aca824633094",
+                         "statusCode":  200,
+                         "request":  {
+                                         "status":  "APPROVED"
+                                     },
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "id":  "c3a860ed-4573-4706-b512-aca824633094",
+                                                       "createdAt":  "2026-02-17T04:27:07.718071Z",
+                                                       "updatedAt":  "2026-02-17T04:27:07.7394779Z",
+                                                       "createdBy":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "updatedBy":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "deletedAt":  null,
+                                                       "tenantId":  "48324b65-a11e-4c05-bf93-74f540284c4f",
+                                                       "secretId":  "bd6eabde-2f85-4f43-8067-23f4891b51de",
+                                                       "requesterUserId":  "c757f9e3-e130-4a5f-9af8-1f0698549719",
+                                                       "approverUserId":  "bb46ca61-89a6-444d-9ebf-1497e876e226",
+                                                       "status":  "APPROVED",
+                                                       "expiresAt":  "2026-02-18T04:27:07.717549Z"
+                                                   }
+                                      }
+                     },
+                     {
+                         "step":  "S9-reveal-secret",
+                         "method":  "POST",
+                         "path":  "/api/vault/secrets/bd6eabde-2f85-4f43-8067-23f4891b51de/reveal",
+                         "statusCode":  200,
+                         "request":  null,
+                         "response":  {
+                                          "success":  true,
+                                          "data":  {
+                                                       "version":  1,
+                                                       "secret":  "__REDACTED_SECRET__"
+                                                   }
+                                      }
+                     }
+                 ]
+}

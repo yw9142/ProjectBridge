@@ -1,0 +1,109 @@
+name: Deploy Web Apps (Vercel)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/pm-web/**"
+      - "apps/client-web/**"
+      - "apps/admin-web/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/deploy-web-vercel.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Vercel target environment"
+        type: choice
+        required: true
+        default: preview
+        options:
+          - preview
+          - production
+
+concurrency:
+  group: deploy-web-vercel-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ matrix.app.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - name: pm-web
+            path: apps/pm-web
+            org_secret: VERCEL_PM_ORG_ID
+            project_secret: VERCEL_PM_PROJECT_ID
+          - name: client-web
+            path: apps/client-web
+            org_secret: VERCEL_CLIENT_ORG_ID
+            project_secret: VERCEL_CLIENT_PROJECT_ID
+          - name: admin-web
+            path: apps/admin-web
+            org_secret: VERCEL_ADMIN_ORG_ID
+            project_secret: VERCEL_ADMIN_PROJECT_ID
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets[matrix.app.org_secret] }}
+      VERCEL_PROJECT_ID: ${{ secrets[matrix.app.project_secret] }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Resolve deploy target
+        id: target
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "env=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "env=production" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate Vercel secrets
+        shell: bash
+        run: |
+          test -n "$VERCEL_TOKEN"
+          test -n "$VERCEL_ORG_ID"
+          test -n "$VERCEL_PROJECT_ID"
+
+      - name: Install dependencies (repo root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Pull Vercel environment
+        working-directory: ${{ matrix.app.path }}
+        run: |
+          pnpm dlx vercel@latest pull \
+            --yes \
+            --token "$VERCEL_TOKEN" \
+            --environment "${{ steps.target.outputs.env }}"
+
+      - name: Build Vercel artifacts
+        working-directory: ${{ matrix.app.path }}
+        run: pnpm dlx vercel@latest build --token "$VERCEL_TOKEN"
+
+      - name: Deploy to Vercel (preview)
+        if: steps.target.outputs.env == 'preview'
+        working-directory: ${{ matrix.app.path }}
+        run: pnpm dlx vercel@latest deploy --prebuilt --token "$VERCEL_TOKEN"
+
+      - name: Deploy to Vercel (production)
+        if: steps.target.outputs.env == 'production'
+        working-directory: ${{ matrix.app.path }}
+        run: pnpm dlx vercel@latest deploy --prebuilt --prod --token "$VERCEL_TOKEN"

@@ -67,7 +67,7 @@
 | Phase 4 Contracts & eSign | 백엔드 완료 | 프론트 화면 미완료 |
 | Phase 5 Billing & Vault | 백엔드 완료 | 프론트 화면 미완료 |
 | Phase 6 프론트 3앱 | 진행중(2차) | 3앱 라우트/로그인 가드/서명 경로 + Playwright MCP 스모크 + UI/UX 품질 게이트 완료 |
-| Phase 7 하드닝/문서화 | 진행중 | 배포 런북/DoD 체크리스트 문서화 완료, DoD 1~9 실증만 남음 |
+| Phase 7 하드닝/문서화 | 완료 | DoD 1~9 실증 완료 + Vercel/AWS 배포 파이프라인(GitHub Actions) 구현 완료 |
 
 ## 2.2 완료된 작업(백엔드 중심)
 
@@ -127,7 +127,7 @@
   - `/sign/[recipientToken]` 페이지에서 `GET /api/signing/{recipientToken}` 호출로 소유권 검증 결과를 표시하고, `viewed/submit` 액션 버튼 연결
   - `pm-web`, `admin-web`, `client-web` lint 통과
 - 미완료/잔여
-  - DoD 데모 시나리오 1~9 실증(도메인 전체 플로우)
+  - 없음 (DoD 1~9 실증 완료, 배포 파이프라인 구현 완료)
 
 ---
 
@@ -151,13 +151,13 @@
 - [x] `/sign/[recipientToken]` 로그인 강제 + 소유권 검증 UI 흐름
 - [x] Playwright MCP E2E
 - [x] UI/UX Quality Gate(Phase 6/7)
-- [ ] 최종 DoD 데모 시나리오 1~9
+- [x] 최종 DoD 데모 시나리오 1~9
 
 ---
 
 ## 4) 다음 재개 시 우선순위
-1. DoD 데모 시나리오 1~9 실증(스크린샷/응답 증빙 포함)
-2. 배포 파이프라인 구현(Vercel 3앱 + AWS backend)
+1. 운영 환경 시크릿 주입 후 배포 파이프라인 실배포 검증
+2. 프로덕션 도메인 연결 및 롤백 리허설
 
 ---
 
@@ -366,11 +366,11 @@
 - PM/Client/Admin 보호 라우트 로그인 강제 + 로그인 후 복귀 확인
 - `/sign/[recipientToken]` 토큰 검증 동작 확인
 - 근거 문서:
-  - `docs/PLAYWRIGHT_MCP_E2E.md`
+  - `docs/Test/PLAYWRIGHT_MCP_E2E.md`
 
 ### 11.3 DoD/배포 문서화
 - DoD 1~9 실증 체크리스트 추가:
-  - `docs/DOD_DEMO_CHECKLIST.md`
+  - `docs/Test/DOD_DEMO_CHECKLIST.md`
 - 배포 전략 초안 확정:
   - 프론트 `Vercel`, 백엔드 `AWS`
   - `docs/DEPLOYMENT_RUNBOOK.md`
@@ -386,3 +386,26 @@
 - client-web: `pnpm -C apps/client-web build` ✅ 통과
 - admin-web: `pnpm -C apps/admin-web lint` ✅ 통과
 - admin-web: `pnpm -C apps/admin-web build` ✅ 통과
+
+## 12) 2026-02-17 추가 업데이트 (DoD 실증 + 배포 파이프라인 구현 완료)
+
+### 12.1 DoD 시나리오 1~9 실증 완료
+- API 자동 실증 스크립트 추가:
+  - `scripts/run-dod-demo.ps1`
+- 실증 결과 산출물:
+  - `docs/Test/evidence/dod-demo-20260217-132706.md`
+  - `docs/Test/evidence/dod-demo-20260217-132706.json`
+- 체크리스트 상태 반영:
+  - `docs/Test/DOD_DEMO_CHECKLIST.md` (1~9 전부 DONE)
+
+### 12.2 배포 파이프라인 구현 완료
+- Frontend(Vercel 3앱) GitHub Actions:
+  - `.github/workflows/deploy-web-vercel.yml`
+- Backend(AWS ECS) GitHub Actions:
+  - `.github/workflows/deploy-backend-aws.yml`
+- 런북 갱신:
+  - `docs/DEPLOYMENT_RUNBOOK.md`
+
+### 12.3 현재 잔여
+- 기능 구현 잔여 없음
+- 운영 시크릿 주입 및 실배포 검증만 남음
