@@ -58,6 +58,26 @@ function statusLabel(value: RequestStatus) {
   return requestStatusOptions.find((item) => item.value === value)?.label ?? value;
 }
 
+function formatDate(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function sortByCreatedAt(items: RequestItem[]) {
+  return [...items].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
 export default function ProjectRequestsPage() {
   const projectId = useProjectId();
   const [items, setItems] = useState<RequestItem[]>([]);
@@ -80,6 +100,8 @@ export default function ProjectRequestsPage() {
     if (!editingId) return null;
     return items.find((item) => item.id === editingId) ?? null;
   }, [editingId, items]);
+
+  const sortedItems = useMemo(() => sortByCreatedAt(items), [items]);
 
   async function load() {
     setError(null);
@@ -191,22 +213,18 @@ export default function ProjectRequestsPage() {
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">유형</th>
-              <th className="px-4 py-3">제목</th>
-              <th className="px-4 py-3">설명</th>
               <th className="px-4 py-3">상태</th>
+              <th className="px-4 py-3">요청 유형</th>
+              <th className="px-4 py-3">제목</th>
+              <th className="px-4 py-3">내용</th>
+              <th className="px-4 py-3">등록자</th>
+              <th className="px-4 py-3">요청 시각</th>
               <th className="px-4 py-3">작업</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
-            {items.map((item) => (
+            {sortedItems.map((item) => (
               <tr key={item.id}>
-                <td className="px-4 py-3 text-slate-700">{typeLabel(item.type)}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">{item.title}</td>
-                <td className="px-4 py-3 text-slate-600">
-                  <p>{item.description || "-"}</p>
-                  <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
-                </td>
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${requestStatusBadgeStyles[item.status]}`}
@@ -214,6 +232,11 @@ export default function ProjectRequestsPage() {
                     {statusLabel(item.status)}
                   </span>
                 </td>
+                <td className="px-4 py-3 text-slate-700">{typeLabel(item.type)}</td>
+                <td className="px-4 py-3 font-medium text-slate-900">{item.title}</td>
+                <td className="px-4 py-3 text-slate-700">{item.description || "-"}</td>
+                <td className="px-4 py-3 text-slate-700">{item.createdByName ?? item.createdBy ?? "-"}</td>
+                <td className="px-4 py-3 text-slate-700">{formatDate(item.createdAt)}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button
@@ -237,9 +260,9 @@ export default function ProjectRequestsPage() {
                 </td>
               </tr>
             ))}
-            {!loading && items.length === 0 ? (
+            {!loading && sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
                   등록된 요청이 없습니다.
                 </td>
               </tr>

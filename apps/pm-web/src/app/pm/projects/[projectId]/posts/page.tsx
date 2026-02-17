@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { MessageSquare, Pin, UserCircle2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
@@ -18,8 +19,33 @@ type Post = {
   visibilityScope: VisibilityScope;
   createdBy?: string;
   createdByName?: string;
-  createdAt: string;
+  createdAt?: string;
+  commentCount?: number;
 };
+
+const postTypeLabels: Record<PostType, string> = {
+  ANNOUNCEMENT: "공지",
+  GENERAL: "일반",
+  QA: "Q&A",
+  ISSUE: "이슈",
+  MEETING_MINUTES: "회의록",
+  RISK: "리스크",
+};
+
+function formatDate(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function sortByCreatedAt(items: Post[]) {
+  return [...items].sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+}
 
 export default function ProjectPostsPage() {
   const projectId = useProjectId();
@@ -59,8 +85,8 @@ export default function ProjectPostsPage() {
     }
   }
 
-  const sharedPosts = posts.filter((post) => post.visibilityScope === "SHARED");
-  const internalPosts = posts.filter((post) => post.visibilityScope === "INTERNAL");
+  const sharedPosts = useMemo(() => sortByCreatedAt(posts.filter((post) => post.visibilityScope === "SHARED")), [posts]);
+  const internalPosts = useMemo(() => sortByCreatedAt(posts.filter((post) => post.visibilityScope === "INTERNAL")), [posts]);
 
   function renderPostSection(title: string, description: string, data: Post[]) {
     return (
@@ -69,29 +95,45 @@ export default function ProjectPostsPage() {
           <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
           <p className="text-xs text-slate-500">{description}</p>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {data.map((post) => (
-            <article key={post.id} className="rounded-lg border border-slate-200 p-3">
-              <div className="flex items-start justify-between gap-4">
-                <Link href={`/pm/projects/${projectId}/posts/${post.id}`} className="block min-w-0 flex-1">
-                  <p className="text-xs text-slate-500">
-                    {post.type}
-                    {post.pinned ? " · 고정" : ""}
-                  </p>
-                  <p className="text-xs text-slate-500">작성자: {post.createdByName ?? post.createdBy ?? "-"}</p>
-                  <p className="truncate font-semibold text-slate-900">{post.title}</p>
-                  <p className="mt-1 line-clamp-2 text-sm text-slate-600">{post.body}</p>
-                </Link>
-                <ConfirmActionButton
-                  label="삭제"
-                  title="게시글을 삭제할까요?"
-                  description="삭제 후 되돌릴 수 없습니다."
-                  onConfirm={() => removePost(post.id)}
-                  triggerVariant="destructive"
-                  triggerSize="sm"
-                  triggerClassName="rounded border border-red-700 bg-red-600 px-2 py-1 text-xs font-semibold !text-white hover:bg-red-700"
-                  confirmVariant="destructive"
-                />
+            <article key={post.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    {postTypeLabels[post.type] ?? post.type}
+                  </span>
+                  {post.pinned ? <Pin className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" /> : null}
+                </div>
+                <span className="text-xs text-slate-500">{formatDate(post.createdAt)}</span>
+              </div>
+
+              <Link href={`/pm/projects/${projectId}/posts/${post.id}`} className="mt-3 block">
+                <p className="text-lg font-semibold text-slate-900">{post.title}</p>
+                <p className="mt-2 line-clamp-2 text-sm text-slate-600">{post.body}</p>
+              </Link>
+
+              <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-3">
+                <p className="flex items-center gap-2 text-sm text-slate-600">
+                  <UserCircle2 className="h-4 w-4" aria-hidden="true" />
+                  {post.createdByName ?? post.createdBy ?? "-"}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
+                    <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                    댓글 {(post.commentCount ?? 0).toLocaleString("ko-KR")}개
+                  </span>
+                  <ConfirmActionButton
+                    label="삭제"
+                    title="게시글을 삭제할까요?"
+                    description="삭제 후 되돌릴 수 없습니다."
+                    onConfirm={() => removePost(post.id)}
+                    triggerVariant="destructive"
+                    triggerSize="sm"
+                    triggerClassName="rounded border border-red-700 bg-red-600 px-2.5 py-1.5 text-xs font-semibold !text-white hover:bg-red-700"
+                    confirmVariant="destructive"
+                  />
+                </div>
               </div>
             </article>
           ))}

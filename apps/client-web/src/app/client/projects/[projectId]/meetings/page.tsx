@@ -1,5 +1,6 @@
 "use client";
 
+import { ExternalLink, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
@@ -95,6 +96,10 @@ export default function ClientMeetingsPage() {
     }
   }
 
+  function joinMeeting(meetUrl: string) {
+    window.open(meetUrl, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -108,8 +113,9 @@ export default function ClientMeetingsPage() {
               <TableRow className="hover:bg-slate-50">
                 <TableHead>회의명</TableHead>
                 <TableHead>일정</TableHead>
-                <TableHead>링크</TableHead>
+                <TableHead>URL</TableHead>
                 <TableHead>상태</TableHead>
+                <TableHead>참석</TableHead>
                 <TableHead>내 응답</TableHead>
                 <TableHead>작업</TableHead>
               </TableRow>
@@ -120,12 +126,23 @@ export default function ClientMeetingsPage() {
                   <TableCell className="font-semibold text-slate-900">{item.title}</TableCell>
                   <TableCell>{formatDateTime(item.startAt)}</TableCell>
                   <TableCell>
-                    <a className="text-indigo-600 hover:underline" href={item.meetUrl} target="_blank" rel="noreferrer">
-                      회의 열기
+                    <a className="inline-flex items-center gap-1 text-indigo-600 hover:underline" href={item.meetUrl} target="_blank" rel="noreferrer">
+                      {item.meetUrl}
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                     </a>
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={item.status} />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => joinMeeting(item.meetUrl)}
+                      className="inline-flex items-center gap-1 rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      <Video className="h-3.5 w-3.5" aria-hidden="true" />
+                      참석
+                    </button>
                   </TableCell>
                   <TableCell>
                     <select
@@ -159,7 +176,7 @@ export default function ClientMeetingsPage() {
               ))}
               {!loading && sortedItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center text-sm text-slate-500">
+                  <TableCell colSpan={7} className="py-6 text-center text-sm text-slate-500">
                     표시할 회의가 없습니다.
                   </TableCell>
                 </TableRow>

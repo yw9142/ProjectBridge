@@ -1,21 +1,21 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { sanitizeNextPath } from "./lib/auth";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/_next") || path.startsWith("/favicon");
-  const token = request.cookies.get("bridge_pm_access_token")?.value;
+  const isPublic = path === "/admin/login" || path.startsWith("/_next") || path.startsWith("/favicon");
+  const token = request.cookies.get("bridge_admin_access_token")?.value;
 
   if (!isPublic && !token) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/admin/login";
     url.searchParams.set("next", `${path}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 
-  if (path === "/login" && token) {
-    const next = sanitizeNextPath(request.nextUrl.searchParams.get("next"), "/pm/projects");
+  if (path === "/admin/login" && token) {
+    const next = sanitizeNextPath(request.nextUrl.searchParams.get("next"), "/admin/tenants");
     return NextResponse.redirect(new URL(next, request.url));
   }
 
@@ -25,3 +25,4 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
+

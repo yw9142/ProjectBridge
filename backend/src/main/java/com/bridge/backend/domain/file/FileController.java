@@ -22,6 +22,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +33,7 @@ import java.util.UUID;
 @RestController
 public class FileController {
     private final FileRepository fileRepository;
+    private final FileFolderRepository fileFolderRepository;
     private final FileVersionRepository fileVersionRepository;
     private final FileCommentRepository fileCommentRepository;
     private final AccessGuardService guardService;
@@ -37,12 +41,14 @@ public class FileController {
     private final OutboxService outboxService;
 
     public FileController(FileRepository fileRepository,
+                          FileFolderRepository fileFolderRepository,
                           FileVersionRepository fileVersionRepository,
                           FileCommentRepository fileCommentRepository,
                           AccessGuardService guardService,
                           StorageService storageService,
                           OutboxService outboxService) {
         this.fileRepository = fileRepository;
+        this.fileFolderRepository = fileFolderRepository;
         this.fileVersionRepository = fileVersionRepository;
         this.fileCommentRepository = fileCommentRepository;
         this.guardService = guardService;
@@ -63,6 +69,136 @@ public class FileController {
         return ApiSuccess.of(files);
     }
 
+    @GetMapping("/api/projects/{projectId}/file-folders")
+    public ApiSuccess<List<FileFolderEntity>> listFolders(@PathVariable UUID projectId) {
+        var principal = SecurityUtils.requirePrincipal();
+        guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
+        List<FileFolderEntity> folders = fileFolderRepository.findByProjectIdAndTenantIdAndDeletedAtIsNullOrderByPathAsc(projectId, principal.getTenantId());
+        return ApiSuccess.of(folders);
+    }
+
+    @PostMapping("/api/projects/{projectId}/file-folders")
+    public ApiSuccess<FileFolderEntity> createFolder(@PathVariable UUID projectId, @RequestBody @Valid CreateFolderRequest request) {
+        var principal = SecurityUtils.requirePrincipal();
+        guardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
+                Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
+
+        String parentPath = normalizeFolderPath(request.parentPath());
+        if (!"/".equals(parentPath) && fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), parentPath).isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_PARENT_NOT_FOUND", "?곸쐞 ?대뜑瑜?李얠쓣 ???놁뒿?덈떎.");
+        }
+
+        String folderName = normalizeFolderName(request.name());
+        String path = buildFolderPath(parentPath, folderName);
+        if (fileFolderRepository.existsByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), path)) {
+            throw new AppException(HttpStatus.CONFLICT, "FOLDER_ALREADY_EXISTS", "?대? ?숈씪???대뜑媛 議댁옱?⑸땲??");
+        }
+
+        FileFolderEntity folder = new FileFolderEntity();
+        folder.setTenantId(principal.getTenantId());
+        folder.setProjectId(projectId);
+        folder.setPath(path);
+        folder.setCreatedBy(principal.getUserId());
+        folder.setUpdatedBy(principal.getUserId());
+        return ApiSuccess.of(fileFolderRepository.save(folder));
+    }
+
+    @PostMapping("/api/projects/{projectId}/file-folders/rename")
+    public ApiSuccess<Map<String, Object>> renameFolder(@PathVariable UUID projectId, @RequestBody @Valid RenameFolderRequest request) {
+        var principal = SecurityUtils.requirePrincipal();
+        guardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
+                Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
+
+        String sourcePath = normalizeFolderPath(request.sourcePath());
+        if ("/".equals(sourcePath)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_RENAME_FORBIDDEN", "루트 폴더는 수정할 수 없습니다.");
+        }
+        fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), sourcePath)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FOLDER_NOT_FOUND", "수정할 폴더를 찾을 수 없습니다."));
+
+        String destinationPath = buildFolderPath(parentFolderPath(sourcePath), normalizeFolderName(request.name()));
+        return ApiSuccess.of(relocateFolderTree(projectId, principal.getTenantId(), principal.getUserId(), sourcePath, destinationPath));
+    }
+
+    @PostMapping("/api/projects/{projectId}/file-folders/move")
+    public ApiSuccess<Map<String, Object>> moveFolder(@PathVariable UUID projectId, @RequestBody @Valid MoveFolderRequest request) {
+        var principal = SecurityUtils.requirePrincipal();
+        guardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
+                Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
+
+        String sourcePath = normalizeFolderPath(request.sourcePath());
+        String targetPath = normalizeFolderPath(request.targetPath());
+        if ("/".equals(sourcePath)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_MOVE_FORBIDDEN", "루트 폴더는 이동할 수 없습니다.");
+        }
+
+        fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), sourcePath)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FOLDER_NOT_FOUND", "이동할 폴더를 찾을 수 없습니다."));
+
+        if (!"/".equals(targetPath) && fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), targetPath).isEmpty()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_TARGET_NOT_FOUND", "대상 폴더를 찾을 수 없습니다.");
+        }
+
+        String destinationPath = buildFolderPath(targetPath, folderNameFromPath(sourcePath));
+        return ApiSuccess.of(relocateFolderTree(projectId, principal.getTenantId(), principal.getUserId(), sourcePath, destinationPath));
+    }
+
+    @PostMapping("/api/projects/{projectId}/file-folders/delete")
+    public ApiSuccess<Map<String, Object>> deleteFolder(@PathVariable UUID projectId, @RequestBody @Valid DeleteFolderRequest request) {
+        var principal = SecurityUtils.requirePrincipal();
+        guardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
+                Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
+
+        String folderPath = normalizeFolderPath(request.path());
+        if ("/".equals(folderPath)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_DELETE_FORBIDDEN", "루트 폴더는 삭제할 수 없습니다.");
+        }
+        fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), folderPath)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FOLDER_NOT_FOUND", "삭제할 폴더를 찾을 수 없습니다."));
+
+        List<FileFolderEntity> allFolders = fileFolderRepository.findByProjectIdAndTenantIdAndDeletedAtIsNullOrderByPathAsc(projectId, principal.getTenantId());
+        Set<String> deletingPaths = new HashSet<>();
+        for (FileFolderEntity folder : allFolders) {
+            if (folder.getPath().equals(folderPath) || folder.getPath().startsWith(folderPath + "/")) {
+                deletingPaths.add(folder.getPath());
+            }
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        List<FileFolderEntity> deletingFolders = new ArrayList<>();
+        for (FileFolderEntity folder : allFolders) {
+            if (!deletingPaths.contains(folder.getPath())) {
+                continue;
+            }
+            folder.setDeletedAt(now);
+            folder.setUpdatedBy(principal.getUserId());
+            deletingFolders.add(folder);
+        }
+        if (!deletingFolders.isEmpty()) {
+            fileFolderRepository.saveAll(deletingFolders);
+        }
+
+        List<FileEntity> projectFiles = fileRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId());
+        List<FileEntity> deletingFiles = new ArrayList<>();
+        for (FileEntity file : projectFiles) {
+            String normalized = normalizeFolderPath(file.getFolder());
+            if (normalized.equals(folderPath) || normalized.startsWith(folderPath + "/")) {
+                file.setDeletedAt(now);
+                file.setUpdatedBy(principal.getUserId());
+                deletingFiles.add(file);
+            }
+        }
+        if (!deletingFiles.isEmpty()) {
+            fileRepository.saveAll(deletingFiles);
+        }
+
+        return ApiSuccess.of(Map.of(
+                "deletedFolders", deletingFolders.size(),
+                "deletedFiles", deletingFiles.size(),
+                "path", folderPath
+        ));
+    }
+
     @PostMapping("/api/projects/{projectId}/files")
     public ApiSuccess<FileEntity> create(@PathVariable UUID projectId, @RequestBody @Valid CreateFileRequest request) {
         var principal = SecurityUtils.requirePrincipal();
@@ -70,14 +206,16 @@ public class FileController {
                 Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER, MemberRole.CLIENT_OWNER, MemberRole.CLIENT_MEMBER));
         VisibilityScope visibilityScope = resolveVisibilityScope(request.visibilityScope());
         if (isClientRole(member.getRole()) && visibilityScope == VisibilityScope.INTERNAL) {
-            throw new AppException(HttpStatus.FORBIDDEN, "FILE_VISIBILITY_FORBIDDEN", "클라이언트는 내부용 파일을 생성할 수 없습니다.");
+            throw new AppException(HttpStatus.FORBIDDEN, "FILE_VISIBILITY_FORBIDDEN", "?대씪?댁뼵?몃뒗 ?대????뚯씪???앹꽦?????놁뒿?덈떎.");
         }
         FileEntity file = new FileEntity();
         file.setTenantId(principal.getTenantId());
         file.setProjectId(projectId);
         file.setName(request.name());
         file.setDescription(request.description());
-        file.setFolder(request.folder() == null ? "/" : request.folder());
+        String normalizedFolder = normalizeFolderPath(request.folder());
+        upsertFolderPathHierarchy(projectId, principal.getTenantId(), normalizedFolder, principal.getUserId());
+        file.setFolder(normalizedFolder);
         file.setVisibilityScope(visibilityScope);
         file.setCreatedBy(principal.getUserId());
         file.setUpdatedBy(principal.getUserId());
@@ -97,7 +235,9 @@ public class FileController {
             file.setDescription(request.description());
         }
         if (request.folder() != null) {
-            file.setFolder(request.folder());
+            String normalizedFolder = normalizeFolderPath(request.folder());
+            upsertFolderPathHierarchy(file.getProjectId(), principal.getTenantId(), normalizedFolder, principal.getUserId());
+            file.setFolder(normalizedFolder);
         }
         if (request.visibilityScope() != null) {
             file.setVisibilityScope(request.visibilityScope());
@@ -202,9 +342,9 @@ public class FileController {
     public ApiSuccess<Map<String, Object>> downloadUrl(@PathVariable UUID fileVersionId) {
         var principal = SecurityUtils.requirePrincipal();
         FileVersionEntity version = fileVersionRepository.findById(fileVersionId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "?뚯씪 踰꾩쟾??李얠쓣 ???놁뒿?덈떎."));
         if (version.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "?뚯씪 踰꾩쟾??李얠쓣 ???놁뒿?덈떎.");
         }
         FileEntity file = requireActiveFile(version.getFileId());
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
@@ -215,7 +355,7 @@ public class FileController {
     public ApiSuccess<FileCommentEntity> comment(@PathVariable UUID fileVersionId, @RequestBody @Valid CreateCommentRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         FileVersionEntity version = fileVersionRepository.findById(fileVersionId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "?뚯씪 踰꾩쟾??李얠쓣 ???놁뒿?덈떎."));
         FileEntity file = requireActiveFile(version.getFileId());
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         FileCommentEntity comment = new FileCommentEntity();
@@ -238,7 +378,7 @@ public class FileController {
     public ApiSuccess<List<FileCommentEntity>> comments(@PathVariable UUID fileVersionId) {
         var principal = SecurityUtils.requirePrincipal();
         FileVersionEntity version = fileVersionRepository.findById(fileVersionId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "?뚯씪 踰꾩쟾??李얠쓣 ???놁뒿?덈떎."));
         FileEntity file = requireActiveFile(version.getFileId());
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         return ApiSuccess.of(fileCommentRepository.findByFileVersionIdAndTenantIdAndDeletedAtIsNull(fileVersionId, principal.getTenantId()));
@@ -248,12 +388,12 @@ public class FileController {
     public ApiSuccess<FileCommentEntity> resolve(@PathVariable UUID commentId) {
         var principal = SecurityUtils.requirePrincipal();
         FileCommentEntity comment = fileCommentRepository.findById(commentId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_COMMENT_NOT_FOUND", "파일 코멘트를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_COMMENT_NOT_FOUND", "?뚯씪 肄붾찘?몃? 李얠쓣 ???놁뒿?덈떎."));
         if (comment.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "FILE_COMMENT_NOT_FOUND", "파일 코멘트를 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_COMMENT_NOT_FOUND", "?뚯씪 肄붾찘?몃? 李얠쓣 ???놁뒿?덈떎.");
         }
         FileVersionEntity version = fileVersionRepository.findById(comment.getFileVersionId())
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "?뚯씪 踰꾩쟾??李얠쓣 ???놁뒿?덈떎."));
         FileEntity file = requireActiveFile(version.getFileId());
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         comment.setStatus(FileCommentStatus.RESOLVED);
@@ -266,9 +406,9 @@ public class FileController {
 
     private FileEntity requireActiveFile(UUID fileId) {
         FileEntity file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "파일을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "?뚯씪??李얠쓣 ???놁뒿?덈떎."));
         if (file.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "파일을 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "?뚯씪??李얠쓣 ???놁뒿?덈떎.");
         }
         return file;
     }
@@ -281,7 +421,7 @@ public class FileController {
 
     private void ensureVisibleToMember(FileEntity file, ProjectMemberEntity member) {
         if (isClientRole(member.getRole()) && file.getVisibilityScope() == VisibilityScope.INTERNAL) {
-            throw new AppException(HttpStatus.FORBIDDEN, "FILE_NOT_VISIBLE", "클라이언트에게 비공개 파일입니다.");
+            throw new AppException(HttpStatus.FORBIDDEN, "FILE_NOT_VISIBLE", "?대씪?댁뼵?몄뿉寃?鍮꾧났媛??뚯씪?낅땲??");
         }
     }
 
@@ -293,10 +433,170 @@ public class FileController {
         return scope == null ? VisibilityScope.SHARED : scope;
     }
 
+    private void upsertFolderPathHierarchy(UUID projectId, UUID tenantId, String folderPath, UUID actorUserId) {
+        if ("/".equals(folderPath)) {
+            return;
+        }
+        String[] parts = folderPath.substring(1).split("/");
+        String current = "";
+        for (String part : parts) {
+            if (part.isBlank()) {
+                continue;
+            }
+            current = current + "/" + part;
+            boolean exists = fileFolderRepository.existsByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, tenantId, current);
+            if (!exists) {
+                FileFolderEntity folder = new FileFolderEntity();
+                folder.setTenantId(tenantId);
+                folder.setProjectId(projectId);
+                folder.setPath(current);
+                folder.setCreatedBy(actorUserId);
+                folder.setUpdatedBy(actorUserId);
+                fileFolderRepository.save(folder);
+            }
+        }
+    }
+
+    private Map<String, Object> relocateFolderTree(UUID projectId, UUID tenantId, UUID actorUserId, String sourcePath, String destinationPath) {
+        if (destinationPath.equals(sourcePath)) {
+            return Map.of(
+                    "movedFolders", 0,
+                    "movedFiles", 0,
+                    "destinationPath", destinationPath
+            );
+        }
+        if (destinationPath.startsWith(sourcePath + "/")) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_MOVE_INVALID", "하위 폴더로는 이동할 수 없습니다.");
+        }
+
+        List<FileFolderEntity> allFolders = fileFolderRepository.findByProjectIdAndTenantIdAndDeletedAtIsNullOrderByPathAsc(projectId, tenantId);
+        Set<String> movingPaths = new HashSet<>();
+        for (FileFolderEntity folder : allFolders) {
+            if (folder.getPath().equals(sourcePath) || folder.getPath().startsWith(sourcePath + "/")) {
+                movingPaths.add(folder.getPath());
+            }
+        }
+
+        Set<String> occupiedPaths = new HashSet<>();
+        for (FileFolderEntity folder : allFolders) {
+            if (!movingPaths.contains(folder.getPath())) {
+                occupiedPaths.add(folder.getPath());
+            }
+        }
+
+        Map<String, String> pathReplacements = new HashMap<>();
+        for (String movingPath : movingPaths) {
+            String nextPath = destinationPath + movingPath.substring(sourcePath.length());
+            if (occupiedPaths.contains(nextPath)) {
+                throw new AppException(HttpStatus.CONFLICT, "FOLDER_ALREADY_EXISTS", "대상 위치에 동일한 폴더가 존재합니다.");
+            }
+            pathReplacements.put(movingPath, nextPath);
+        }
+
+        List<FileFolderEntity> changedFolders = new ArrayList<>();
+        for (FileFolderEntity folder : allFolders) {
+            String replaced = pathReplacements.get(folder.getPath());
+            if (replaced != null) {
+                folder.setPath(replaced);
+                folder.setUpdatedBy(actorUserId);
+                changedFolders.add(folder);
+            }
+        }
+        if (!changedFolders.isEmpty()) {
+            changedFolders.sort(Comparator.comparing(FileFolderEntity::getPath));
+            fileFolderRepository.saveAll(changedFolders);
+        }
+
+        List<FileEntity> projectFiles = fileRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, tenantId);
+        int movedFiles = 0;
+        for (FileEntity file : projectFiles) {
+            String folderPath = normalizeFolderPath(file.getFolder());
+            if (folderPath.equals(sourcePath) || folderPath.startsWith(sourcePath + "/")) {
+                String nextPath = destinationPath + folderPath.substring(sourcePath.length());
+                file.setFolder(nextPath);
+                file.setUpdatedBy(actorUserId);
+                movedFiles += 1;
+            }
+        }
+        if (movedFiles > 0) {
+            fileRepository.saveAll(projectFiles);
+        }
+
+        return Map.of(
+                "movedFolders", changedFolders.size(),
+                "movedFiles", movedFiles,
+                "destinationPath", destinationPath
+        );
+    }
+
+    private String normalizeFolderPath(String rawPath) {
+        if (rawPath == null || rawPath.isBlank()) {
+            return "/";
+        }
+        String path = rawPath.trim().replace("\\", "/");
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        path = path.replaceAll("/+", "/");
+        if (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path.isBlank() ? "/" : path;
+    }
+
+    private String normalizeFolderName(String name) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_NAME_INVALID", "?대뜑 ?대쫫???낅젰??二쇱꽭??");
+        }
+        if (trimmed.contains("/")) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_NAME_INVALID", "?대뜑 ?대쫫?먮뒗 '/'瑜??ъ슜?????놁뒿?덈떎.");
+        }
+        return trimmed;
+    }
+
+    private String folderNameFromPath(String path) {
+        if ("/".equals(path)) {
+            return "";
+        }
+        int idx = path.lastIndexOf("/");
+        return idx < 0 ? path : path.substring(idx + 1);
+    }
+
+    private String parentFolderPath(String path) {
+        if ("/".equals(path)) {
+            return "/";
+        }
+        int idx = path.lastIndexOf("/");
+        if (idx <= 0) {
+            return "/";
+        }
+        return path.substring(0, idx);
+    }
+
+    private String buildFolderPath(String parentPath, String folderName) {
+        if ("/".equals(parentPath)) {
+            return "/" + folderName;
+        }
+        return parentPath + "/" + folderName;
+    }
+
     public record CreateFileRequest(@NotBlank String name, String description, String folder, VisibilityScope visibilityScope) {
     }
 
     public record PatchFileRequest(String name, String description, String folder, VisibilityScope visibilityScope) {
+    }
+
+    public record CreateFolderRequest(@NotBlank String name, String parentPath) {
+    }
+
+    public record MoveFolderRequest(@NotBlank String sourcePath, String targetPath) {
+    }
+
+    public record RenameFolderRequest(@NotBlank String sourcePath, @NotBlank String name) {
+    }
+
+    public record DeleteFolderRequest(@NotBlank String path) {
     }
 
     public record PresignRequest(@NotBlank String contentType) {

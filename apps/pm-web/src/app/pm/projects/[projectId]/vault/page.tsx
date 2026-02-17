@@ -21,6 +21,11 @@ type CredentialPair = {
   password: string;
 };
 
+const vaultStatusStyles = {
+  READY: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  PENDING: "border-amber-200 bg-amber-50 text-amber-700",
+};
+
 function parseCredential(raw: string): CredentialPair {
   try {
     const parsed = JSON.parse(raw) as { id?: string; password?: string };
@@ -199,7 +204,15 @@ export default function ProjectVaultPage() {
                     <p>{item.requestReason || "-"}</p>
                     <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{item.credentialReady ? "입력 완료" : "요청"}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                        item.credentialReady ? vaultStatusStyles.READY : vaultStatusStyles.PENDING
+                      }`}
+                    >
+                      {item.credentialReady ? "입력 완료" : "입력 대기"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-slate-700">{credential?.id ?? "-"}</td>
                   <td className="px-4 py-3 text-slate-700">{credential?.password ?? "-"}</td>
                   <td className="px-4 py-3 text-slate-700">{formatDate(item.providedAt)}</td>

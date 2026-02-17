@@ -4,6 +4,7 @@ import com.bridge.backend.common.model.TenantScopedEntity;
 import com.bridge.backend.common.model.enums.PostType;
 import com.bridge.backend.common.model.enums.VisibilityScope;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Formula;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -33,4 +34,7 @@ public class PostEntity extends TenantScopedEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "visibility_scope", nullable = false, length = 20)
     private VisibilityScope visibilityScope = VisibilityScope.SHARED;
+
+    @Formula("(select count(1) from post_comments pc where pc.post_id = id and pc.deleted_at is null)")
+    private long commentCount;
 }

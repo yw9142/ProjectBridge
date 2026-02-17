@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { ExternalLink, Video } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
@@ -33,6 +34,11 @@ const statuses: Array<{ value: MeetingStatus; label: string }> = [
   { value: "SCHEDULED", label: "예정" },
   { value: "CANCELLED", label: "취소" },
 ];
+
+const statusBadgeStyles: Record<MeetingStatus, string> = {
+  SCHEDULED: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  CANCELLED: "border-slate-300 bg-slate-100 text-slate-700",
+};
 
 const weekdayToJsDay: Record<Weekday, number> = {
   MON: 1,
@@ -84,6 +90,10 @@ function formatDateTime(value: string) {
   }).format(date);
 }
 
+function sortByStartAt(items: Meeting[]) {
+  return [...items].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+}
+
 export default function ProjectMeetingsPage() {
   const projectId = useProjectId();
   const [items, setItems] = useState<Meeting[]>([]);
@@ -103,6 +113,8 @@ export default function ProjectMeetingsPage() {
   const [editStatus, setEditStatus] = useState<MeetingStatus>("SCHEDULED");
 
   const [error, setError] = useState<string | null>(null);
+
+  const sortedItems = useMemo(() => sortByStartAt(items), [items]);
 
   async function load() {
     setError(null);
@@ -202,12 +214,16 @@ export default function ProjectMeetingsPage() {
     }
   }
 
+  function joinMeeting(meetUrl: string) {
+    window.open(meetUrl, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">회의</h1>
-          <p className="text-sm text-slate-500">회의를 생성한 뒤 목록에서 수정/삭제합니다.</p>
+          <p className="text-sm text-slate-500">회의를 생성하고 참석 버튼으로 바로 입장합니다.</p>
         </div>
         <button
           type="button"
@@ -222,24 +238,40 @@ export default function ProjectMeetingsPage() {
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">제목</th>
+              <th className="px-4 py-3">회의명</th>
               <th className="px-4 py-3">일정</th>
-              <th className="px-4 py-3">회의 링크</th>
+              <th className="px-4 py-3">URL</th>
               <th className="px-4 py-3">상태</th>
+              <th className="px-4 py-3">참석</th>
               <th className="px-4 py-3">작업</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
-            {items.map((item) => (
+            {sortedItems.map((item) => (
               <tr key={item.id}>
                 <td className="px-4 py-3 font-medium text-slate-900">{item.title}</td>
                 <td className="px-4 py-3 text-slate-700">{formatDateTime(item.startAt)}</td>
                 <td className="px-4 py-3 text-slate-700">
-                  <a className="text-indigo-600 hover:underline" href={item.meetUrl} target="_blank" rel="noreferrer">
+                  <a className="inline-flex items-center gap-1 text-indigo-600 hover:underline" href={item.meetUrl} target="_blank" rel="noreferrer">
                     {item.meetUrl}
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                   </a>
                 </td>
-                <td className="px-4 py-3 text-slate-700">{statuses.find((status) => status.value === item.status)?.label ?? item.status}</td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeStyles[item.status]}`}>
+                    {statuses.find((status) => status.value === item.status)?.label ?? item.status}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => joinMeeting(item.meetUrl)}
+                    className="inline-flex items-center gap-1 rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    <Video className="h-3.5 w-3.5" aria-hidden="true" />
+                    참석
+                  </button>
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button
@@ -263,9 +295,9 @@ export default function ProjectMeetingsPage() {
                 </td>
               </tr>
             ))}
-            {!loading && items.length === 0 ? (
+            {!loading && sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
                   등록된 회의가 없습니다.
                 </td>
               </tr>

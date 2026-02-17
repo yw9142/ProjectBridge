@@ -20,6 +20,11 @@ type VaultAccountRequest = {
   createdAt?: string;
 };
 
+const vaultStatusStyles = {
+  READY: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  PENDING: "border-amber-200 bg-amber-50 text-amber-700",
+};
+
 function formatDate(value?: string | null) {
   if (!value) return "-";
   const date = new Date(value);
@@ -129,7 +134,15 @@ export default function ClientVaultPage() {
                     <p>{item.requestReason || "-"}</p>
                     <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
                   </TableCell>
-                  <TableCell>{item.credentialReady ? "입력 완료" : "입력 대기"}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                        item.credentialReady ? vaultStatusStyles.READY : vaultStatusStyles.PENDING
+                      }`}
+                    >
+                      {item.credentialReady ? "입력 완료" : "입력 대기"}
+                    </span>
+                  </TableCell>
                   <TableCell>{formatDate(item.providedAt)}</TableCell>
                   <TableCell>
                     <Button variant="outline" size="sm" onClick={() => openProvisionModal(item.id)}>

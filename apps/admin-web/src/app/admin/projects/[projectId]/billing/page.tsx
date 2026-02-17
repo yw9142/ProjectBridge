@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
@@ -41,6 +41,15 @@ const phases: Array<{ value: InvoicePhase; label: string }> = [
   { value: "INTERMEDIATE", label: "중도금" },
   { value: "FINAL", label: "정산" },
 ];
+
+const statusBadgeStyles: Record<InvoiceStatus, string> = {
+  DRAFT: "border-slate-300 bg-slate-100 text-slate-700",
+  ISSUED: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  CONFIRMED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  CLOSED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  OVERDUE: "border-red-200 bg-red-50 text-red-700",
+  CANCELLED: "border-slate-300 bg-slate-100 text-slate-700",
+};
 
 function phaseLabel(phase: InvoicePhase) {
   return phases.find((item) => item.value === phase)?.label ?? phase;
@@ -245,7 +254,11 @@ export default function ProjectBillingPage() {
                 <td className="px-4 py-3 font-medium text-slate-900">{invoice.amount.toLocaleString("ko-KR")}</td>
                 <td className="px-4 py-3 text-slate-700">{invoice.currency}</td>
                 <td className="px-4 py-3 text-slate-700">{formatDateOnly(invoice.dueAt)}</td>
-                <td className="px-4 py-3 text-slate-700">{statuses.find((status) => status.value === invoice.status)?.label ?? invoice.status}</td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeStyles[invoice.status]}`}>
+                    {statuses.find((status) => status.value === invoice.status)?.label ?? invoice.status}
+                  </span>
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button

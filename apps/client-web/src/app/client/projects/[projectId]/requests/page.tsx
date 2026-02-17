@@ -120,9 +120,10 @@ export default function ClientRequestsPage() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow className="hover:bg-slate-50">
-                <TableHead>유형</TableHead>
+                <TableHead>요청 유형</TableHead>
                 <TableHead>제목</TableHead>
-                <TableHead>설명</TableHead>
+                <TableHead>내용</TableHead>
+                <TableHead>등록자</TableHead>
                 <TableHead>현재 상태</TableHead>
                 <TableHead>변경 상태</TableHead>
                 <TableHead>생성 시각</TableHead>
@@ -136,8 +137,8 @@ export default function ClientRequestsPage() {
                   <TableCell className="font-semibold text-slate-900">{item.title}</TableCell>
                   <TableCell>
                     <p>{item.description || "-"}</p>
-                    <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
                   </TableCell>
+                  <TableCell>{item.createdByName ?? item.createdBy ?? "-"}</TableCell>
                   <TableCell>
                     <StatusBadge status={item.status} />
                   </TableCell>
@@ -174,7 +175,7 @@ export default function ClientRequestsPage() {
               ))}
               {!loading && sortedItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-6 text-center text-sm text-slate-500">
+                  <TableCell colSpan={8} className="py-6 text-center text-sm text-slate-500">
                     표시할 요청이 없습니다.
                   </TableCell>
                 </TableRow>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
@@ -15,6 +15,8 @@ type Contract = {
   status: ContractStatus;
   createdBy?: string;
   createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 type FileVersionSummary = {
@@ -31,6 +33,18 @@ type PresignResponse = {
   contentType: string;
 };
 
+const statusLabels: Record<ContractStatus, string> = {
+  DRAFT: "진행 중",
+  ACTIVE: "완료",
+  ARCHIVED: "보관",
+};
+
+const statusBadgeStyles: Record<ContractStatus, string> = {
+  DRAFT: "border-amber-200 bg-amber-50 text-amber-700",
+  ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  ARCHIVED: "border-slate-300 bg-slate-100 text-slate-700",
+};
+
 function extractVersion(objectKey: string) {
   const matched = objectKey.match(/\/v(\d+)\//);
   if (!matched) {
@@ -39,10 +53,24 @@ function extractVersion(objectKey: string) {
   return Number(matched[1]);
 }
 
-function statusLabel(status: ContractStatus) {
-  if (status === "DRAFT") return "작성 중";
-  if (status === "ACTIVE") return "승인";
-  return "반려/보관";
+function formatDateTime(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function sortContracts(items: Contract[]) {
+  return [...items].sort((a, b) => {
+    const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return bTime - aTime;
+  });
 }
 
 export default function ProjectContractsPage() {
@@ -63,6 +91,9 @@ export default function ProjectContractsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const fileVersionMap = useMemo(() => new Map(fileVersions.map((item) => [item.id, item])), [fileVersions]);
+  const sortedContracts = useMemo(() => sortContracts(contracts), [contracts]);
+  const doneCount = useMemo(() => contracts.filter((item) => item.status === "ACTIVE").length, [contracts]);
+  const inProgressCount = useMemo(() => contracts.filter((item) => item.status === "DRAFT").length, [contracts]);
 
   async function load() {
     setError(null);
@@ -245,7 +276,7 @@ export default function ProjectContractsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">계약</h1>
-          <p className="text-sm text-slate-500">계약명과 PDF 파일만 등록합니다. 사인/승인 처리는 client-web에서 진행합니다.</p>
+          <p className="text-sm text-slate-500">계약 진행 현황을 확인하고 마지막 수정 이력을 관리합니다.</p>
         </div>
         <button
           type="button"
@@ -256,6 +287,17 @@ export default function ProjectContractsPage() {
         </button>
       </div>
 
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">완료 처리</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{doneCount}</p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">진행 중</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{inProgressCount}</p>
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-lg border border-slate-200">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -263,11 +305,12 @@ export default function ProjectContractsPage() {
               <th className="px-4 py-3">계약명</th>
               <th className="px-4 py-3">계약서</th>
               <th className="px-4 py-3">상태</th>
+              <th className="px-4 py-3">마지막 수정</th>
               <th className="px-4 py-3">작업</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
-            {contracts.map((contract) => {
+            {sortedContracts.map((contract) => {
               const version = contract.fileVersionId ? fileVersionMap.get(contract.fileVersionId) : undefined;
               return (
                 <tr key={contract.id}>
@@ -288,7 +331,12 @@ export default function ProjectContractsPage() {
                       <span className="text-xs text-slate-500">PDF 없음</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{statusLabel(contract.status)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeStyles[contract.status]}`}>
+                      {statusLabels[contract.status]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-700">{formatDateTime(contract.updatedAt ?? contract.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button
@@ -313,9 +361,9 @@ export default function ProjectContractsPage() {
                 </tr>
               );
             })}
-            {!loading && contracts.length === 0 ? (
+            {!loading && sortedContracts.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
                   등록된 계약이 없습니다.
                 </td>
               </tr>

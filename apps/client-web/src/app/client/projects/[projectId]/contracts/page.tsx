@@ -19,6 +19,7 @@ type Contract = {
   createdBy?: string;
   createdByName?: string;
   createdAt?: string;
+  updatedAt?: string;
 };
 
 type FileVersionSummary = {
@@ -77,6 +78,17 @@ export default function ClientContractsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const fileVersionMap = useMemo(() => new Map(fileVersions.map((item) => [item.id, item])), [fileVersions]);
+  const sortedContracts = useMemo(
+    () =>
+      [...contracts].sort((a, b) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      }),
+    [contracts],
+  );
+  const doneCount = useMemo(() => contracts.filter((item) => item.status === "ACTIVE").length, [contracts]);
+  const inProgressCount = useMemo(() => contracts.filter((item) => item.status === "DRAFT").length, [contracts]);
 
   async function load() {
     setLoading(true);
@@ -167,6 +179,16 @@ export default function ClientContractsPage() {
         <CardDescription>계약서를 검토하고 승인 또는 반려를 처리합니다.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">완료 처리</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{doneCount}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">진행 중</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{inProgressCount}</p>
+          </div>
+        </div>
         <div className="overflow-hidden rounded-lg border border-slate-200">
           <Table>
             <TableHeader className="bg-slate-50">
@@ -174,19 +196,12 @@ export default function ClientContractsPage() {
                 <TableHead>계약명</TableHead>
                 <TableHead>계약서</TableHead>
                 <TableHead>상태</TableHead>
-                <TableHead>생성 시각</TableHead>
+                <TableHead>마지막 수정</TableHead>
                 <TableHead>작업</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {contracts
-                .slice()
-                .sort((a, b) => {
-                  const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                  const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                  return bTime - aTime;
-                })
-                .map((contract) => {
+              {sortedContracts.map((contract) => {
                   const version = contract.fileVersionId ? fileVersionMap.get(contract.fileVersionId) : undefined;
                   const links = signLinks[contract.id] ?? [];
 
@@ -208,7 +223,7 @@ export default function ClientContractsPage() {
                       <TableCell>
                         <StatusBadge status={contract.status} />
                       </TableCell>
-                      <TableCell>{formatDate(contract.createdAt)}</TableCell>
+                      <TableCell>{formatDate(contract.updatedAt ?? contract.createdAt)}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
                           <ConfirmActionButton
