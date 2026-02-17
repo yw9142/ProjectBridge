@@ -8,6 +8,13 @@ import { ConfirmActionButton } from "@/components/ui/confirm-action";
 import { Modal } from "@/components/ui/modal";
 
 type MeetingStatus = "SCHEDULED" | "CANCELLED";
+type AttendeeResponse = "INVITED" | "ACCEPTED" | "DECLINED" | "TENTATIVE";
+
+type MeetingAttendee = {
+  userId: string;
+  userName: string;
+  response: AttendeeResponse;
+};
 
 type Meeting = {
   id: string;
@@ -16,6 +23,9 @@ type Meeting = {
   endAt: string;
   meetUrl: string;
   status: MeetingStatus;
+  attendees?: MeetingAttendee[];
+  attendeeCount?: number;
+  myResponse?: AttendeeResponse | null;
 };
 
 type Weekday = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
@@ -94,6 +104,38 @@ function sortByStartAt(items: Meeting[]) {
   return [...items].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
 }
 
+const attendeeResponseLabel: Record<AttendeeResponse, string> = {
+  INVITED: "초대",
+  ACCEPTED: "참석",
+  DECLINED: "불참",
+  TENTATIVE: "미정",
+};
+
+function summarizeAttendees(meeting: Meeting) {
+  const attendees = meeting.attendees ?? [];
+  if (attendees.length === 0) {
+    return { count: 0, byResponse: "아직 응답 없음", names: "-" };
+  }
+
+  const counts: Record<AttendeeResponse, number> = {
+    INVITED: 0,
+    ACCEPTED: 0,
+    DECLINED: 0,
+    TENTATIVE: 0,
+  };
+  for (const attendee of attendees) {
+    counts[attendee.response] += 1;
+  }
+
+  const byResponse = [
+    `${attendeeResponseLabel.ACCEPTED} ${counts.ACCEPTED}`,
+    `${attendeeResponseLabel.TENTATIVE} ${counts.TENTATIVE}`,
+    `${attendeeResponseLabel.DECLINED} ${counts.DECLINED}`,
+  ].join(" · ");
+  const names = attendees.map((attendee) => `${attendee.userName}(${attendeeResponseLabel[attendee.response]})`).join(", ");
+  return { count: meeting.attendeeCount ?? attendees.length, byResponse, names };
+}
+
 export default function ProjectMeetingsPage() {
   const projectId = useProjectId();
   const [items, setItems] = useState<Meeting[]>([]);
@@ -133,6 +175,14 @@ export default function ProjectMeetingsPage() {
 
   useEffect(() => {
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void load();
+    }, 10000);
+    return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -242,12 +292,15 @@ export default function ProjectMeetingsPage() {
               <th className="px-4 py-3">일정</th>
               <th className="px-4 py-3">URL</th>
               <th className="px-4 py-3">상태</th>
+              <th className="px-4 py-3">참석자</th>
               <th className="px-4 py-3">참석</th>
               <th className="px-4 py-3">작업</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
-            {sortedItems.map((item) => (
+            {sortedItems.map((item) => {
+              const attendeeSummary = summarizeAttendees(item);
+              return (
               <tr key={item.id}>
                 <td className="px-4 py-3 font-medium text-slate-900">{item.title}</td>
                 <td className="px-4 py-3 text-slate-700">{formatDateTime(item.startAt)}</td>
@@ -261,6 +314,15 @@ export default function ProjectMeetingsPage() {
                   <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeStyles[item.status]}`}>
                     {statuses.find((status) => status.value === item.status)?.label ?? item.status}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-slate-700">
+                  <div className="space-y-0.5 text-xs">
+                    <p className="font-semibold text-slate-800">총 {attendeeSummary.count}명</p>
+                    <p className="text-slate-600">{attendeeSummary.byResponse}</p>
+                    <p className="line-clamp-1 text-slate-500" title={attendeeSummary.names}>
+                      {attendeeSummary.names}
+                    </p>
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <button
@@ -294,10 +356,11 @@ export default function ProjectMeetingsPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {!loading && sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
                   등록된 회의가 없습니다.
                 </td>
               </tr>

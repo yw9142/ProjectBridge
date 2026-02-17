@@ -20,6 +20,7 @@ type Meeting = {
   meetUrl: string;
   status: MeetingStatus;
   createdAt?: string;
+  myResponse?: AttendeeResponse | null;
 };
 
 const responseOptions: Array<{ value: AttendeeResponse; label: string }> = [
@@ -64,7 +65,14 @@ export default function ClientMeetingsPage() {
     try {
       const data = await apiFetch<Meeting[]>(`/api/projects/${projectId}/meetings`);
       setItems(data);
-      setDraftResponses(Object.fromEntries(data.map((item) => [item.id, "ACCEPTED" as AttendeeResponse])));
+      setDraftResponses(
+        Object.fromEntries(
+          data.map((item) => [
+            item.id,
+            item.myResponse && item.myResponse !== "INVITED" ? item.myResponse : ("ACCEPTED" as AttendeeResponse),
+          ]),
+        ),
+      );
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "회의 목록을 불러오지 못했습니다.");

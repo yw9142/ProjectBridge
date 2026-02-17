@@ -7,6 +7,8 @@ import com.bridge.backend.common.model.enums.MemberRole;
 import com.bridge.backend.common.model.enums.MeetingStatus;
 import com.bridge.backend.common.security.SecurityUtils;
 import com.bridge.backend.common.tenant.AccessGuardService;
+import com.bridge.backend.domain.auth.UserEntity;
+import com.bridge.backend.domain.auth.UserRepository;
 import com.bridge.backend.domain.notification.OutboxService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,26 +34,81 @@ public class MeetingController {
     private final MeetingRepository meetingRepository;
     private final MeetingAttendeeRepository meetingAttendeeRepository;
     private final MeetingActionItemRepository actionItemRepository;
+    private final UserRepository userRepository;
     private final AccessGuardService guardService;
     private final OutboxService outboxService;
 
     public MeetingController(MeetingRepository meetingRepository,
                              MeetingAttendeeRepository meetingAttendeeRepository,
                              MeetingActionItemRepository actionItemRepository,
+                             UserRepository userRepository,
                              AccessGuardService guardService,
                              OutboxService outboxService) {
         this.meetingRepository = meetingRepository;
         this.meetingAttendeeRepository = meetingAttendeeRepository;
         this.actionItemRepository = actionItemRepository;
+        this.userRepository = userRepository;
         this.guardService = guardService;
         this.outboxService = outboxService;
     }
 
     @GetMapping("/api/projects/{projectId}/meetings")
-    public ApiSuccess<List<MeetingEntity>> list(@PathVariable UUID projectId) {
+    public ApiSuccess<List<MeetingView>> list(@PathVariable UUID projectId) {
         var principal = SecurityUtils.requirePrincipal();
         guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
-        return ApiSuccess.of(meetingRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId()));
+        List<MeetingEntity> meetings = meetingRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId());
+        if (meetings.isEmpty()) {
+            return ApiSuccess.of(List.of());
+        }
+
+        List<UUID> meetingIds = meetings.stream().map(MeetingEntity::getId).toList();
+        List<MeetingAttendeeEntity> attendees = meetingAttendeeRepository.findByMeetingIdInAndTenantIdAndDeletedAtIsNull(meetingIds, principal.getTenantId());
+
+        Map<UUID, List<MeetingAttendeeEntity>> attendeesByMeeting = new HashMap<>();
+        for (MeetingAttendeeEntity attendee : attendees) {
+            attendeesByMeeting.computeIfAbsent(attendee.getMeetingId(), ignored -> new ArrayList<>()).add(attendee);
+        }
+
+        Set<UUID> userIds = attendees.stream().map(MeetingAttendeeEntity::getUserId).collect(java.util.stream.Collectors.toSet());
+        Map<UUID, String> userNameById = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            List<UserEntity> users = userRepository.findByIdInAndDeletedAtIsNull(userIds);
+            for (UserEntity user : users) {
+                userNameById.put(user.getId(), user.getName());
+            }
+        }
+
+        List<MeetingView> payload = new ArrayList<>();
+        for (MeetingEntity meeting : meetings) {
+            List<MeetingAttendeeEntity> meetingAttendees = attendeesByMeeting.getOrDefault(meeting.getId(), List.of());
+            List<MeetingAttendeeView> attendeeViews = new ArrayList<>();
+            AttendeeResponse myResponse = null;
+            for (MeetingAttendeeEntity attendee : meetingAttendees) {
+                attendeeViews.add(new MeetingAttendeeView(
+                        attendee.getUserId(),
+                        userNameById.getOrDefault(attendee.getUserId(), attendee.getUserId().toString()),
+                        attendee.getResponse()
+                ));
+                if (attendee.getUserId().equals(principal.getUserId())) {
+                    myResponse = attendee.getResponse();
+                }
+            }
+
+            payload.add(new MeetingView(
+                    meeting.getId(),
+                    meeting.getTitle(),
+                    meeting.getStartAt(),
+                    meeting.getEndAt(),
+                    meeting.getMeetUrl(),
+                    meeting.getStatus(),
+                    meeting.getCreatedAt(),
+                    myResponse,
+                    attendeeViews,
+                    attendeeViews.size()
+            ));
+        }
+
+        return ApiSuccess.of(payload);
     }
 
     @PostMapping("/api/projects/{projectId}/meetings")
@@ -200,6 +259,21 @@ public class MeetingController {
     }
 
     public record RespondRequest(AttendeeResponse response) {
+    }
+
+    public record MeetingAttendeeView(UUID userId, String userName, AttendeeResponse response) {
+    }
+
+    public record MeetingView(UUID id,
+                              String title,
+                              OffsetDateTime startAt,
+                              OffsetDateTime endAt,
+                              String meetUrl,
+                              MeetingStatus status,
+                              OffsetDateTime createdAt,
+                              AttendeeResponse myResponse,
+                              List<MeetingAttendeeView> attendees,
+                              int attendeeCount) {
     }
 
     public record ActionItemRequest(@NotBlank String title, UUID assigneeUserId, OffsetDateTime dueAt) {
