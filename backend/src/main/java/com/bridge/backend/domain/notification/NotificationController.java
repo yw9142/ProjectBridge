@@ -56,9 +56,11 @@ public class NotificationController {
     @PostMapping("/{id}/read")
     public ApiSuccess<Map<String, Object>> read(@PathVariable UUID id) {
         var principal = SecurityUtils.requirePrincipal();
-        NotificationEntity notification = notificationRepository.findById(id).orElseThrow();
+        NotificationEntity notification = notificationRepository
+                .findByIdAndTenantIdAndDeletedAtIsNull(id, principal.getTenantId())
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOTIFICATION_NOT_FOUND", "Notification not found."));
         if (!notification.getUserId().equals(principal.getUserId())) {
-            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "다른 사용자의 알림입니다.");
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Cannot update another user's notification.");
         }
         notification.setReadAt(OffsetDateTime.now());
         notification.setUpdatedBy(principal.getUserId());
@@ -79,9 +81,9 @@ public class NotificationController {
         if (!isPlatformAdmin) {
             var currentMember = tenantMemberRepository
                     .findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), principal.getUserId())
-                    .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "권한이 없습니다."));
+                    .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "沅뚰븳???놁뒿?덈떎."));
             if (!isPmRole(currentMember.getRole())) {
-                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "권한이 없습니다.");
+                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "沅뚰븳???놁뒿?덈떎.");
             }
         }
         List<Map<String, Object>> events = outboxEventRepository
@@ -170,3 +172,4 @@ public class NotificationController {
         }
     }
 }
+

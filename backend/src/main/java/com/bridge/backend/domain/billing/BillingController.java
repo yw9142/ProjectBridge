@@ -143,7 +143,9 @@ public class BillingController {
         var principal = SecurityUtils.requirePrincipal();
         InvoiceEntity invoice = requireActiveInvoice(invoiceId);
         guardService.requireProjectMember(invoice.getProjectId(), principal.getUserId(), principal.getTenantId());
-        return ApiSuccess.of(storageService.createUploadPresign(invoiceId, 1, request.contentType()));
+        long size = request.size() != null ? request.size() : 0L;
+        String checksum = request.checksum() != null && !request.checksum().isBlank() ? request.checksum() : "n/a";
+        return ApiSuccess.of(storageService.createUploadPresign(invoiceId, 1, request.contentType(), size, checksum));
     }
 
     @PostMapping("/api/invoices/{invoiceId}/attachments/complete")
@@ -184,7 +186,7 @@ public class BillingController {
     public record UpdateStatusRequest(InvoiceStatus status) {
     }
 
-    public record PresignAttachmentRequest(@NotBlank String contentType) {
+    public record PresignAttachmentRequest(@NotBlank String contentType, Long size, String checksum) {
     }
 
     public record CompleteAttachmentRequest(InvoiceAttachmentType attachmentType, @NotBlank String objectKey) {

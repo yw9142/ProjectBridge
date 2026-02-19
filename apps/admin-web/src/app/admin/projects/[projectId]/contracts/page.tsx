@@ -30,7 +30,32 @@ type FileVersionSummary = {
 type PresignResponse = {
   uploadUrl: string;
   objectKey: string;
+  version: number;
   contentType: string;
+  size: number;
+  checksum: string;
+  uploadTicket: string;
+};
+
+type EnvelopeStatus = "DRAFT" | "SENT" | "COMPLETED" | "VOIDED";
+
+type Envelope = {
+  id: string;
+  title: string;
+  status: EnvelopeStatus;
+  sentAt?: string | null;
+  completedAt?: string | null;
+};
+
+type EnvelopeDetail = {
+  envelope: Envelope;
+  recipients: Array<{
+    id: string;
+    recipientName: string;
+    recipientEmail: string;
+    status: string;
+    signingOrder: number;
+  }>;
 };
 
 const statusLabels: Record<ContractStatus, string> = {
@@ -44,14 +69,6 @@ const statusBadgeStyles: Record<ContractStatus, string> = {
   ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700",
   ARCHIVED: "border-slate-300 bg-slate-100 text-slate-700",
 };
-
-function extractVersion(objectKey: string) {
-  const matched = objectKey.match(/\/v(\d+)\//);
-  if (!matched) {
-    return 1;
-  }
-  return Number(matched[1]);
-}
 
 function formatDateTime(value?: string) {
   if (!value) return "-";
@@ -88,12 +105,23 @@ export default function ProjectContractsPage() {
   const [editName, setEditName] = useState("");
   const [editPdf, setEditPdf] = useState<File | null>(null);
 
+  const [signingContractId, setSigningContractId] = useState<string | null>(null);
+  const [signingLoading, setSigningLoading] = useState(false);
+  const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
+  const [recipientsByEnvelope, setRecipientsByEnvelope] = useState<Record<string, EnvelopeDetail["recipients"]>>({});
+  const [selectedEnvelopeId, setSelectedEnvelopeId] = useState("");
+  const [newEnvelopeTitle, setNewEnvelopeTitle] = useState("");
+  const [newRecipientName, setNewRecipientName] = useState("");
+  const [newRecipientEmail, setNewRecipientEmail] = useState("");
+  const [newRecipientOrder, setNewRecipientOrder] = useState("1");
+
   const [error, setError] = useState<string | null>(null);
 
   const fileVersionMap = useMemo(() => new Map(fileVersions.map((item) => [item.id, item])), [fileVersions]);
   const sortedContracts = useMemo(() => sortContracts(contracts), [contracts]);
   const doneCount = useMemo(() => contracts.filter((item) => item.status === "ACTIVE").length, [contracts]);
   const inProgressCount = useMemo(() => contracts.filter((item) => item.status === "DRAFT").length, [contracts]);
+  const selectedRecipients = selectedEnvelopeId ? recipientsByEnvelope[selectedEnvelopeId] ?? [] : [];
 
   async function load() {
     setError(null);
@@ -129,9 +157,10 @@ export default function ProjectContractsPage() {
 
   async function uploadPdfToFile(fileId: string, pdf: File) {
     const contentType = pdf.type || "application/pdf";
+    const checksum = `${pdf.name}-${pdf.size}-${pdf.lastModified}`;
     const presign = await apiFetch<PresignResponse>(`/api/files/${fileId}/versions/presign`, {
       method: "POST",
-      body: JSON.stringify({ contentType }),
+      body: JSON.stringify({ contentType, size: pdf.size, checksum }),
     });
 
     const uploadResponse = await fetch(presign.uploadUrl, {
@@ -144,15 +173,15 @@ export default function ProjectContractsPage() {
       throw new Error("PDF 업로드에 실패했습니다.");
     }
 
-    const version = extractVersion(presign.objectKey);
     const completed = await apiFetch<FileVersionSummary>(`/api/files/${fileId}/versions/complete`, {
       method: "POST",
       body: JSON.stringify({
-        version,
+        version: presign.version,
         objectKey: presign.objectKey,
         contentType,
         size: pdf.size,
-        checksum: `${pdf.name}-${pdf.size}-${pdf.lastModified}`,
+        checksum,
+        uploadTicket: presign.uploadTicket,
       }),
     });
 
@@ -271,6 +300,104 @@ export default function ProjectContractsPage() {
     }
   }
 
+  async function loadSigningData(contractId: string) {
+    setSigningLoading(true);
+    try {
+      const envelopeData = await apiFetch<Envelope[]>(`/api/contracts/${contractId}/envelopes`);
+      const details = await Promise.all(envelopeData.map((item) => apiFetch<EnvelopeDetail>(`/api/envelopes/${item.id}`)));
+
+      const nextRecipients: Record<string, EnvelopeDetail["recipients"]> = {};
+      details.forEach((detail) => {
+        nextRecipients[detail.envelope.id] = detail.recipients;
+      });
+
+      setEnvelopes(envelopeData);
+      setRecipientsByEnvelope(nextRecipients);
+      setSelectedEnvelopeId((prev) => {
+        if (prev && envelopeData.some((item) => item.id === prev)) {
+          return prev;
+        }
+        return envelopeData[0]?.id ?? "";
+      });
+    } finally {
+      setSigningLoading(false);
+    }
+  }
+
+  async function openSigningModal(contractId: string) {
+    setSigningContractId(contractId);
+    setError(null);
+    setNewEnvelopeTitle("");
+    setNewRecipientName("");
+    setNewRecipientEmail("");
+    setNewRecipientOrder("1");
+    try {
+      await loadSigningData(contractId);
+    } catch (e) {
+      if (!handleAuthError(e, "/admin/login")) {
+        setError(e instanceof Error ? e.message : "Failed to load signature management data.");
+      }
+    }
+  }
+
+  async function createEnvelope(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!signingContractId) return;
+    setError(null);
+    try {
+      await apiFetch(`/api/contracts/${signingContractId}/envelopes`, {
+        method: "POST",
+        body: JSON.stringify({ title: newEnvelopeTitle }),
+      });
+      setNewEnvelopeTitle("");
+      await loadSigningData(signingContractId);
+    } catch (e) {
+      if (!handleAuthError(e, "/admin/login")) {
+        setError(e instanceof Error ? e.message : "Failed to create envelope.");
+      }
+    }
+  }
+
+  async function addRecipient(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedEnvelopeId) return;
+    setError(null);
+    try {
+      await apiFetch(`/api/envelopes/${selectedEnvelopeId}/recipients`, {
+        method: "POST",
+        body: JSON.stringify({
+          name: newRecipientName,
+          email: newRecipientEmail,
+          signingOrder: Number(newRecipientOrder) || 1,
+        }),
+      });
+      setNewRecipientName("");
+      setNewRecipientEmail("");
+      setNewRecipientOrder("1");
+      if (signingContractId) {
+        await loadSigningData(signingContractId);
+      }
+    } catch (e) {
+      if (!handleAuthError(e, "/admin/login")) {
+        setError(e instanceof Error ? e.message : "Failed to add recipient.");
+      }
+    }
+  }
+
+  async function sendEnvelope(envelopeId: string) {
+    setError(null);
+    try {
+      await apiFetch(`/api/envelopes/${envelopeId}/send`, { method: "POST" });
+      if (signingContractId) {
+        await loadSigningData(signingContractId);
+      }
+    } catch (e) {
+      if (!handleAuthError(e, "/admin/login")) {
+        setError(e instanceof Error ? e.message : "Failed to send envelope.");
+      }
+    }
+  }
+
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
@@ -337,13 +464,20 @@ export default function ProjectContractsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{formatDateTime(contract.updatedAt ?? contract.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(contract)}
-                        className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                      >
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void openSigningModal(contract.id)}
+                          className="rounded border border-indigo-300 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                        >
+                          서명 관리
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(contract)}
+                          className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        >
                         수정
                       </button>
                       <ConfirmActionButton
@@ -407,6 +541,125 @@ export default function ProjectContractsPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(signingContractId)}
+        onClose={() => {
+          setSigningContractId(null);
+          setSelectedEnvelopeId("");
+          setEnvelopes([]);
+          setRecipientsByEnvelope({});
+        }}
+        title="전자서명 운영"
+        description="Envelope 생성, 수신자 추가, 발송 상태를 관리합니다."
+      >
+        <div className="space-y-4">
+          <form onSubmit={createEnvelope} className="space-y-2 rounded-lg border border-slate-200 p-3">
+            <p className="text-sm font-semibold text-slate-900">Envelope 생성</p>
+            <div className="flex gap-2">
+              <input
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="Envelope 제목"
+                value={newEnvelopeTitle}
+                onChange={(e) => setNewEnvelopeTitle(e.target.value)}
+                required
+              />
+              <button type="submit" className="rounded bg-indigo-600 px-3 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
+                생성
+              </button>
+            </div>
+          </form>
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="mb-2 text-sm font-semibold text-slate-900">Envelope 목록</p>
+            {signingLoading ? <p className="text-sm text-slate-500">불러오는 중...</p> : null}
+            {!signingLoading && envelopes.length === 0 ? <p className="text-sm text-slate-500">생성된 envelope이 없습니다.</p> : null}
+            <div className="space-y-2">
+              {envelopes.map((envelope) => (
+                <div key={envelope.id} className="flex flex-wrap items-center gap-2 rounded border border-slate-200 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEnvelopeId(envelope.id)}
+                    className={`rounded px-2 py-1 text-xs font-semibold ${
+                      selectedEnvelopeId === envelope.id ? "bg-indigo-600 !text-white" : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {envelope.title}
+                  </button>
+                  <span className="text-xs text-slate-500">{envelope.status}</span>
+                  <button
+                    type="button"
+                    onClick={() => void sendEnvelope(envelope.id)}
+                    disabled={envelope.status !== "DRAFT"}
+                    className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    발송
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <form onSubmit={addRecipient} className="space-y-2 rounded-lg border border-slate-200 p-3">
+            <p className="text-sm font-semibold text-slate-900">수신자 추가</p>
+            <select
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              value={selectedEnvelopeId}
+              onChange={(e) => setSelectedEnvelopeId(e.target.value)}
+              required
+            >
+              <option value="">Envelope 선택</option>
+              {envelopes.map((envelope) => (
+                <option key={envelope.id} value={envelope.id}>
+                  {envelope.title}
+                </option>
+              ))}
+            </select>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <input
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="이름"
+                value={newRecipientName}
+                onChange={(e) => setNewRecipientName(e.target.value)}
+                required
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="이메일"
+                type="email"
+                value={newRecipientEmail}
+                onChange={(e) => setNewRecipientEmail(e.target.value)}
+                required
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="순서"
+                type="number"
+                min={1}
+                value={newRecipientOrder}
+                onChange={(e) => setNewRecipientOrder(e.target.value)}
+                required
+              />
+            </div>
+            <button type="submit" className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold !text-white hover:bg-slate-800">
+              추가
+            </button>
+          </form>
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="mb-2 text-sm font-semibold text-slate-900">선택 Envelope 수신자</p>
+            {selectedEnvelopeId === "" ? <p className="text-sm text-slate-500">Envelope를 선택하세요.</p> : null}
+            {selectedEnvelopeId !== "" && selectedRecipients.length === 0 ? <p className="text-sm text-slate-500">등록된 수신자가 없습니다.</p> : null}
+            <ul className="space-y-1">
+              {selectedRecipients.map((recipient) => (
+                <li key={recipient.id} className="rounded border border-slate-200 px-2 py-1 text-sm text-slate-700">
+                  {recipient.signingOrder}. {recipient.recipientName} ({recipient.recipientEmail}) - {recipient.status}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </Modal>
 
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}

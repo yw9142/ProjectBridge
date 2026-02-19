@@ -8,6 +8,8 @@ import com.bridge.backend.common.model.enums.VaultSecretType;
 import com.bridge.backend.common.security.SecurityUtils;
 import com.bridge.backend.common.tenant.AccessGuardService;
 import com.bridge.backend.domain.notification.OutboxService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
@@ -21,30 +23,39 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 @RestController
 public class VaultController {
+    private static final int DEFAULT_VIEW_TTL_MINUTES = 10;
+
     private final VaultPolicyRepository policyRepository;
     private final VaultSecretRepository secretRepository;
     private final VaultAccessRequestRepository accessRequestRepository;
+    private final VaultAccessEventRepository accessEventRepository;
     private final VaultCryptoService vaultCryptoService;
     private final AccessGuardService guardService;
     private final OutboxService outboxService;
+    private final ObjectMapper objectMapper;
 
     public VaultController(VaultPolicyRepository policyRepository,
                            VaultSecretRepository secretRepository,
                            VaultAccessRequestRepository accessRequestRepository,
+                           VaultAccessEventRepository accessEventRepository,
                            VaultCryptoService vaultCryptoService,
                            AccessGuardService guardService,
-                           OutboxService outboxService) {
+                           OutboxService outboxService,
+                           ObjectMapper objectMapper) {
         this.policyRepository = policyRepository;
         this.secretRepository = secretRepository;
         this.accessRequestRepository = accessRequestRepository;
+        this.accessEventRepository = accessEventRepository;
         this.vaultCryptoService = vaultCryptoService;
         this.guardService = guardService;
         this.outboxService = outboxService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/api/projects/{projectId}/vault/policies")
@@ -161,14 +172,28 @@ public class VaultController {
     @PatchMapping("/api/vault/access-requests/{requestId}")
     public ApiSuccess<VaultAccessRequestEntity> patchRequest(@PathVariable UUID requestId, @RequestBody @Valid PatchRequest request) {
         var principal = SecurityUtils.requirePrincipal();
+        if (request.status() == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "ACCESS_REQUEST_STATUS_REQUIRED", "Status is required.");
+        }
         VaultAccessRequestEntity accessRequest = accessRequestRepository.findById(requestId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "ACCESS_REQUEST_NOT_FOUND", "접근 요청을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "ACCESS_REQUEST_NOT_FOUND", "Access request not found."));
         VaultSecretEntity secret = requireActiveSecret(accessRequest.getSecretId());
         guardService.requireProjectMemberRole(secret.getProjectId(), principal.getUserId(), principal.getTenantId(),
                 Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
+        if (accessRequest.getStatus() != VaultAccessRequestStatus.REQUESTED) {
+            throw new AppException(HttpStatus.CONFLICT, "ACCESS_REQUEST_ALREADY_REVIEWED", "Access request is already reviewed.");
+        }
+
         accessRequest.setStatus(request.status());
+        if (request.status() == VaultAccessRequestStatus.APPROVED) {
+            VaultRules rules = resolveVaultRules(secret.getProjectId(), principal.getTenantId());
+            accessRequest.setExpiresAt(OffsetDateTime.now().plusMinutes(rules.viewTtlMinutes()));
+        } else {
+            accessRequest.setExpiresAt(OffsetDateTime.now());
+        }
         accessRequest.setApproverUserId(principal.getUserId());
         accessRequest.setUpdatedBy(principal.getUserId());
+
         VaultAccessRequestEntity saved = accessRequestRepository.save(accessRequest);
         outboxService.publish(principal.getTenantId(), principal.getUserId(), "vault_access_request", saved.getId(),
                 "vault.access.reviewed", "Vault access reviewed", saved.getStatus().name(), Map.of("requestId", saved.getId()));
@@ -179,16 +204,123 @@ public class VaultController {
     public ApiSuccess<Map<String, Object>> reveal(@PathVariable UUID secretId) {
         var principal = SecurityUtils.requirePrincipal();
         VaultSecretEntity secret = requireActiveSecret(secretId);
-        guardService.requireProjectMember(secret.getProjectId(), principal.getUserId(), principal.getTenantId());
+        var member = guardService.requireProjectMember(secret.getProjectId(), principal.getUserId(), principal.getTenantId());
+        VaultRules rules = resolveVaultRules(secret.getProjectId(), principal.getTenantId());
 
+        if (!rules.clientAllowed() && isClientRole(member.getRole())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "VAULT_ROLE_FORBIDDEN", "Vault reveal is not allowed for this role.");
+        }
+        if (!rules.allowedRoles().isEmpty() && !rules.allowedRoles().contains(member.getRole().name())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "VAULT_ROLE_FORBIDDEN", "Vault reveal is not allowed for this role.");
+        }
         if (!secret.isCredentialReady()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "SECRET_NOT_READY", "아직 계정 정보가 제공되지 않았습니다.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "SECRET_NOT_READY", "Secret is not ready.");
+        }
+
+        VaultAccessRequestEntity approvedRequest = null;
+        if (rules.requireApproval()) {
+            approvedRequest = requireApprovedAccessRequest(secretId, principal.getUserId(), principal.getTenantId());
+        }
+
+        long viewedCount = accessEventRepository.countBySecretIdAndViewerUserIdAndTenantIdAndDeletedAtIsNull(
+                secretId,
+                principal.getUserId(),
+                principal.getTenantId()
+        );
+        if (rules.oneTimeView() && viewedCount > 0) {
+            throw new AppException(HttpStatus.FORBIDDEN, "VAULT_ONE_TIME_VIEW_EXHAUSTED", "This secret can be viewed only once.");
+        }
+        if (rules.maxViews() != null && viewedCount >= rules.maxViews()) {
+            throw new AppException(HttpStatus.FORBIDDEN, "VAULT_MAX_VIEW_EXCEEDED", "Maximum reveal count is exceeded.");
         }
 
         String plainText = vaultCryptoService.decrypt(secret.getSecretCiphertext(), secret.getNonce());
+        recordRevealEvent(secretId, principal.getTenantId(), principal.getUserId());
+
+        if (approvedRequest != null && rules.oneTimeView()) {
+            approvedRequest.setStatus(VaultAccessRequestStatus.EXPIRED);
+            approvedRequest.setExpiresAt(OffsetDateTime.now());
+            approvedRequest.setUpdatedBy(principal.getUserId());
+            accessRequestRepository.save(approvedRequest);
+        }
+
         outboxService.publish(principal.getTenantId(), principal.getUserId(), "vault_secret", secretId,
                 "vault.secret.revealed", "Vault secret revealed", secret.getName(), Map.of("secretId", secretId));
         return ApiSuccess.of(Map.of("secret", plainText, "version", secret.getVersion()));
+    }
+
+    private VaultAccessRequestEntity requireApprovedAccessRequest(UUID secretId, UUID requesterUserId, UUID tenantId) {
+        VaultAccessRequestEntity request = accessRequestRepository
+                .findTopBySecretIdAndRequesterUserIdAndTenantIdAndDeletedAtIsNullOrderByCreatedAtDesc(secretId, requesterUserId, tenantId)
+                .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "VAULT_ACCESS_NOT_APPROVED", "Approved access request is required."));
+        if (request.getStatus() != VaultAccessRequestStatus.APPROVED) {
+            throw new AppException(HttpStatus.FORBIDDEN, "VAULT_ACCESS_NOT_APPROVED", "Approved access request is required.");
+        }
+        if (request.getExpiresAt() != null && request.getExpiresAt().isBefore(OffsetDateTime.now())) {
+            request.setStatus(VaultAccessRequestStatus.EXPIRED);
+            request.setUpdatedBy(requesterUserId);
+            accessRequestRepository.save(request);
+            throw new AppException(HttpStatus.FORBIDDEN, "VAULT_ACCESS_EXPIRED", "Approved access request is expired.");
+        }
+        return request;
+    }
+
+    private void recordRevealEvent(UUID secretId, UUID tenantId, UUID viewerUserId) {
+        VaultAccessEventEntity event = new VaultAccessEventEntity();
+        event.setTenantId(tenantId);
+        event.setSecretId(secretId);
+        event.setViewerUserId(viewerUserId);
+        event.setEventType("VIEWED");
+        event.setCreatedBy(viewerUserId);
+        event.setUpdatedBy(viewerUserId);
+        accessEventRepository.save(event);
+    }
+
+    private VaultRules resolveVaultRules(UUID projectId, UUID tenantId) {
+        Optional<VaultPolicyEntity> policy = policyRepository.findTopByProjectIdAndTenantIdAndDeletedAtIsNullOrderByCreatedAtDesc(projectId, tenantId);
+        if (policy.isEmpty()) {
+            return VaultRules.defaultRules();
+        }
+        return parseRules(policy.get().getRuleJson());
+    }
+
+    private VaultRules parseRules(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return VaultRules.defaultRules();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(raw);
+            boolean requireApproval = node.path("requireApproval").asBoolean(true);
+            boolean oneTimeView = node.path("oneTimeView").asBoolean(false);
+            int viewTtlMinutes = Math.max(1, node.path("viewTtlMinutes").asInt(DEFAULT_VIEW_TTL_MINUTES));
+            Integer maxViews = node.hasNonNull("maxViews") ? Math.max(1, node.path("maxViews").asInt(1)) : null;
+            String visibility = node.path("visibility").asText("");
+            boolean clientAllowed = !"PM_ONLY".equalsIgnoreCase(visibility);
+            Set<String> allowedRoles = extractAllowedRoles(node.path("allowedRoles"));
+            return new VaultRules(requireApproval, oneTimeView, viewTtlMinutes, maxViews, clientAllowed, allowedRoles);
+        } catch (Exception ignored) {
+            return VaultRules.defaultRules();
+        }
+    }
+
+    private Set<String> extractAllowedRoles(JsonNode node) {
+        if (node == null || !node.isArray() || node.isEmpty()) {
+            return Set.of();
+        }
+        var result = new java.util.HashSet<String>();
+        node.forEach(value -> {
+            if (value != null && value.isTextual()) {
+                String role = value.asText().trim();
+                if (!role.isEmpty()) {
+                    result.add(role);
+                }
+            }
+        });
+        return Set.copyOf(result);
+    }
+
+    private boolean isClientRole(MemberRole role) {
+        return role == MemberRole.CLIENT_OWNER || role == MemberRole.CLIENT_MEMBER;
     }
 
     private VaultSecretEntity buildSecretEntity(UUID tenantId,
@@ -221,9 +353,9 @@ public class VaultController {
 
     private VaultSecretEntity requireActiveSecret(UUID secretId) {
         VaultSecretEntity secret = secretRepository.findById(secretId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "SECRET_NOT_FOUND", "Vault 항목을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "SECRET_NOT_FOUND", "Secret not found."));
         if (secret.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "SECRET_NOT_FOUND", "Vault 항목을 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "SECRET_NOT_FOUND", "Secret not found.");
         }
         return secret;
     }
@@ -247,5 +379,16 @@ public class VaultController {
     }
 
     public record PatchRequest(VaultAccessRequestStatus status) {
+    }
+
+    private record VaultRules(boolean requireApproval,
+                              boolean oneTimeView,
+                              int viewTtlMinutes,
+                              Integer maxViews,
+                              boolean clientAllowed,
+                              Set<String> allowedRoles) {
+        private static VaultRules defaultRules() {
+            return new VaultRules(true, false, DEFAULT_VIEW_TTL_MINUTES, null, true, Set.of());
+        }
     }
 }

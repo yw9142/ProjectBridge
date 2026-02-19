@@ -1,10 +1,11 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { sanitizeNextPath } from "./lib/auth";
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/_next") || path.startsWith("/favicon");
+  const isPublic =
+    path === "/login" || path.startsWith("/sign/") || path.startsWith("/invite/") || path.startsWith("/_next") || path.startsWith("/favicon");
   const token = request.cookies.get("bridge_client_access_token")?.value;
 
   if (!isPublic && !token) {

@@ -7,6 +7,9 @@ import com.bridge.backend.domain.admin.TenantEntity;
 import com.bridge.backend.domain.admin.TenantMemberEntity;
 import com.bridge.backend.domain.admin.TenantMemberRepository;
 import com.bridge.backend.domain.admin.TenantRepository;
+import com.bridge.backend.domain.project.InvitationEntity;
+import com.bridge.backend.domain.project.InvitationRepository;
+import com.bridge.backend.domain.project.ProjectMemberEntity;
 import com.bridge.backend.domain.project.ProjectMemberRepository;
 import io.jsonwebtoken.Claims;
 import org.springframework.http.HttpStatus;
@@ -35,6 +38,7 @@ public class AuthService {
     private final TenantRepository tenantRepository;
     private final TenantMemberRepository tenantMemberRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final InvitationRepository invitationRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -44,6 +48,7 @@ public class AuthService {
                        TenantRepository tenantRepository,
                        TenantMemberRepository tenantMemberRepository,
                        ProjectMemberRepository projectMemberRepository,
+                       InvitationRepository invitationRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService) {
@@ -51,6 +56,7 @@ public class AuthService {
         this.tenantRepository = tenantRepository;
         this.tenantMemberRepository = tenantMemberRepository;
         this.projectMemberRepository = projectMemberRepository;
+        this.invitationRepository = invitationRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -308,6 +314,93 @@ public class AuthService {
         }
         userRepository.save(user);
         failedLoginAttempts.remove(user.getEmail().toLowerCase(Locale.ROOT));
+    }
+
+    @Transactional
+    public Map<String, Object> activateInvitation(String invitationToken, String password, String name) {
+        InvitationEntity invitation = invitationRepository.findByInvitationTokenAndDeletedAtIsNull(invitationToken)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation token not found."));
+        if (invitation.getExpiresAt().isBefore(OffsetDateTime.now())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVITATION_EXPIRED", "Invitation is expired.");
+        }
+
+        String invitedEmail = invitation.getInvitedEmail().trim().toLowerCase(Locale.ROOT);
+        String defaultName = invitedEmail.split("@")[0];
+        String resolvedName = (name == null || name.isBlank()) ? defaultName : name.trim();
+        UUID invitationCreatorId = invitation.getCreatedBy();
+
+        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(invitedEmail).orElseGet(() -> {
+            UserEntity created = new UserEntity();
+            created.setEmail(invitedEmail);
+            created.setName(resolvedName);
+            created.setStatus(UserStatus.ACTIVE);
+            created.setCreatedBy(invitationCreatorId);
+            created.setUpdatedBy(invitationCreatorId);
+            return created;
+        });
+        user.setEmail(invitedEmail);
+        if (user.getName() == null || user.getName().isBlank() || (name != null && !name.isBlank())) {
+            user.setName(resolvedName);
+        }
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setStatus(UserStatus.ACTIVE);
+        user.setUpdatedBy(invitationCreatorId);
+        user = userRepository.save(user);
+        UUID auditUserId = invitationCreatorId != null ? invitationCreatorId : user.getId();
+        if (user.getCreatedBy() == null || user.getUpdatedBy() == null) {
+            user.setCreatedBy(user.getCreatedBy() == null ? auditUserId : user.getCreatedBy());
+            user.setUpdatedBy(auditUserId);
+            user = userRepository.save(user);
+        }
+        UUID activatedUserId = user.getId();
+
+        TenantMemberEntity tenantMember = tenantMemberRepository
+                .findByTenantIdAndUserIdAndDeletedAtIsNull(invitation.getTenantId(), activatedUserId)
+                .orElseGet(() -> {
+                    TenantMemberEntity created = new TenantMemberEntity();
+                    created.setTenantId(invitation.getTenantId());
+                    created.setUserId(activatedUserId);
+                    created.setRole(invitation.getRole());
+                    created.setCreatedBy(auditUserId);
+                    created.setUpdatedBy(auditUserId);
+                    return created;
+                });
+        tenantMember.setRole(invitation.getRole());
+        tenantMember.setUpdatedBy(auditUserId);
+        tenantMember = tenantMemberRepository.save(tenantMember);
+
+        if (projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(invitation.getProjectId(), activatedUserId).isEmpty()) {
+            ProjectMemberEntity member = new ProjectMemberEntity();
+            member.setTenantId(invitation.getTenantId());
+            member.setProjectId(invitation.getProjectId());
+            member.setUserId(activatedUserId);
+            member.setRole(invitation.getRole());
+            member.setCreatedBy(auditUserId);
+            member.setUpdatedBy(auditUserId);
+            projectMemberRepository.save(member);
+        }
+
+        if (invitation.getAcceptedAt() == null) {
+            invitation.setAcceptedAt(OffsetDateTime.now());
+            invitation.setUpdatedBy(auditUserId);
+            invitationRepository.save(invitation);
+        }
+
+        TenantEntity tenant = tenantRepository.findById(invitation.getTenantId())
+                .filter(found -> found.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "TENANT_NOT_FOUND", "Tenant not found."));
+        Map<String, Object> tokens = issueTokens(user, tenant, tenantMember);
+
+        return Map.ofEntries(
+                Map.entry("accepted", true),
+                Map.entry("projectId", invitation.getProjectId()),
+                Map.entry("tenantId", invitation.getTenantId()),
+                Map.entry("invitedEmail", invitation.getInvitedEmail()),
+                Map.entry("accessToken", tokens.get("accessToken")),
+                Map.entry("refreshToken", tokens.get("refreshToken")),
+                Map.entry("userId", tokens.get("userId")),
+                Map.entry("roles", tokens.get("roles"))
+        );
     }
 
     private AppException invalidCredentials(String key) {
