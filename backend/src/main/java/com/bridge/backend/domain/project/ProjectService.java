@@ -24,7 +24,6 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
-    private final InvitationRepository invitationRepository;
     private final UserRepository userRepository;
     private final TenantMemberRepository tenantMemberRepository;
     private final PasswordEncoder passwordEncoder;
@@ -32,14 +31,12 @@ public class ProjectService {
 
     public ProjectService(ProjectRepository projectRepository,
                           ProjectMemberRepository projectMemberRepository,
-                          InvitationRepository invitationRepository,
                           UserRepository userRepository,
                           TenantMemberRepository tenantMemberRepository,
                           PasswordEncoder passwordEncoder,
                           AccessGuardService accessGuardService) {
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
-        this.invitationRepository = invitationRepository;
         this.userRepository = userRepository;
         this.tenantMemberRepository = tenantMemberRepository;
         this.passwordEncoder = passwordEncoder;
@@ -124,89 +121,68 @@ public class ProjectService {
     }
 
     @Transactional
-    public InvitationEntity invite(AuthPrincipal principal,
-                                   UUID projectId,
-                                   String invitedEmail,
-                                   MemberRole role,
-                                   String loginId,
-                                   String password,
-                                   String name) {
+    public ProjectMemberAccount invite(AuthPrincipal principal,
+                                       UUID projectId,
+                                       String loginId,
+                                       String password,
+                                       String name,
+                                       MemberRole role) {
         accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
                 Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
         MemberRole resolvedRole = role == null ? MemberRole.CLIENT_MEMBER : role;
-
-        if (loginId != null && !loginId.isBlank() && password != null && !password.isBlank()) {
-            String normalizedLoginId = loginId.trim().toLowerCase(Locale.ROOT);
-            UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(normalizedLoginId).orElseGet(() -> {
-                UserEntity entity = new UserEntity();
-                entity.setEmail(normalizedLoginId);
-                entity.setName((name == null || name.isBlank()) ? normalizedLoginId.split("@")[0] : name.trim());
-                entity.setPasswordHash(passwordEncoder.encode(password));
-                entity.setStatus(UserStatus.ACTIVE);
-                entity.setCreatedBy(principal.getUserId());
-                entity.setUpdatedBy(principal.getUserId());
-                return userRepository.save(entity);
-            });
-            user.setPasswordHash(passwordEncoder.encode(password));
-            user.setStatus(UserStatus.ACTIVE);
-            user.setUpdatedBy(principal.getUserId());
-            userRepository.save(user);
-
-            if (tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), user.getId()).isEmpty()) {
-                TenantMemberEntity tenantMember = new TenantMemberEntity();
-                tenantMember.setTenantId(principal.getTenantId());
-                tenantMember.setUserId(user.getId());
-                tenantMember.setRole(resolvedRole);
-                tenantMember.setCreatedBy(principal.getUserId());
-                tenantMember.setUpdatedBy(principal.getUserId());
-                tenantMemberRepository.save(tenantMember);
-            }
-
-            if (projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, user.getId()).isEmpty()) {
-                ProjectMemberEntity member = new ProjectMemberEntity();
-                member.setTenantId(principal.getTenantId());
-                member.setProjectId(projectId);
-                member.setUserId(user.getId());
-                member.setRole(resolvedRole);
-                member.setCreatedBy(principal.getUserId());
-                member.setUpdatedBy(principal.getUserId());
-                projectMemberRepository.save(member);
-            }
+        if (loginId == null || loginId.isBlank() || password == null || password.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "MEMBER_ACCOUNT_REQUIRED", "Login id and password are required.");
         }
 
-        InvitationEntity invitation = new InvitationEntity();
-        invitation.setTenantId(principal.getTenantId());
-        invitation.setProjectId(projectId);
-        invitation.setInvitedEmail(invitedEmail);
-        invitation.setRole(resolvedRole);
-        invitation.setInvitationToken(UUID.randomUUID().toString().replace("-", ""));
-        invitation.setExpiresAt(OffsetDateTime.now().plusDays(7));
-        invitation.setCreatedBy(principal.getUserId());
-        invitation.setUpdatedBy(principal.getUserId());
-        return invitationRepository.save(invitation);
-    }
-
-    @Transactional(readOnly = true)
-    public Map<String, Object> acceptInvitation(String invitationToken) {
-        InvitationEntity invitation = requireValidInvitation(invitationToken);
-        return Map.of(
-                "invitationToken", invitation.getInvitationToken(),
-                "tenantId", invitation.getTenantId(),
-                "projectId", invitation.getProjectId(),
-                "invitedEmail", invitation.getInvitedEmail(),
-                "role", invitation.getRole(),
-                "expiresAt", invitation.getExpiresAt(),
-                "accepted", invitation.getAcceptedAt() != null
-        );
-    }
-
-    private InvitationEntity requireValidInvitation(String invitationToken) {
-        InvitationEntity invitation = invitationRepository.findByInvitationTokenAndDeletedAtIsNull(invitationToken)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation token not found."));
-        if (invitation.getExpiresAt().isBefore(OffsetDateTime.now())) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVITATION_EXPIRED", "Invitation is expired.");
+        String normalizedLoginId = loginId.trim().toLowerCase(Locale.ROOT);
+        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(normalizedLoginId).orElseGet(() -> {
+            UserEntity entity = new UserEntity();
+            entity.setEmail(normalizedLoginId);
+            entity.setName((name == null || name.isBlank()) ? normalizedLoginId.split("@")[0] : name.trim());
+            entity.setPasswordHash(passwordEncoder.encode(password));
+            entity.setStatus(UserStatus.ACTIVE);
+            entity.setCreatedBy(principal.getUserId());
+            entity.setUpdatedBy(principal.getUserId());
+            return userRepository.save(entity);
+        });
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setStatus(UserStatus.ACTIVE);
+        if (name != null && !name.isBlank()) {
+            user.setName(name.trim());
         }
-        return invitation;
+        user.setUpdatedBy(principal.getUserId());
+        UserEntity savedUser = userRepository.save(user);
+
+        if (tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), savedUser.getId()).isEmpty()) {
+            TenantMemberEntity tenantMember = new TenantMemberEntity();
+            tenantMember.setTenantId(principal.getTenantId());
+            tenantMember.setUserId(savedUser.getId());
+            tenantMember.setRole(resolvedRole);
+            tenantMember.setCreatedBy(principal.getUserId());
+            tenantMember.setUpdatedBy(principal.getUserId());
+            tenantMemberRepository.save(tenantMember);
+        }
+
+        ProjectMemberEntity member = projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, savedUser.getId())
+                .orElseGet(() -> {
+                    ProjectMemberEntity created = new ProjectMemberEntity();
+                    created.setTenantId(principal.getTenantId());
+                    created.setProjectId(projectId);
+                    created.setUserId(savedUser.getId());
+                    created.setRole(resolvedRole);
+                    created.setCreatedBy(principal.getUserId());
+                    created.setUpdatedBy(principal.getUserId());
+                    return created;
+                });
+        member.setRole(resolvedRole);
+        member.setUpdatedBy(principal.getUserId());
+        ProjectMemberEntity savedMember = projectMemberRepository.save(member);
+        if (savedMember.getCreatedBy() == null) {
+            savedMember.setCreatedBy(principal.getUserId());
+            savedMember.setUpdatedBy(principal.getUserId());
+            savedMember = projectMemberRepository.save(savedMember);
+        }
+        return toProjectMemberAccount(savedMember, savedUser);
     }
 
     @Transactional

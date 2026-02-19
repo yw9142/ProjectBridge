@@ -11,6 +11,8 @@ import com.bridge.backend.domain.notification.OutboxService;
 import com.bridge.backend.domain.project.ProjectMemberEntity;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -378,6 +380,27 @@ public class FileController {
         FileEntity file = requireActiveFile(version.getFileId());
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
         return ApiSuccess.of(Map.of("downloadUrl", storageService.createDownloadPresign(version.getObjectKey())));
+    }
+
+    @GetMapping("/api/file-versions/{fileVersionId}/content")
+    public ResponseEntity<byte[]> downloadContent(@PathVariable UUID fileVersionId) {
+        var principal = SecurityUtils.requirePrincipal();
+        FileVersionEntity version = fileVersionRepository.findById(fileVersionId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "?뚯씪 踰꾩쟾??李얠쓣 ???놁뒿?덈떎."));
+        if (version.getDeletedAt() != null) {
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "?뚯씪 踰꾩쟾??李얠쓣 ???놁뒿?덈떎.");
+        }
+        FileEntity file = requireActiveFile(version.getFileId());
+        requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
+
+        byte[] bytes = storageService.downloadObject(version.getObjectKey());
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (version.getContentType() != null && !version.getContentType().isBlank()) {
+            mediaType = MediaType.parseMediaType(version.getContentType());
+        }
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .body(bytes);
     }
 
     @PostMapping("/api/file-versions/{fileVersionId}/comments")

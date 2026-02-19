@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
@@ -144,11 +144,11 @@ export default function ProjectVaultPage() {
       });
       setProvisionOpen(false);
       setProvisionTargetId(null);
-      setNotice("자격 제공되었습니다.");
+      setNotice("Credential provisioned.");
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "자격 제공에 실패했습니다.");
+        setError(e instanceof Error ? e.message : "Failed to provision credential.");
       }
     }
   }
@@ -158,10 +158,10 @@ export default function ProjectVaultPage() {
     setNotice(null);
     try {
       await apiFetch(`/api/vault/secrets/${secretId}/access-requests`, { method: "POST" });
-      setNotice("접근 요청이 제출되었습니다.");
+      setNotice("Access request submitted.");
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "접근 요청 제출에 실패했습니다.");
+        setError(e instanceof Error ? e.message : "Failed to submit access request.");
       }
     }
   }
@@ -173,11 +173,11 @@ export default function ProjectVaultPage() {
     try {
       const revealed = await apiFetch<{ secret: string }>(`/api/vault/secrets/${secretId}/reveal`, { method: "POST" });
       setCredentialsMap((prev) => ({ ...prev, [secretId]: parseCredential(revealed.secret) }));
-      setNotice("자격 공개되었습니다.");
+      setNotice("Credential revealed for this session.");
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "자격 공개에 실패했습니다.");
+        setError(e instanceof Error ? e.message : "Failed to reveal credential.");
       }
     } finally {
       setRevealingId(null);
@@ -207,7 +207,7 @@ export default function ProjectVaultPage() {
               <th className="px-4 py-3">플랫폼</th>
               <th className="px-4 py-3">URL</th>
               <th className="px-4 py-3">이유</th>
-              <th className="px-4 py-3">요청자</th>
+              <th className="px-4 py-3">등록자</th>
               <th className="px-4 py-3">상태</th>
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">PW</th>
@@ -307,7 +307,7 @@ export default function ProjectVaultPage() {
         </form>
       </Modal>
 
-        <Modal open={provisionOpen} onClose={() => setProvisionOpen(false)} title="자격 제공" description="자격을 암호화된 저장소에 저장합니다.">
+          <Modal open={provisionOpen} onClose={() => setProvisionOpen(false)} title="자격 제공" description="자격을 암호화된 저장소에 저장합니다.">
         <form onSubmit={provisionSecret} className="space-y-3">
           <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="로그인 ID" value={provisionLoginId} onChange={(e) => setProvisionLoginId(e.target.value)} required />
           <input

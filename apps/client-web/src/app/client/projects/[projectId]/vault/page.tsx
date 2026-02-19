@@ -110,7 +110,7 @@ export default function ClientVaultPage() {
     <Card>
       <CardHeader>
         <CardTitle>Vault</CardTitle>
-        <CardDescription>PM 요청에 따라 플랫폼 계정 정보를 입력합니다.</CardDescription>
+        <CardDescription>요청된 플랫폼 계정 정보를 입력합니다.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -120,6 +120,7 @@ export default function ClientVaultPage() {
                 <TableHead>플랫폼</TableHead>
                 <TableHead>URL</TableHead>
                 <TableHead>요청 이유</TableHead>
+                <TableHead>등록자</TableHead>
                 <TableHead>상태</TableHead>
                 <TableHead>제공 시각</TableHead>
                 <TableHead>작업</TableHead>
@@ -130,10 +131,8 @@ export default function ClientVaultPage() {
                 <TableRow key={item.id}>
                   <TableCell className="font-semibold text-slate-900">{item.name}</TableCell>
                   <TableCell>{item.siteUrl || "-"}</TableCell>
-                  <TableCell>
-                    <p>{item.requestReason || "-"}</p>
-                    <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
-                  </TableCell>
+                  <TableCell>{item.requestReason || "-"}</TableCell>
+                  <TableCell>{item.createdByName ?? item.createdBy ?? "-"}</TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
@@ -153,7 +152,7 @@ export default function ClientVaultPage() {
               ))}
               {!loading && sortedItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center text-sm text-slate-500">
+                  <TableCell colSpan={7} className="py-6 text-center text-sm text-slate-500">
                     표시할 요청이 없습니다.
                   </TableCell>
                 </TableRow>
