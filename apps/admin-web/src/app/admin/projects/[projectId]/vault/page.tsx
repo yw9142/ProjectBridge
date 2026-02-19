@@ -88,7 +88,7 @@ export default function ProjectVaultPage() {
       setCredentialsMap({});
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "Vault ��û ����� �ҷ����� ���߽��ϴ�.");
+        setError(e instanceof Error ? e.message : "Failed to load vault account requests.");
       }
     } finally {
       setLoading(false);
@@ -115,7 +115,7 @@ export default function ProjectVaultPage() {
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "���� ��û ������ �����߽��ϴ�.");
+        setError(e instanceof Error ? e.message : "Failed to create account request.");
       }
     }
   }
@@ -142,7 +142,7 @@ export default function ProjectVaultPage() {
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "���� ���� �Է¿� �����߽��ϴ�.");
+        setError(e instanceof Error ? e.message : "Failed to save account credentials.");
       }
     }
   }
@@ -158,7 +158,7 @@ export default function ProjectVaultPage() {
       }));
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "���� ���� ��ȸ�� �����߽��ϴ�.");
+        setError(e instanceof Error ? e.message : "Failed to reveal account credentials.");
       }
     } finally {
       setRevealingId(null);
@@ -169,15 +169,15 @@ export default function ProjectVaultPage() {
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Vault ���� ��û</h1>
-          <p className="text-sm text-slate-500">���� ��û�� ���� ������ ���̺���� Ȯ���ϰ� ó���մϴ�.</p>
+          <h1 className="text-xl font-bold text-slate-900">Vault Account Requests</h1>
+          <p className="text-sm text-slate-500">Review and process account requests and provisioning status.</p>
         </div>
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
         >
-          ���� ��û
+          Create Request
         </button>
       </div>
 
@@ -185,14 +185,14 @@ export default function ProjectVaultPage() {
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">�÷���</th>
+              <th className="px-4 py-3">Platform</th>
               <th className="px-4 py-3">URL</th>
-              <th className="px-4 py-3">��û ����</th>
-              <th className="px-4 py-3">����</th>
+              <th className="px-4 py-3">Request Reason</th>
+              <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">PW</th>
-              <th className="px-4 py-3">���� �ð�</th>
-              <th className="px-4 py-3">�۾�</th>
+              <th className="px-4 py-3">Created At</th>
+              <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
@@ -204,7 +204,7 @@ export default function ProjectVaultPage() {
                   <td className="px-4 py-3 text-slate-700">{item.siteUrl || "-"}</td>
                   <td className="px-4 py-3 text-slate-700">
                     <p>{item.requestReason || "-"}</p>
-                    <p className="mt-1 text-xs text-slate-500">�����: {item.createdByName ?? item.createdBy ?? "-"}</p>
+                    <p className="mt-1 text-xs text-slate-500">Requested by: {item.createdByName ?? item.createdBy ?? "-"}</p>
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -212,7 +212,7 @@ export default function ProjectVaultPage() {
                         item.credentialReady ? vaultStatusStyles.READY : vaultStatusStyles.PENDING
                       }`}
                     >
-                      {item.credentialReady ? "�Է� �Ϸ�" : "�Է� ���"}
+                      {item.credentialReady ? "Provided" : "Pending"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{credential?.id ?? "-"}</td>
@@ -225,7 +225,7 @@ export default function ProjectVaultPage() {
                         onClick={() => openProvisionModal(item.id)}
                         className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                       >
-                        ���� �Է�
+                        Provide Credentials
                       </button>
                       {item.credentialReady ? (
                         <button
@@ -234,7 +234,7 @@ export default function ProjectVaultPage() {
                           onClick={() => void revealSecret(item.id)}
                           className="rounded border border-indigo-300 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
                         >
-                          {revealingId === item.id ? "��ȸ ��" : "��ȸ"}
+                          {revealingId === item.id ? "Revealing..." : "Reveal"}
                         </button>
                       ) : null}
                     </div>
@@ -245,7 +245,7 @@ export default function ProjectVaultPage() {
             {!loading && items.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
-                  ��û ������ �����ϴ�.
+                  No account requests found.
                 </td>
               </tr>
             ) : null}
@@ -253,46 +253,46 @@ export default function ProjectVaultPage() {
         </table>
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="���� ��û ����" description="�÷��� ���� ������ ��û�մϴ�.">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Account Request" description="Request platform access credentials.">
         <form onSubmit={createAccountRequest} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="�÷�����" value={platformName} onChange={(e) => setPlatformName(e.target.value)} required />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="����Ʈ URL" value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Platform Name" value={platformName} onChange={(e) => setPlatformName(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Site URL" value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} required />
           <textarea
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             rows={4}
-            placeholder="��û ����"
+            placeholder="Request Reason"
             value={requestReason}
             onChange={(e) => setRequestReason(e.target.value)}
             required
           />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              ���
+              Cancel
             </button>
             <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
-              ��û ����
+              Create Request
             </button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={provisionOpen} onClose={() => setProvisionOpen(false)} title="���� ���� �Է�" description="��û�� �÷����� �α��� ������ �Է��մϴ�.">
+      <Modal open={provisionOpen} onClose={() => setProvisionOpen(false)} title="Provide Credentials" description="Enter login credentials for the requested platform.">
         <form onSubmit={provisionSecret} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="�α��� ID" value={provisionLoginId} onChange={(e) => setProvisionLoginId(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Login ID" value={provisionLoginId} onChange={(e) => setProvisionLoginId(e.target.value)} required />
           <input
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             type="text"
-            placeholder="��й�ȣ"
+            placeholder="Password"
             value={provisionPassword}
             onChange={(e) => setProvisionPassword(e.target.value)}
             required
           />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setProvisionOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              ���
+              Cancel
             </button>
             <button type="submit" className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold !text-white hover:bg-slate-800">
-              ����
+              Save
             </button>
           </div>
         </form>
