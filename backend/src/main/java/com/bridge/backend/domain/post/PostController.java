@@ -96,6 +96,9 @@ public class PostController {
         PostEntity post = requireActivePost(postId);
         ProjectMemberEntity member = guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
         ensureVisibleToMember(post, member);
+        if (!principal.getUserId().equals(post.getCreatedBy()) && !isPmRole(member.getRole())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "POST_EDIT_FORBIDDEN", "Only the author or PM can edit this post.");
+        }
         if (request.title() != null) post.setTitle(request.title());
         if (request.body() != null) post.setBody(request.body());
         if (request.pinned() != null) post.setPinned(request.pinned());
@@ -115,6 +118,9 @@ public class PostController {
         PostEntity post = requireActivePost(postId);
         ProjectMemberEntity member = guardService.requireProjectMember(post.getProjectId(), principal.getUserId(), principal.getTenantId());
         ensureVisibleToMember(post, member);
+        if (!principal.getUserId().equals(post.getCreatedBy()) && !isPmRole(member.getRole())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "POST_DELETE_FORBIDDEN", "Only the author or PM can delete this post.");
+        }
         post.setDeletedAt(OffsetDateTime.now());
         post.setUpdatedBy(principal.getUserId());
         postRepository.save(post);

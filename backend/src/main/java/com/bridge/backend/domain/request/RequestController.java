@@ -84,13 +84,19 @@ public class RequestController {
     public ApiSuccess<RequestEntity> patch(@PathVariable UUID requestId, @RequestBody @Valid PatchRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         RequestEntity entity = requireActiveRequest(requestId);
-        guardService.requireProjectMember(entity.getProjectId(), principal.getUserId(), principal.getTenantId());
+        var member = guardService.requireProjectMember(entity.getProjectId(), principal.getUserId(), principal.getTenantId());
         if (request.type() != null) entity.setType(request.type());
         if (request.title() != null) entity.setTitle(request.title());
         if (request.description() != null) entity.setDescription(request.description());
         if (request.assigneeUserId() != null) entity.setAssigneeUserId(request.assigneeUserId());
         if (request.dueAt() != null) entity.setDueAt(request.dueAt());
-        if (request.status() != null) entity.setStatus(request.status());
+        if (request.status() != null) {
+            validateStatusTransition(entity, request.status(), member.getRole());
+            entity.setStatus(request.status());
+            createEvent(entity, principal.getUserId(), "REQUEST_STATUS_CHANGED", Map.of("status", entity.getStatus()));
+            outboxService.publish(principal.getTenantId(), principal.getUserId(), "request", entity.getId(),
+                    "request.status.changed", "Request status changed", entity.getStatus().name(), Map.of("requestId", entity.getId()));
+        }
         entity.setUpdatedBy(principal.getUserId());
         return ApiSuccess.of(requestRepository.save(entity));
     }
@@ -99,7 +105,11 @@ public class RequestController {
     public ApiSuccess<RequestEntity> patchStatus(@PathVariable UUID requestId, @RequestBody @Valid StatusRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         RequestEntity entity = requireActiveRequest(requestId);
-        guardService.requireProjectMember(entity.getProjectId(), principal.getUserId(), principal.getTenantId());
+        var member = guardService.requireProjectMember(entity.getProjectId(), principal.getUserId(), principal.getTenantId());
+        if (request.status() == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "REQUEST_STATUS_REQUIRED", "Request status is required.");
+        }
+        validateStatusTransition(entity, request.status(), member.getRole());
         entity.setStatus(request.status());
         entity.setUpdatedBy(principal.getUserId());
         RequestEntity saved = requestRepository.save(entity);
@@ -147,6 +157,35 @@ public class RequestController {
         event.setCreatedBy(actorId);
         event.setUpdatedBy(actorId);
         requestEventRepository.save(event);
+    }
+
+    private void validateStatusTransition(RequestEntity entity, RequestStatus nextStatus, MemberRole actorRole) {
+        RequestStatus current = entity.getStatus();
+        if (current == nextStatus) {
+            return;
+        }
+        if (!isValidStatusTransition(current, nextStatus)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "REQUEST_STATUS_TRANSITION_INVALID", "Invalid request status transition.");
+        }
+        if (isClientRole(actorRole)) {
+            if (current != RequestStatus.SENT || (nextStatus != RequestStatus.ACKED && nextStatus != RequestStatus.REJECTED)) {
+                throw new AppException(HttpStatus.FORBIDDEN, "REQUEST_STATUS_FORBIDDEN", "Client can only acknowledge or reject sent requests.");
+            }
+        }
+    }
+
+    private boolean isValidStatusTransition(RequestStatus current, RequestStatus next) {
+        return switch (current) {
+            case DRAFT -> next == RequestStatus.SENT || next == RequestStatus.CANCELLED;
+            case SENT -> next == RequestStatus.ACKED || next == RequestStatus.REJECTED || next == RequestStatus.CANCELLED;
+            case ACKED -> next == RequestStatus.IN_PROGRESS || next == RequestStatus.CANCELLED;
+            case IN_PROGRESS -> next == RequestStatus.DONE || next == RequestStatus.REJECTED || next == RequestStatus.CANCELLED;
+            case DONE, REJECTED, CANCELLED -> false;
+        };
+    }
+
+    private boolean isClientRole(MemberRole role) {
+        return role == MemberRole.CLIENT_OWNER || role == MemberRole.CLIENT_MEMBER;
     }
 
     public record CreateRequest(RequestType type, @NotBlank String title, String description, UUID assigneeUserId, OffsetDateTime dueAt) {

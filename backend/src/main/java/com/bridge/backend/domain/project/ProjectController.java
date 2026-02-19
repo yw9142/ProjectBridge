@@ -92,7 +92,7 @@ public class ProjectController {
 
     @PostMapping("/api/invitations/{invitationToken}/accept")
     public ApiSuccess<Map<String, Object>> accept(@PathVariable String invitationToken) {
-        return ApiSuccess.of(projectService.acceptInvitation(SecurityUtils.requirePrincipal(), invitationToken));
+        return ApiSuccess.of(projectService.acceptInvitation(invitationToken));
     }
 
     public record CreateProjectRequest(@NotBlank String name, String description) {

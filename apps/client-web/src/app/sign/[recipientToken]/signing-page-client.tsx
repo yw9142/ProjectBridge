@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch, handleAuthError } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
 type SigningData = {
@@ -30,8 +30,8 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
           setData(response);
         }
       } catch (e) {
-        if (active && !handleAuthError(e, "/login")) {
-          setError(e instanceof Error ? e.message : "서명 정보를 불러오지 못했습니다.");
+        if (active) {
+          setError(e instanceof Error ? e.message : "Failed to load signing data.");
         }
       } finally {
         if (active) {
@@ -40,7 +40,7 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
       }
     }
 
-    load();
+    void load();
     return () => {
       active = false;
     };
@@ -52,13 +52,10 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
     setResult(null);
     try {
       await apiFetch(`/api/signing/${recipientToken}/viewed`, { method: "POST" });
-      setResult("열람 이벤트를 기록했습니다.");
+      setResult("View event recorded.");
       setData((prev) => (prev ? { ...prev, recipient: { ...prev.recipient, status: "VIEWED" } } : prev));
     } catch (e) {
-      if (handleAuthError(e, "/login")) {
-        return;
-      }
-      setError(e instanceof Error ? e.message : "열람 처리에 실패했습니다.");
+      setError(e instanceof Error ? e.message : "Failed to record view event.");
     } finally {
       setSubmitting(false);
     }
@@ -72,7 +69,7 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
       const response = await apiFetch<{ signed: boolean; completed: boolean }>(`/api/signing/${recipientToken}/submit`, {
         method: "POST",
       });
-      setResult(response.completed ? "서명이 완료되었습니다. 완료 문서가 생성되었습니다." : "서명이 기록되었습니다.");
+      setResult(response.completed ? "Signature completed." : "Signature submitted.");
       setData((prev) =>
         prev
           ? {
@@ -83,17 +80,14 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
           : prev,
       );
     } catch (e) {
-      if (handleAuthError(e, "/login")) {
-        return;
-      }
-      setError(e instanceof Error ? e.message : "서명 제출에 실패했습니다.");
+      setError(e instanceof Error ? e.message : "Failed to submit signature.");
     } finally {
       setSubmitting(false);
     }
   }
 
   if (loading) {
-    return <main className="min-h-screen bg-slate-50 p-6">서명 정보를 불러오는 중...</main>;
+    return <main className="min-h-screen bg-slate-50 p-6">Loading signing data...</main>;
   }
 
   if (error && !data) {
@@ -107,7 +101,7 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
   if (!data) {
     return (
       <main className="min-h-screen bg-slate-50 p-6">
-        <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-4">서명 데이터를 찾을 수 없습니다.</div>
+        <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-4">Signing data not found.</div>
       </main>
     );
   }
@@ -118,7 +112,7 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">전자서명</h1>
+              <h1 className="text-2xl font-bold text-slate-900">Electronic Signature</h1>
               <p className="text-sm text-slate-500">{data.envelope.title}</p>
             </div>
             <StatusBadge status={data.envelope.status} />
@@ -126,20 +120,28 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
 
           <dl className="mt-4 grid grid-cols-1 gap-3 text-sm text-slate-700 md:grid-cols-2">
             <div>
-              <dt className="font-semibold">수신자</dt>
+              <dt className="font-semibold">Recipient</dt>
               <dd>{data.recipient.recipientName}</dd>
             </div>
             <div>
-              <dt className="font-semibold">이메일</dt>
+              <dt className="font-semibold">Email</dt>
               <dd>{data.recipient.recipientEmail}</dd>
             </div>
             <div>
-              <dt className="font-semibold">서명 필드 수</dt>
+              <dt className="font-semibold">Fields</dt>
               <dd>{data.fields.length}</dd>
             </div>
             <div>
-              <dt className="font-semibold">PDF URL</dt>
-              <dd className="truncate">{data.pdfDownloadUrl}</dd>
+              <dt className="font-semibold">PDF</dt>
+              <dd className="truncate">
+                {data.pdfDownloadUrl ? (
+                  <a href={data.pdfDownloadUrl} target="_blank" rel="noreferrer" className="text-indigo-600 underline-offset-2 hover:underline">
+                    Open PDF
+                  </a>
+                ) : (
+                  "-"
+                )}
+              </dd>
             </div>
           </dl>
 
@@ -149,14 +151,14 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
               onClick={markViewed}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
             >
-              열람 기록
+              Mark Viewed
             </button>
             <button
               disabled={submitting}
               onClick={submitSignature}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60"
             >
-              서명 제출
+              Submit Signature
             </button>
           </div>
 

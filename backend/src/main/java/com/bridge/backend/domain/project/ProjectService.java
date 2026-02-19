@@ -186,40 +186,36 @@ public class ProjectService {
         return invitationRepository.save(invitation);
     }
 
-    @Transactional
-    public Map<String, Object> acceptInvitation(AuthPrincipal principal, String invitationToken) {
+    @Transactional(readOnly = true)
+    public Map<String, Object> acceptInvitation(String invitationToken) {
+        InvitationEntity invitation = requireValidInvitation(invitationToken);
+        return Map.of(
+                "invitationToken", invitation.getInvitationToken(),
+                "tenantId", invitation.getTenantId(),
+                "projectId", invitation.getProjectId(),
+                "invitedEmail", invitation.getInvitedEmail(),
+                "role", invitation.getRole(),
+                "expiresAt", invitation.getExpiresAt(),
+                "accepted", invitation.getAcceptedAt() != null
+        );
+    }
+
+    private InvitationEntity requireValidInvitation(String invitationToken) {
         InvitationEntity invitation = invitationRepository.findByInvitationTokenAndDeletedAtIsNull(invitationToken)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "초대 토큰을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation token not found."));
         if (invitation.getExpiresAt().isBefore(OffsetDateTime.now())) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVITATION_EXPIRED", "초대가 만료되었습니다.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVITATION_EXPIRED", "Invitation is expired.");
         }
-        UserEntity user = userRepository.findById(principal.getUserId())
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
-        if (!user.getEmail().equalsIgnoreCase(invitation.getInvitedEmail())) {
-            throw new AppException(HttpStatus.FORBIDDEN, "INVITATION_EMAIL_MISMATCH", "초대 대상 이메일이 일치하지 않습니다.");
-        }
-        if (projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(invitation.getProjectId(), user.getId()).isEmpty()) {
-            ProjectMemberEntity member = new ProjectMemberEntity();
-            member.setTenantId(invitation.getTenantId());
-            member.setProjectId(invitation.getProjectId());
-            member.setUserId(user.getId());
-            member.setRole(invitation.getRole());
-            member.setCreatedBy(principal.getUserId());
-            member.setUpdatedBy(principal.getUserId());
-            projectMemberRepository.save(member);
-        }
-        invitation.setAcceptedAt(OffsetDateTime.now());
-        invitationRepository.save(invitation);
-        return Map.of("accepted", true, "projectId", invitation.getProjectId());
+        return invitation;
     }
 
     @Transactional
     public ProjectMemberEntity updateMemberRole(AuthPrincipal principal, UUID projectId, UUID memberId, MemberRole role) {
         accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(), Set.of(MemberRole.PM_OWNER));
         ProjectMemberEntity member = projectMemberRepository.findById(memberId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "멤버를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎."));
         if (member.getDeletedAt() != null || !member.getProjectId().equals(projectId)) {
-            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "멤버를 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎.");
         }
         member.setRole(role);
         member.setUpdatedBy(principal.getUserId());
@@ -234,25 +230,25 @@ public class ProjectService {
                                                     String password) {
         accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(), Set.of(MemberRole.PM_OWNER));
         ProjectMemberEntity member = projectMemberRepository.findById(memberId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "筌롢끇苡?몴?筌≪뼚??????곷뮸??덈뼄."));
         if (member.getDeletedAt() != null || !member.getProjectId().equals(projectId)) {
-            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎.");
+            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "筌롢끇苡?몴?筌≪뼚??????곷뮸??덈뼄.");
         }
 
         boolean hasLoginId = loginId != null && !loginId.isBlank();
         boolean hasPassword = password != null && !password.isBlank();
         if (!hasLoginId && !hasPassword) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "ACCOUNT_UPDATE_EMPTY", "蹂寃쏀븷 怨꾩젙 ?뺣낫媛 ?놁뒿?덈떎.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "ACCOUNT_UPDATE_EMPTY", "癰궰野껋?釉??④쑴???類ｋ궖揶쎛 ??곷뮸??덈뼄.");
         }
 
         UserEntity user = userRepository.findByIdAndDeletedAtIsNull(member.getUserId())
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "????癒? 筌≪뼚??????곷뮸??덈뼄."));
 
         if (hasLoginId) {
             String normalizedLoginId = loginId.trim().toLowerCase(Locale.ROOT);
             userRepository.findByEmailAndDeletedAtIsNull(normalizedLoginId).ifPresent(existing -> {
                 if (!existing.getId().equals(user.getId())) {
-                    throw new AppException(HttpStatus.CONFLICT, "LOGIN_ID_DUPLICATE", "?대? 濡쒓렇??ID媛 ?대? ?ъ슜 以묒엯?덈떎.");
+                    throw new AppException(HttpStatus.CONFLICT, "LOGIN_ID_DUPLICATE", "??? 嚥≪뮄???ID揶쎛 ??? ????餓λ쵐???덈뼄.");
                 }
             });
             user.setEmail(normalizedLoginId);
@@ -275,12 +271,12 @@ public class ProjectService {
     public Map<String, Object> removeMember(AuthPrincipal principal, UUID projectId, UUID memberId) {
         accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(), Set.of(MemberRole.PM_OWNER));
         ProjectMemberEntity member = projectMemberRepository.findById(memberId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "멤버를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎."));
         if (member.getDeletedAt() != null || !member.getProjectId().equals(projectId)) {
-            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "멤버를 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎.");
         }
         if (member.getUserId().equals(principal.getUserId())) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "SELF_REMOVE_FORBIDDEN", "본인 멤버십은 삭제할 수 없습니다.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "SELF_REMOVE_FORBIDDEN", "蹂몄씤 硫ㅻ쾭??? ??젣?????놁뒿?덈떎.");
         }
         member.setDeletedAt(OffsetDateTime.now());
         member.setUpdatedBy(principal.getUserId());
@@ -293,3 +289,4 @@ public class ProjectService {
         return new ProjectMemberAccount(member.getId(), member.getUserId(), member.getRole(), loginId, PASSWORD_MASK);
     }
 }
+

@@ -39,7 +39,11 @@ type FileVersion = {
 type PresignResponse = {
   uploadUrl: string;
   objectKey: string;
+  version: number;
   contentType: string;
+  size: number;
+  checksum: string;
+  uploadTicket: string;
 };
 
 type LatestVersionMap = Record<string, FileVersion | null>;
@@ -47,12 +51,6 @@ type DragPayload = { kind: "file"; fileId: string; sourceFolder: string } | { ki
 type FileTreeRow =
   | { key: string; kind: "folder"; path: string; depth: number; name: string; isRoot: boolean; hasChildren: boolean; collapsed: boolean }
   | { key: string; kind: "file"; depth: number; file: FileItem };
-
-function extractVersion(objectKey: string) {
-  const matched = objectKey.match(/\/v(\d+)\//);
-  if (!matched) return 1;
-  return Number(matched[1]);
-}
 
 function normalizeFolderPath(path?: string | null) {
   if (!path) return "/";
@@ -322,9 +320,14 @@ export default function ProjectFilesPage() {
 
   async function uploadFileVersion(fileId: string, uploadFile: File) {
     const contentType = uploadFile.type || "application/octet-stream";
+    const checksum = `${uploadFile.name}-${uploadFile.size}-${uploadFile.lastModified}`;
     const presign = await apiFetch<PresignResponse>(`/api/files/${fileId}/versions/presign`, {
       method: "POST",
-      body: JSON.stringify({ contentType }),
+      body: JSON.stringify({
+        contentType,
+        size: uploadFile.size,
+        checksum,
+      }),
     });
 
     const uploadResponse = await fetch(presign.uploadUrl, {
@@ -337,15 +340,15 @@ export default function ProjectFilesPage() {
       throw new Error("첨부 파일 업로드에 실패했습니다.");
     }
 
-    const version = extractVersion(presign.objectKey);
     await apiFetch(`/api/files/${fileId}/versions/complete`, {
       method: "POST",
       body: JSON.stringify({
-        version,
+        version: presign.version,
         objectKey: presign.objectKey,
         contentType,
         size: uploadFile.size,
-        checksum: `${uploadFile.name}-${uploadFile.size}-${uploadFile.lastModified}`,
+        checksum,
+        uploadTicket: presign.uploadTicket,
       }),
     });
   }

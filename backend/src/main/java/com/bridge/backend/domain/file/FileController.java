@@ -301,12 +301,21 @@ public class FileController {
         var principal = SecurityUtils.requirePrincipal();
         FileEntity file = requireActiveFile(fileId);
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
+        if (request.size() <= 0) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "FILE_SIZE_INVALID", "File size must be greater than zero.");
+        }
         int nextVersion = fileVersionRepository.findByFileIdAndTenantIdAndDeletedAtIsNullOrderByVersionDesc(fileId, principal.getTenantId())
                 .stream()
                 .findFirst()
                 .map(v -> v.getVersion() + 1)
                 .orElse(1);
-        return ApiSuccess.of(storageService.createUploadPresign(fileId, nextVersion, request.contentType()));
+        return ApiSuccess.of(storageService.createUploadPresign(
+                fileId,
+                nextVersion,
+                request.contentType(),
+                request.size(),
+                request.checksum()
+        ));
     }
 
     @PostMapping("/api/files/{fileId}/versions/complete")
@@ -314,12 +323,32 @@ public class FileController {
         var principal = SecurityUtils.requirePrincipal();
         FileEntity file = requireActiveFile(fileId);
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
-        fileVersionRepository.findByFileIdAndTenantIdAndDeletedAtIsNullOrderByVersionDesc(fileId, principal.getTenantId())
+        List<FileVersionEntity> versions = fileVersionRepository.findByFileIdAndTenantIdAndDeletedAtIsNullOrderByVersionDesc(fileId, principal.getTenantId());
+        int expectedVersion = versions.stream()
+                .findFirst()
+                .map(v -> v.getVersion() + 1)
+                .orElse(1);
+        if (request.version() != expectedVersion) {
+            throw new AppException(HttpStatus.CONFLICT, "FILE_VERSION_CONFLICT", "Upload version does not match latest file version.");
+        }
+        boolean validTicket = storageService.verifyUploadTicket(
+                request.uploadTicket(),
+                fileId,
+                request.version(),
+                request.objectKey(),
+                request.contentType(),
+                request.size(),
+                request.checksum()
+        );
+        if (!validTicket) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TICKET_INVALID", "Upload ticket is invalid or expired.");
+        }
+
+        versions.stream()
+                .filter(FileVersionEntity::isLatest)
                 .forEach(v -> {
-                    if (v.isLatest()) {
-                        v.setLatest(false);
-                        fileVersionRepository.save(v);
-                    }
+                    v.setLatest(false);
+                    fileVersionRepository.save(v);
                 });
         FileVersionEntity version = new FileVersionEntity();
         version.setTenantId(principal.getTenantId());
@@ -599,10 +628,15 @@ public class FileController {
     public record DeleteFolderRequest(@NotBlank String path) {
     }
 
-    public record PresignRequest(@NotBlank String contentType) {
+    public record PresignRequest(@NotBlank String contentType, long size, @NotBlank String checksum) {
     }
 
-    public record CompleteRequest(int version, @NotBlank String objectKey, @NotBlank String contentType, long size, @NotBlank String checksum) {
+    public record CompleteRequest(int version,
+                                  @NotBlank String objectKey,
+                                  @NotBlank String contentType,
+                                  long size,
+                                  @NotBlank String checksum,
+                                  @NotBlank String uploadTicket) {
     }
 
     public record CreateCommentRequest(@NotBlank String body, double coordX, double coordY, double coordW, double coordH) {
