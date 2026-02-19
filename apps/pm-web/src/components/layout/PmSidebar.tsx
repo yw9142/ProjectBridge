@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Calendar, FileSignature, FolderOpen, History, LayoutDashboard, Lock, MessageSquare, Receipt, Settings, SquareCheck } from "lucide-react";
+import FadeContent from "@/components/react-bits/FadeContent";
+import Magnet from "@/components/react-bits/Magnet";
 
 const items = [
   { key: "dashboard", label: "대시보드", icon: LayoutDashboard },
@@ -23,7 +25,9 @@ export function PmSidebar({ projectId }: { projectId: string }) {
     <aside className="fixed inset-y-0 left-0 z-30 w-64 border-r border-border bg-card/95 backdrop-blur">
       <div className="flex h-14 items-center border-b border-border px-4">
         <Link href="/pm/projects" className="flex items-center gap-3">
+          <Magnet padding={80} magnetStrength={3} wrapperClassName="shrink-0">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
+          </Magnet>
           <div className="leading-tight">
             <p className="text-sm font-semibold text-foreground">Bridge PM</p>
             <p className="text-xs text-muted-foreground">프로젝트 작업공간</p>
@@ -33,38 +37,40 @@ export function PmSidebar({ projectId }: { projectId: string }) {
 
       <div className="p-2">
         <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">프로젝트 내비게이션</p>
-        <nav className="space-y-0.5" aria-label="PM 프로젝트 메뉴">
-          {items.map((item) => {
-            const href = `/pm/projects/${projectId}/${item.key}`;
-            const active = pathname === href || pathname.startsWith(`${href}/`);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.key}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                  active ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span className={active ? "!text-white" : undefined}>{item.label}</span>
-              </Link>
-            );
-          })}
-          <Link
-            href={`/pm/projects/${projectId}/settings/members`}
-            aria-current={pathname.includes("/settings/members") ? "page" : undefined}
-            className={`mt-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-              pathname.includes("/settings/members")
-                ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            <Settings className="h-4 w-4" />
-            <span className={pathname.includes("/settings/members") ? "!text-white" : undefined}>멤버 설정</span>
-          </Link>
-        </nav>
+        <FadeContent blur duration={650} delay={120} threshold={0}>
+          <nav className="space-y-0.5" aria-label="PM 프로젝트 메뉴">
+            {items.map((item) => {
+              const href = `/pm/projects/${projectId}/${item.key}`;
+              const active = pathname === href || pathname.startsWith(`${href}/`);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.key}
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                    active ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className={active ? "!text-white" : undefined}>{item.label}</span>
+                </Link>
+              );
+            })}
+            <Link
+              href={`/pm/projects/${projectId}/settings/members`}
+              aria-current={pathname.includes("/settings/members") ? "page" : undefined}
+              className={`mt-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                pathname.includes("/settings/members")
+                  ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Settings className="h-4 w-4" />
+              <span className={pathname.includes("/settings/members") ? "!text-white" : undefined}>멤버 설정</span>
+            </Link>
+          </nav>
+        </FadeContent>
       </div>
     </aside>
   );
