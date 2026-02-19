@@ -18,7 +18,7 @@ export function ClientSection({
         </div>
         <StatusBadge status={status} />
       </div>
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-sm text-slate-700">Ŭ���̾�Ʈ ���� �۾� ����Ʈ�� �� ������ ��ġ�˴ϴ�.</div>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-sm text-slate-700">클라이언트 관점 작업 리스트와 상세 정보가 배치됩니다.</div>
     </section>
   );
 }

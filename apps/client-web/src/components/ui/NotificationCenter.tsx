@@ -37,7 +37,7 @@ export function NotificationCenter() {
         }
       } catch (e) {
         if (!handleAuthError(e, "/login") && active) {
-          setError(e instanceof Error ? e.message : "¾Ë¸²À» ºÒ·¯¿ÀÁö ¸øÇß½À´Ï´Ù.");
+          setError(e instanceof Error ? e.message : "ì•Œë¦¼ì„ ë¶ˆëŸ¬ì˜¤ì§€ ëª»í–ˆìŠµë‹ˆë‹¤.");
         }
       }
     };
@@ -99,8 +99,8 @@ export function NotificationCenter() {
       if (active) {
         setError(
           reconnectAttempts <= RECOVERING_MESSAGE_ATTEMPTS
-            ? `½Ç½Ã°£ ¿¬°á º¹±¸ Áß... (${reconnectAttempts}/${RECOVERING_MESSAGE_ATTEMPTS})`
-            : "½Ç½Ã°£ ¿¬°áÀÌ ºÒ¾ÈÁ¤ÇÕ´Ï´Ù. ÀÚµ¿ º¹±¸¸¦ °è¼Ó ½Ãµµ ÁßÀÔ´Ï´Ù."
+            ? `ì‹¤ì‹œê°„ ì—°ê²° ë³µêµ¬ ì¤‘... (${reconnectAttempts}/${RECOVERING_MESSAGE_ATTEMPTS})`
+            : "ì‹¤ì‹œê°„ ì—°ê²°ì´ ë¶ˆì•ˆì •í•©ë‹ˆë‹¤. ìë™ ë³µêµ¬ë¥¼ ê³„ì† ì‹œë„ ì¤‘ì…ë‹ˆë‹¤."
         );
       }
 
@@ -124,7 +124,7 @@ export function NotificationCenter() {
           await apiFetch<unknown>("/api/auth/me");
         } catch (e) {
           if (!handleAuthError(e, "/login") && active) {
-            setError(e instanceof Error ? e.message : "½Ç½Ã°£ ¿¬°áÀ» º¹±¸ÇÏÁö ¸øÇß½À´Ï´Ù.");
+            setError(e instanceof Error ? e.message : "ì‹¤ì‹œê°„ ì—°ê²°ì„ ë³µêµ¬í•˜ì§€ ëª»í–ˆìŠµë‹ˆë‹¤.");
           }
           return;
         }
@@ -185,7 +185,7 @@ export function NotificationCenter() {
       <button
         className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         onClick={() => setOpen((v) => !v)}
-        aria-label="¾Ë¸² ¿­±â"
+        aria-label="ì•Œë¦¼ ì—´ê¸°"
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls={open ? panelId : undefined}
@@ -198,13 +198,13 @@ export function NotificationCenter() {
           id={panelId}
           role="dialog"
           aria-modal="false"
-          aria-label="¾Ë¸² ¼¾ÅÍ"
+          aria-label="ì•Œë¦¼ ì„¼í„°"
           className="absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-xl"
         >
-          <p className="mb-2 text-sm font-semibold text-foreground">¾Ë¸² ¼¾ÅÍ</p>
+          <p className="mb-2 text-sm font-semibold text-foreground">ì•Œë¦¼ ì„¼í„°</p>
           <div className="max-h-72 space-y-2 overflow-auto">
             {error ? <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</p> : null}
-            {items.length === 0 ? <p className="rounded-md border border-dashed border-border p-2 text-sm text-muted-foreground">»õ ¾Ë¸²ÀÌ ¾ø½À´Ï´Ù.</p> : null}
+            {items.length === 0 ? <p className="rounded-md border border-dashed border-border p-2 text-sm text-muted-foreground">ìƒˆ ì•Œë¦¼ì´ ì—†ìŠµë‹ˆë‹¤.</p> : null}
             {items.map((item) => (
               <article key={item.id} className="rounded-lg border border-border bg-muted/30 p-2">
                 <p className="text-sm font-medium text-foreground">{item.title}</p>

@@ -14,8 +14,8 @@ const colors: Record<string, string> = {
 };
 
 const labels: Record<string, string> = {
-  IN_PROGRESS: "ÁøÇà Áß",
-  PARTIALLY_SIGNED: "ºÎºÐ ¼­¸í",
+  IN_PROGRESS: "ì§„í–‰ ì¤‘",
+  PARTIALLY_SIGNED: "ë¶€ë¶„ ì„œëª…",
 };
 
 export function StatusBadge({ status }: { status: string }) {

@@ -6,8 +6,8 @@ import { Building2, FolderKanban, ShieldCheck } from "lucide-react";
 import { AdminLogoutButton } from "./AdminLogoutButton";
 
 const nav = [
-  { href: "/admin/tenants", label: "Å×³ÍÆ® ¸ñ·Ï", icon: Building2 },
-  { href: "/admin/projects", label: "ÇÁ·ÎÁ§Æ®", icon: FolderKanban },
+  { href: "/admin/tenants", label: "í…Œë„ŒíŠ¸ ëª©ë¡", icon: Building2 },
+  { href: "/admin/projects", label: "í”„ë¡œì íŠ¸", icon: FolderKanban },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -21,7 +21,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
             <div className="leading-tight">
               <p className="text-sm font-semibold">Bridge Admin</p>
-              <p className="text-xs text-muted-foreground">¿î¿µ ÄÜ¼Ö</p>
+              <p className="text-xs text-muted-foreground">ìš´ì˜ ì½˜ì†”</p>
             </div>
           </Link>
           <div className="flex items-center gap-3">
@@ -36,8 +36,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </header>
       <div className="mx-auto grid w-full max-w-[1400px] gap-5 px-4 py-5 md:px-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="h-fit rounded-xl border border-border bg-card p-2 shadow-sm">
-          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">³»ºñ°ÔÀÌ¼Ç</p>
-          <nav className="space-y-0.5" aria-label="°ü¸®ÀÚ ¸Ş´º">
+          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">ë‚´ë¹„ê²Œì´ì…˜</p>
+          <nav className="space-y-0.5" aria-label="ê´€ë¦¬ì ë©”ë‰´">
             {nav.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;

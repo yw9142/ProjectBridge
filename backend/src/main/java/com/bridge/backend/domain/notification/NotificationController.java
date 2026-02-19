@@ -85,9 +85,9 @@ public class NotificationController {
         if (!isPlatformAdmin) {
             var currentMember = tenantMemberRepository
                     .findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), principal.getUserId())
-                    .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "±ÇÇÑÀÌ ¾ø½À´Ï´Ù."));
+                    .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "ê¶Œí•œì´ ì—†ìŠµë‹ˆë‹¤."));
             if (!isPmRole(currentMember.getRole())) {
-                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "±ÇÇÑÀÌ ¾ø½À´Ï´Ù.");
+                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "ê¶Œí•œì´ ì—†ìŠµë‹ˆë‹¤.");
             }
         }
         List<Map<String, Object>> events = outboxEventRepository

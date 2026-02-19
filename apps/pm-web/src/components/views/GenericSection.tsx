@@ -17,7 +17,7 @@ export function GenericSection({ title, description, status = "ACTIVE" }: Props)
         <StatusBadge status={status} />
       </div>
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-600">юл ©╣©╙ю╨ API ©╛╣© ╣╔юлем╟║ ©╛╟А╣и евюл╨М╟З д╚╣Е ╪╫╪гют╢о╢ы.</p>
+        <p className="text-sm text-slate-600">Л²╢ Л≤│Л≈╜Л²─ API Л≈╟К▐≥ К█╟Л²╢М└╟Й╟─ Л≈╟Й╡╟К░═ М┘▄Л²╢К╦■ЙЁ╪ Л╧╢К⌠° Л└╧Л┘≤Л·┘К▀┬К▀╓.</p>
       </div>
     </section>
   );

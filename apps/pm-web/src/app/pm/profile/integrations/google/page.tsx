@@ -21,7 +21,7 @@ export default function GoogleIntegrationPage() {
       setStatus(data);
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
-        setError(e instanceof Error ? e.message : "Google ¿¬µ¿ »óÅÂ Á¶È¸¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+        setError(e instanceof Error ? e.message : "Google ì—°ë™ ìƒíƒœ ì¡°íšŒì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       }
     }
   };
@@ -42,7 +42,7 @@ export default function GoogleIntegrationPage() {
           return;
         }
         if (!handleAuthError(e, "/login")) {
-          setError(e instanceof Error ? e.message : "Google ¿¬µ¿ »óÅÂ Á¶È¸¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+          setError(e instanceof Error ? e.message : "Google ì—°ë™ ìƒíƒœ ì¡°íšŒì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
         }
       }
     })();
@@ -59,7 +59,7 @@ export default function GoogleIntegrationPage() {
       await loadStatus();
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
-        setError(e instanceof Error ? e.message : "¿¬°á ¿äÃ»¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+        setError(e instanceof Error ? e.message : "ì—°ê²° ìš”ì²­ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       }
     }
   };
@@ -71,7 +71,7 @@ export default function GoogleIntegrationPage() {
       await loadStatus();
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
-        setError(e instanceof Error ? e.message : "¿¬°á ÇØÁ¦ ¿äÃ»¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+        setError(e instanceof Error ? e.message : "ì—°ê²° í•´ì œ ìš”ì²­ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       }
     }
   };
@@ -79,8 +79,8 @@ export default function GoogleIntegrationPage() {
   return (
     <main className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">Google ¿¬µ¿</h1>
-        <p className="mt-1 text-sm text-slate-500">ÇöÀç ¼­¹ö ÇÃ·¯±×ÀÎ »óÅÂ¸¦ Á¶È¸ÇÏ°í ¿¬°á/ÇØÁ¦¸¦ Å×½ºÆ®ÇÕ´Ï´Ù.</p>
+        <h1 className="text-2xl font-bold text-slate-900">Google ì—°ë™</h1>
+        <p className="mt-1 text-sm text-slate-500">í˜„ì¬ ì„œë²„ í”ŒëŸ¬ê·¸ì¸ ìƒíƒœë¥¼ ì¡°íšŒí•˜ê³  ì—°ê²°/í•´ì œë¥¼ í…ŒìŠ¤íŠ¸í•©ë‹ˆë‹¤.</p>
 
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
           <p>enabled: {String(status?.enabled ?? false)}</p>
@@ -90,15 +90,15 @@ export default function GoogleIntegrationPage() {
 
         <div className="mt-4 flex gap-2">
           <ConfirmActionButton
-            label="¿¬°á ¿äÃ»"
-            title="Google ¿¬µ¿ ¿¬°áÀ» ¿äÃ»ÇÒ±î¿ä?"
+            label="ì—°ê²° ìš”ì²­"
+            title="Google ì—°ë™ ì—°ê²°ì„ ìš”ì²­í• ê¹Œìš”?"
             onConfirm={connect}
             triggerVariant="primary"
             triggerClassName="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
           />
           <ConfirmActionButton
-            label="¿¬°á ÇØÁ¦"
-            title="Google ¿¬µ¿À» ÇØÁ¦ÇÒ±î¿ä?"
+            label="ì—°ê²° í•´ì œ"
+            title="Google ì—°ë™ì„ í•´ì œí• ê¹Œìš”?"
             onConfirm={disconnect}
             triggerVariant="outline"
             triggerClassName="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"

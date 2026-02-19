@@ -31,7 +31,7 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
         }
       } catch (e) {
         if (active) {
-          setError(e instanceof Error ? e.message : "¼­¸í Á¤º¸¸¦ ºÒ·¯¿ÀÁö ¸øÇß½À´Ï´Ù.");
+          setError(e instanceof Error ? e.message : "ì„œëª… ì •ë³´ë¥¼ ë¶ˆëŸ¬ì˜¤ì§€ ëª»í–ˆìŠµë‹ˆë‹¤.");
         }
       } finally {
         if (active) {
@@ -52,10 +52,10 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
     setResult(null);
     try {
       await apiFetchPublic(`/api/signing/${recipientToken}/viewed`, { method: "POST" });
-      setResult("¿­¶÷ ÀÌº¥Æ®¸¦ ±â·ÏÇß½À´Ï´Ù.");
+      setResult("ì—´ëŒ ì´ë²¤íŠ¸ë¥¼ ê¸°ë¡í–ˆìŠµë‹ˆë‹¤.");
       setData((prev) => (prev ? { ...prev, recipient: { ...prev.recipient, status: "VIEWED" } } : prev));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "¿­¶÷ Ã³¸®¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      setError(e instanceof Error ? e.message : "ì—´ëŒ ì²˜ë¦¬ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
     } finally {
       setSubmitting(false);
     }
@@ -69,7 +69,7 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
       const response = await apiFetchPublic<{ signed: boolean; completed: boolean }>(`/api/signing/${recipientToken}/submit`, {
         method: "POST",
       });
-      setResult(response.completed ? "¼­¸íÀÌ ¿Ï·áµÇ¾ú½À´Ï´Ù. ¿Ï·á ¹®¼­°¡ »ı¼ºµÇ¾ú½À´Ï´Ù." : "¼­¸íÀ» Á¦ÃâÇß½À´Ï´Ù.");
+      setResult(response.completed ? "ì„œëª…ì´ ì™„ë£Œë˜ì—ˆìŠµë‹ˆë‹¤. ì™„ë£Œ ë¬¸ì„œê°€ ìƒì„±ë˜ì—ˆìŠµë‹ˆë‹¤." : "ì„œëª…ì„ ì œì¶œí–ˆìŠµë‹ˆë‹¤.");
       setData((prev) =>
         prev
           ? {
@@ -80,14 +80,14 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
           : prev,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "¼­¸í Á¦Ãâ¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      setError(e instanceof Error ? e.message : "ì„œëª… ì œì¶œì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
     } finally {
       setSubmitting(false);
     }
   }
 
   if (loading) {
-    return <main className="min-h-screen bg-slate-50 p-6">¼­¸í Á¤º¸¸¦ ºÒ·¯¿À´Â Áß..</main>;
+    return <main className="min-h-screen bg-slate-50 p-6">ì„œëª… ì •ë³´ë¥¼ ë¶ˆëŸ¬ì˜¤ëŠ” ì¤‘..</main>;
   }
 
   if (error && !data) {
@@ -101,7 +101,7 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
   if (!data) {
     return (
       <main className="min-h-screen bg-slate-50 p-6">
-        <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-4">¼­¸í µ¥ÀÌÅÍ¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù.</div>
+        <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-4">ì„œëª… ë°ì´í„°ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.</div>
       </main>
     );
   }
@@ -112,7 +112,7 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">ÀüÀÚ¼­¸í</h1>
+              <h1 className="text-2xl font-bold text-slate-900">ì „ìì„œëª…</h1>
               <p className="text-sm text-slate-500">{data.envelope.title}</p>
             </div>
             <StatusBadge status={data.envelope.status} />
@@ -120,15 +120,15 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
 
           <dl className="mt-4 grid grid-cols-1 gap-3 text-sm text-slate-700 md:grid-cols-2">
             <div>
-              <dt className="font-semibold">¼ö½ÅÀÚ</dt>
+              <dt className="font-semibold">ìˆ˜ì‹ ì</dt>
               <dd>{data.recipient.recipientName}</dd>
             </div>
             <div>
-              <dt className="font-semibold">ÀÌ¸ŞÀÏ</dt>
+              <dt className="font-semibold">ì´ë©”ì¼</dt>
               <dd>{data.recipient.recipientEmail}</dd>
             </div>
             <div>
-              <dt className="font-semibold">¼­¸í ÇÊµå ¼ö</dt>
+              <dt className="font-semibold">ì„œëª… í•„ë“œ ìˆ˜</dt>
               <dd>{data.fields.length}</dd>
             </div>
             <div>
@@ -143,14 +143,14 @@ export function SigningPageClient({ recipientToken }: { recipientToken: string }
               onClick={markViewed}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
             >
-              ¿­¶÷ ±â·Ï
+              ì—´ëŒ ê¸°ë¡
             </button>
             <button
               disabled={submitting}
               onClick={submitSignature}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60"
             >
-              ¼­¸í Á¦Ãâ
+              ì„œëª… ì œì¶œ
             </button>
           </div>
 

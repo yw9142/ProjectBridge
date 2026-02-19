@@ -7,14 +7,14 @@ export function AppHeader() {
       <div className="mx-auto flex h-14 w-full max-w-[1320px] items-center justify-between px-4 md:px-6">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">PM Workspace</p>
-          <h2 className="text-sm font-semibold text-foreground">Bridge га╥на╖ф╝ фВеп</h2>
+          <h2 className="text-sm font-semibold text-foreground">Bridge М■└К║°Л═²М┼╦ М▐╛М└╦</h2>
         </div>
         <div className="flex items-center gap-3">
           <NotificationCenter />
           <div className="h-6 w-px bg-border" />
           <PmLogoutButton />
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-foreground">PM ╩Г©Кюз</p>
+            <p className="text-sm font-medium text-foreground">PM Л┌╛Л ╘Л·░</p>
             <p className="text-xs text-muted-foreground">PM_OWNER</p>
           </div>
         </div>

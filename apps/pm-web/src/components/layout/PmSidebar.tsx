@@ -5,15 +5,15 @@ import { usePathname } from "next/navigation";
 import { Calendar, FileSignature, FolderOpen, History, LayoutDashboard, Lock, MessageSquare, Receipt, Settings, SquareCheck } from "lucide-react";
 
 const items = [
-  { key: "dashboard", label: "´ë½Ãº¸µå", icon: LayoutDashboard },
-  { key: "posts", label: "Ä¿¹Â´ÏÄÉÀÌ¼Ç", icon: MessageSquare },
-  { key: "requests", label: "¿äÃ»", icon: SquareCheck },
-  { key: "files", label: "ÆÄÀÏ", icon: FolderOpen },
-  { key: "meetings", label: "È¸ÀÇ", icon: Calendar },
-  { key: "contracts", label: "°è¾à", icon: FileSignature },
-  { key: "billing", label: "Á¤»ê", icon: Receipt },
-  { key: "vault", label: "±İ°í", icon: Lock },
-  { key: "events", label: "º¯°æ ÀÌ·Â", icon: History },
+  { key: "dashboard", label: "ëŒ€ì‹œë³´ë“œ", icon: LayoutDashboard },
+  { key: "posts", label: "ì»¤ë®¤ë‹ˆì¼€ì´ì…˜", icon: MessageSquare },
+  { key: "requests", label: "ìš”ì²­", icon: SquareCheck },
+  { key: "files", label: "íŒŒì¼", icon: FolderOpen },
+  { key: "meetings", label: "íšŒì˜", icon: Calendar },
+  { key: "contracts", label: "ê³„ì•½", icon: FileSignature },
+  { key: "billing", label: "ì •ì‚°", icon: Receipt },
+  { key: "vault", label: "ê¸ˆê³ ", icon: Lock },
+  { key: "events", label: "ë³€ê²½ ì´ë ¥", icon: History },
 ];
 
 export function PmSidebar({ projectId }: { projectId: string }) {
@@ -26,14 +26,14 @@ export function PmSidebar({ projectId }: { projectId: string }) {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
           <div className="leading-tight">
             <p className="text-sm font-semibold text-foreground">Bridge PM</p>
-            <p className="text-xs text-muted-foreground">ÇÁ·ÎÁ§Æ® ÀÛ¾÷°ø°£</p>
+            <p className="text-xs text-muted-foreground">í”„ë¡œì íŠ¸ ì‘ì—…ê³µê°„</p>
           </div>
         </Link>
       </div>
 
       <div className="p-2">
-        <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">ÇÁ·ÎÁ§Æ® ³»ºñ°ÔÀÌ¼Ç</p>
-        <nav className="space-y-0.5" aria-label="PM ÇÁ·ÎÁ§Æ® ¸Ş´º">
+        <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">í”„ë¡œì íŠ¸ ë‚´ë¹„ê²Œì´ì…˜</p>
+        <nav className="space-y-0.5" aria-label="PM í”„ë¡œì íŠ¸ ë©”ë‰´">
           {items.map((item) => {
             const href = `/pm/projects/${projectId}/${item.key}`;
             const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -62,7 +62,7 @@ export function PmSidebar({ projectId }: { projectId: string }) {
             }`}
           >
             <Settings className="h-4 w-4" />
-            <span className={pathname.includes("/settings/members") ? "!text-white" : undefined}>¸â¹ö ¼³Á¤</span>
+            <span className={pathname.includes("/settings/members") ? "!text-white" : undefined}>ë©¤ë²„ ì„¤ì •</span>
           </Link>
         </nav>
       </div>

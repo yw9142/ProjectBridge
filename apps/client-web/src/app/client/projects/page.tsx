@@ -27,7 +27,7 @@ export default function ClientProjectsPage() {
         }
       } catch (e) {
         if (!handleAuthError(e, "/login") && active) {
-          setError(e instanceof Error ? e.message : "ÇÁ·ÎÁ§Æ® ¸ñ·ÏÀ» ºÒ·¯¿ÀÁö ¸øÇß½À´Ï´Ù.");
+          setError(e instanceof Error ? e.message : "í”„ë¡œì íŠ¸ ëª©ë¡ì„ ë¶ˆëŸ¬ì˜¤ì§€ ëª»í–ˆìŠµë‹ˆë‹¤.");
         }
       }
     };
@@ -43,8 +43,8 @@ export default function ClientProjectsPage() {
       <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">³» ÇÁ·ÎÁ§Æ®</h1>
-            <p className="mt-1 text-sm text-slate-500">ÃÊ´ë¹ŞÀº ÇÁ·ÎÁ§Æ®¸¦ ¼±ÅÃÇØ ÁøÇà »óÅÂ¸¦ È®ÀÎÇÏ¼¼¿ä.</p>
+            <h1 className="text-2xl font-bold text-slate-900">ë‚´ í”„ë¡œì íŠ¸</h1>
+            <p className="mt-1 text-sm text-slate-500">ì´ˆëŒ€ë°›ì€ í”„ë¡œì íŠ¸ë¥¼ ì„ íƒí•´ ì§„í–‰ ìƒíƒœë¥¼ í™•ì¸í•˜ì„¸ìš”.</p>
           </div>
           <ClientLogoutButton />
         </div>
@@ -53,7 +53,7 @@ export default function ClientProjectsPage() {
           {items.map((project) => (
             <Link key={project.id} href={`/client/projects/${project.id}/home`} className="block rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:bg-indigo-50/40">
               <p className="font-semibold text-slate-900">{project.name}</p>
-              <p className="text-sm text-slate-500">{project.description || "¼³¸í ¾øÀ½"}</p>
+              <p className="text-sm text-slate-500">{project.description || "ì„¤ëª… ì—†ìŒ"}</p>
               <p className="text-xs text-slate-400">status: {project.status}</p>
             </Link>
           ))}

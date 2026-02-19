@@ -47,14 +47,14 @@ function AdminLoginForm() {
       });
       const json = await response.json();
       if (!response.ok) {
-        throw new Error(json?.error?.message ?? "·Î±×ÀÎ¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+        throw new Error(json?.error?.message ?? "ë¡œê·¸ì¸ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       }
 
       const data = json?.data;
       if (data?.requiresTenantSelection) {
         const options = (Array.isArray(data.tenantOptions) ? data.tenantOptions : []) as TenantOption[];
         if (options.length === 0) {
-          throw new Error("¼±ÅÃ °¡´ÉÇÑ Å×³ÍÆ®°¡ ¾ø½À´Ï´Ù.");
+          throw new Error("ì„ íƒ ê°€ëŠ¥í•œ í…Œë„ŒíŠ¸ê°€ ì—†ìŠµë‹ˆë‹¤.");
         }
         setTenantOptions(options);
         setSelectedTenantSlug(options[0].tenantSlug);
@@ -62,13 +62,13 @@ function AdminLoginForm() {
       }
 
       if (!data?.accessToken || !data?.refreshToken) {
-        throw new Error("·Î±×ÀÎ ÀÀ´äÀÌ ¿Ã¹Ù¸£Áö ¾Ê½À´Ï´Ù.");
+        throw new Error("ë¡œê·¸ì¸ ì‘ë‹µì´ ì˜¬ë°”ë¥´ì§€ ì•ŠìŠµë‹ˆë‹¤.");
       }
 
       setAuthCookies(data.accessToken, data.refreshToken);
       router.replace(sanitizeNextPath(params.get("next"), "/admin/tenants"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "¿äÃ» Ã³¸® Áß ¿À·ù°¡ ¹ß»ıÇß½À´Ï´Ù.");
+      setError(e instanceof Error ? e.message : "ìš”ì²­ ì²˜ë¦¬ ì¤‘ ì˜¤ë¥˜ê°€ ë°œìƒí–ˆìŠµë‹ˆë‹¤.");
     } finally {
       setSubmitting(false);
     }
@@ -87,16 +87,16 @@ function AdminLoginForm() {
             <p className="text-sm font-semibold text-foreground">Bridge Admin</p>
           </div>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            ÇÃ·§Æû ¿î¿µ ¼³Á¤°ú Å×³ÍÆ® Á¦¾î¸¦ °ü¸®ÇÏ´Â °ü¸®ÀÚ ÄÜ¼ÖÀÔ´Ï´Ù.
+            í”Œë«í¼ ìš´ì˜ ì„¤ì •ê³¼ í…Œë„ŒíŠ¸ ì œì–´ë¥¼ ê´€ë¦¬í•˜ëŠ” ê´€ë¦¬ì ì½˜ì†”ì…ë‹ˆë‹¤.
           </p>
         </section>
 
         <form onSubmit={onSubmit} className="p-6 sm:p-8">
-          <h1 className="text-2xl font-semibold text-foreground">°ü¸®ÀÚ ·Î±×ÀÎ</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Bridge Admin Workspace¿¡ ·Î±×ÀÎÇÏ¼¼¿ä.</p>
+          <h1 className="text-2xl font-semibold text-foreground">ê´€ë¦¬ì ë¡œê·¸ì¸</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Bridge Admin Workspaceì— ë¡œê·¸ì¸í•˜ì„¸ìš”.</p>
 
           <label htmlFor="admin-email" className="mt-6 block text-sm font-medium text-foreground">
-            ÀÌ¸ŞÀÏ
+            ì´ë©”ì¼
           </label>
           <input
             id="admin-email"
@@ -115,7 +115,7 @@ function AdminLoginForm() {
           />
 
           <label htmlFor="admin-password" className="mt-4 block text-sm font-medium text-foreground">
-            ºñ¹Ğ¹øÈ£
+            ë¹„ë°€ë²ˆí˜¸
           </label>
           <input
             id="admin-password"
@@ -135,7 +135,7 @@ function AdminLoginForm() {
           {tenantOptions ? (
             <div className="mt-4 space-y-2">
               <label htmlFor="admin-tenant" className="block text-sm font-medium text-foreground">
-                Å×³ÍÆ® ¼±ÅÃ
+                í…Œë„ŒíŠ¸ ì„ íƒ
               </label>
               <select
                 id="admin-tenant"
@@ -157,7 +157,7 @@ function AdminLoginForm() {
                 }}
                 className="text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                ´Ù¸¥ °èÁ¤À¸·Î ´Ù½Ã ÀÔ·Â
+                ë‹¤ë¥¸ ê³„ì •ìœ¼ë¡œ ë‹¤ì‹œ ì…ë ¥
               </button>
             </div>
           ) : null}
@@ -172,7 +172,7 @@ function AdminLoginForm() {
             disabled={submitting}
             className="mt-6 inline-flex h-9 w-full items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium !text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? "Ã³¸® Áß..." : tenantOptions ? "¼±ÅÃÇÑ Å×³ÍÆ®·Î ÀÔÀå" : "·Î±×ÀÎ"}
+            {submitting ? "ì²˜ë¦¬ ì¤‘..." : tenantOptions ? "ì„ íƒí•œ í…Œë„ŒíŠ¸ë¡œ ì…ì¥" : "ë¡œê·¸ì¸"}
           </button>
         </form>
       </div>

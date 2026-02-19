@@ -28,7 +28,7 @@ export default function NewTenantPage() {
       router.replace(`/admin/tenants/${created.id}`);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "Å×³ÍÆ® »ı¼º¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+        setError(e instanceof Error ? e.message : "í…Œë„ŒíŠ¸ ìƒì„±ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       }
     } finally {
       setSubmitting(false);
@@ -40,17 +40,17 @@ export default function NewTenantPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Å×³ÍÆ® »ı¼º</h1>
-            <p className="text-sm text-slate-500">»õ Å×³ÍÆ®¸¦ »ı¼ºÇÏ°í »ó¼¼ È­¸éÀ¸·Î ÀÌµ¿ÇÕ´Ï´Ù.</p>
+            <h1 className="text-2xl font-bold text-slate-900">í…Œë„ŒíŠ¸ ìƒì„±</h1>
+            <p className="text-sm text-slate-500">ìƒˆ í…Œë„ŒíŠ¸ë¥¼ ìƒì„±í•˜ê³  ìƒì„¸ í™”ë©´ìœ¼ë¡œ ì´ë™í•©ë‹ˆë‹¤.</p>
           </div>
           <Link href="/admin/tenants" className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100">
-            ¸ñ·ÏÀ¸·Î
+            ëª©ë¡ìœ¼ë¡œ
           </Link>
         </div>
 
         <form onSubmit={onSubmit} className="max-w-xl space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700">Å×³ÍÆ® ÀÌ¸§</label>
+            <label className="block text-sm font-medium text-slate-700">í…Œë„ŒíŠ¸ ì´ë¦„</label>
             <input className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div>
@@ -58,7 +58,7 @@ export default function NewTenantPage() {
             <input className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" value={slug} onChange={(e) => setSlug(e.target.value)} required />
           </div>
           <button disabled={submitting} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60">
-            {submitting ? "»ı¼º Áß..." : "»ı¼º"}
+            {submitting ? "ìƒì„± ì¤‘..." : "ìƒì„±"}
           </button>
           {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
         </form>

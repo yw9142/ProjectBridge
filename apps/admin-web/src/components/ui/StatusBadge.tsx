@@ -6,10 +6,10 @@ const styles: Record<string, string> = {
 };
 
 const labels: Record<string, string> = {
-  ACTIVE: "È°¼º",
-  INVITED: "ÃÊ´ë",
-  SUSPENDED: "Á¤Áö",
-  DEACTIVATED: "ºñÈ°¼º",
+  ACTIVE: "í™œì„±",
+  INVITED: "ì´ˆëŒ€",
+  SUSPENDED: "ì •ì§€",
+  DEACTIVATED: "ë¹„í™œì„±",
 };
 
 export function StatusBadge({ status }: { status: string }) {
