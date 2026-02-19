@@ -359,11 +359,19 @@ public class SigningController {
                 continue;
             }
             if (type == SignatureFieldType.SIGNATURE || type == SignatureFieldType.INITIAL) {
-                String dataUrl = hasValue(value) ? value : signatureDataUrl;
-                if (!hasValue(dataUrl)) {
+                String trimmedValue = value == null ? "" : value.trim();
+                if (hasValue(trimmedValue)) {
+                    if (isDataUrlValue(trimmedValue)) {
+                        validateSignatureDataUrl(trimmedValue);
+                    } else if (trimmedValue.length() > MAX_TEXT_FIELD_LENGTH) {
+                        throw new AppException(HttpStatus.BAD_REQUEST, "SIGNING_FIELD_TOO_LONG", "Field value is too long.");
+                    }
+                    continue;
+                }
+                if (!hasValue(signatureDataUrl)) {
                     throw new AppException(HttpStatus.BAD_REQUEST, "SIGNING_FIELD_REQUIRED", "Signature field value is required.");
                 }
-                validateSignatureDataUrl(dataUrl);
+                validateSignatureDataUrl(signatureDataUrl);
                 continue;
             }
 
@@ -410,6 +418,10 @@ public class SigningController {
 
     private boolean hasValue(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private boolean isDataUrlValue(String value) {
+        return value != null && value.regionMatches(true, 0, "data:", 0, 5);
     }
 
     private String sha256Hex(Path filePath) {

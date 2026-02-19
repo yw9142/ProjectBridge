@@ -375,7 +375,6 @@ export default function ProjectContractsPage() {
     const bytes = await fetchPdfBytes(fileVersionId);
     const loadingTask = pdfLib.getDocument({
       data: bytes,
-      disableWorker: true,
       useSystemFonts: true,
     });
     const document = await loadingTask.promise;
