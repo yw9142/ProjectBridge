@@ -1,15 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useRef } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { motion, type HTMLMotionProps, type Transition } from "motion/react";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
-
-type FadeContentProps = React.HTMLAttributes<HTMLDivElement> & {
+type FadeContentProps = Omit<HTMLMotionProps<"div">, "children" | "transition" | "onAnimationComplete"> & {
   children: React.ReactNode;
   container?: Element | string | null;
   blur?: boolean;
@@ -26,6 +20,21 @@ type FadeContentProps = React.HTMLAttributes<HTMLDivElement> & {
 };
 
 const toSeconds = (value: number) => (value > 10 ? value / 1000 : value);
+const clampThreshold = (value: number) => Math.min(Math.max(value, 0), 1);
+
+type MotionEase = NonNullable<Transition["ease"]>;
+
+const EASE_PRESETS: Record<string, MotionEase> = {
+  "power2.out": [0.22, 1, 0.36, 1],
+  "power2.in": [0.55, 0, 1, 0.45],
+  "power2.inOut": [0.45, 0, 0.55, 1],
+  linear: "linear",
+  ease: "easeInOut",
+};
+
+const resolveEase = (value: string, fallback: MotionEase): MotionEase => {
+  return EASE_PRESETS[value] ?? fallback;
+};
 
 export default function FadeContent({
   children,
@@ -44,84 +53,134 @@ export default function FadeContent({
   className = "",
   ...props
 }: FadeContentProps) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = React.useState(false);
+  const [shouldDisappear, setShouldDisappear] = React.useState(false);
+  const hasEnteredViewRef = React.useRef(false);
+  const hasFadeInCompletedRef = React.useRef(false);
+  const hasFadeOutCompletedRef = React.useRef(false);
 
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) {
-      return;
+  const hiddenState = React.useMemo(
+    () => ({
+      opacity: initialOpacity,
+      filter: blur ? "blur(8px)" : "blur(0px)",
+    }),
+    [blur, initialOpacity],
+  );
+
+  const visibleState = React.useMemo(
+    () => ({
+      opacity: 1,
+      filter: "blur(0px)",
+    }),
+    [],
+  );
+
+  const transition = React.useMemo<Transition>(() => {
+    if (isVisible) {
+      return {
+        duration: toSeconds(duration),
+        delay: toSeconds(delay),
+        ease: resolveEase(ease, [0.22, 1, 0.36, 1]),
+      };
     }
 
+    return {
+      duration: toSeconds(disappearDuration),
+      ease: resolveEase(disappearEase, [0.55, 0, 1, 0.45]),
+    };
+  }, [delay, disappearDuration, disappearEase, duration, ease, isVisible]);
+
+  const resolveContainer = React.useCallback((): Element | null => {
     let scrollerTarget: Element | string | null = container || document.getElementById("snap-main-container") || null;
 
     if (typeof scrollerTarget === "string") {
       scrollerTarget = document.querySelector(scrollerTarget);
     }
 
-    const startPercent = (1 - threshold) * 100;
+    return scrollerTarget ?? null;
+  }, [container]);
 
-    gsap.set(element, {
-      autoAlpha: initialOpacity,
-      filter: blur ? "blur(8px)" : "blur(0px)",
-      willChange: "opacity, filter, transform",
-    });
+  React.useEffect(() => {
+    if (hasEnteredViewRef.current) {
+      return;
+    }
 
-    const timeline = gsap.timeline({
-      paused: true,
-      delay: toSeconds(delay),
-      onComplete: () => {
-        onComplete?.();
-        if (disappearAfter > 0) {
-          gsap.to(element, {
-            autoAlpha: initialOpacity,
-            filter: blur ? "blur(8px)" : "blur(0px)",
-            delay: toSeconds(disappearAfter),
-            duration: toSeconds(disappearDuration),
-            ease: disappearEase,
-            onComplete: () => onDisappearanceComplete?.(),
-          });
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) {
+            continue;
+          }
+
+          hasEnteredViewRef.current = true;
+          setIsVisible(true);
+          observer.disconnect();
+          break;
         }
       },
-    });
+      {
+        root: resolveContainer(),
+        threshold: clampThreshold(threshold),
+      },
+    );
 
-    timeline.to(element, {
-      autoAlpha: 1,
-      filter: "blur(0px)",
-      duration: toSeconds(duration),
-      ease,
-    });
-
-    const trigger = ScrollTrigger.create({
-      trigger: element,
-      scroller: scrollerTarget || window,
-      start: `top ${startPercent}%`,
-      once: true,
-      onEnter: () => timeline.play(),
-    });
+    observer.observe(element);
 
     return () => {
-      trigger.kill();
-      timeline.kill();
-      gsap.killTweensOf(element);
+      observer.disconnect();
     };
-  }, [
-    blur,
-    container,
-    delay,
-    disappearAfter,
-    disappearDuration,
-    disappearEase,
-    duration,
-    ease,
-    initialOpacity,
-    onComplete,
-    onDisappearanceComplete,
-    threshold,
-  ]);
+  }, [resolveContainer, threshold]);
+
+  React.useEffect(() => {
+    if (!shouldDisappear) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setIsVisible(false);
+    }, toSeconds(disappearAfter) * 1000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [disappearAfter, shouldDisappear]);
+
+  const handleAnimationComplete = React.useCallback(() => {
+    if (isVisible) {
+      if (!hasFadeInCompletedRef.current) {
+        hasFadeInCompletedRef.current = true;
+        onComplete?.();
+        if (disappearAfter > 0) {
+          setShouldDisappear(true);
+        }
+      }
+      return;
+    }
+
+    if (hasFadeInCompletedRef.current && !hasFadeOutCompletedRef.current) {
+      hasFadeOutCompletedRef.current = true;
+      onDisappearanceComplete?.();
+    }
+  }, [disappearAfter, isVisible, onComplete, onDisappearanceComplete]);
 
   return (
-    <div ref={ref} className={className} {...props}>
+    <motion.div
+      ref={ref}
+      className={className}
+      style={{ willChange: "opacity, filter, transform", ...props.style }}
+      initial={hiddenState}
+      animate={isVisible ? visibleState : hiddenState}
+      transition={transition}
+      onAnimationComplete={handleAnimationComplete}
+      {...props}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 }
