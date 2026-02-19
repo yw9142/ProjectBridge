@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2, FolderKanban, ShieldCheck } from "lucide-react";
 import { AdminLogoutButton } from "./AdminLogoutButton";
+import FadeContent from "@/components/react-bits/FadeContent";
+import Magnet from "@/components/react-bits/Magnet";
 
 const nav = [
   { href: "/admin/tenants", label: "테넌트 목록", icon: Building2 },
@@ -18,7 +20,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-[1680px] items-center justify-between px-4 md:px-6">
           <Link href="/admin/tenants" className="flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
+            <Magnet padding={80} magnetStrength={3} wrapperClassName="shrink-0">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
+            </Magnet>
             <div className="leading-tight">
               <p className="text-sm font-semibold">Bridge Admin</p>
               <p className="text-xs text-muted-foreground">운영 콘솔</p>
@@ -35,29 +39,33 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <div className="mx-auto grid w-full max-w-[1680px] gap-5 px-4 py-5 md:px-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
-        <aside className="h-fit rounded-xl border border-border bg-card p-2 shadow-sm">
-          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">내비게이션</p>
-          <nav className="space-y-0.5" aria-label="관리자 메뉴">
-            {nav.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                    active ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className={active ? "!text-white" : undefined}>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
-        <main className="min-w-0 rounded-xl border border-border bg-card p-5 shadow-sm md:p-6">{children}</main>
+        <FadeContent blur duration={650} delay={120} threshold={0} className="h-fit">
+          <aside className="h-fit rounded-xl border border-border bg-card p-2 shadow-sm">
+            <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">내비게이션</p>
+            <nav className="space-y-0.5" aria-label="관리자 메뉴">
+              {nav.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                      active ? "bg-slate-900 !text-white shadow-sm [&_svg]:!text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className={active ? "!text-white" : undefined}>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+        </FadeContent>
+        <FadeContent blur duration={700} delay={180} threshold={0} className="min-w-0">
+          <main className="min-w-0 rounded-xl border border-border bg-card p-5 shadow-sm md:p-6">{children}</main>
+        </FadeContent>
       </div>
     </div>
   );

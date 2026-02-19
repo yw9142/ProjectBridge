@@ -1,4 +1,5 @@
-﻿import { StatusBadge } from "../ui/StatusBadge";
+import FadeContent from "@/components/react-bits/FadeContent";
+import { StatusBadge } from "../ui/StatusBadge";
 
 type Props = {
   title: string;
@@ -9,16 +10,20 @@ type Props = {
 export function GenericSection({ title, description, status = "ACTIVE" }: Props) {
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-          <p className="text-sm text-slate-500">{description}</p>
+      <FadeContent blur duration={650} threshold={0}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+            <p className="text-sm text-slate-500">{description}</p>
+          </div>
+          <StatusBadge status={status} />
         </div>
-        <StatusBadge status={status} />
-      </div>
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-600">이 영역은 API 연동 데이터가 연결될 테이블과 카드 섹션입니다.</p>
-      </div>
+      </FadeContent>
+      <FadeContent blur duration={700} delay={80} threshold={0}>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-600">이 영역은 API 연동 데이터가 연결될 테이블과 카드 섹션입니다.</p>
+        </div>
+      </FadeContent>
     </section>
   );
 }

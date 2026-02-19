@@ -1,4 +1,6 @@
-﻿export function AdminSection({
+import FadeContent from "@/components/react-bits/FadeContent";
+
+export function AdminSection({
   title,
   description,
   children,
@@ -9,13 +11,17 @@
 }) {
   return (
     <section className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-        <p className="text-sm text-slate-500">{description}</p>
-      </div>
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-        {children ?? "이 섹션은 백엔드 연동 데이터로 확장됩니다."}
-      </div>
+      <FadeContent blur duration={650} threshold={0}>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+          <p className="text-sm text-slate-500">{description}</p>
+        </div>
+      </FadeContent>
+      <FadeContent blur duration={700} delay={80} threshold={0}>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          {children ?? "이 섹션은 백엔드 연동 데이터로 확장됩니다."}
+        </div>
+      </FadeContent>
     </section>
   );
 }

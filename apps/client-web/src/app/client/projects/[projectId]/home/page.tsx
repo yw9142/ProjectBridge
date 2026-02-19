@@ -6,6 +6,8 @@ import { useParams } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import FadeContent from "@/components/react-bits/FadeContent";
+import GlareHover from "@/components/react-bits/GlareHover";
 
 type Project = { id: string; name: string; description?: string | null; status: string };
 type RequestStatus = "DRAFT" | "SENT" | "ACKED" | "IN_PROGRESS" | "DONE" | "REJECTED" | "CANCELLED";
@@ -286,135 +288,152 @@ export default function ClientHomePage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-slate-900">{project?.name ?? "프로젝트 홈"}</CardTitle>
-          <CardDescription>{project?.description || "클라이언트 관점 프로젝트 현황"}</CardDescription>
-          <p className="text-xs text-slate-400">status: {project?.status ?? "-"}</p>
-        </CardHeader>
-      </Card>
+      <FadeContent blur duration={680} threshold={0}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-slate-900">{project?.name ?? "프로젝트 홈"}</CardTitle>
+            <CardDescription>{project?.description || "클라이언트 관점 프로젝트 현황"}</CardDescription>
+            <p className="text-xs text-slate-400">status: {project?.status ?? "-"}</p>
+          </CardHeader>
+        </Card>
+      </FadeContent>
 
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
-      <section>
-        {nearestMeeting ? (
-          <a
-            href={nearestMeeting.meetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group block rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 p-4 shadow-sm transition hover:border-emerald-300 hover:shadow"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
-                <Video className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">회의</p>
-                <p className="truncate text-sm font-semibold text-slate-900">{nearestMeeting.title || "가장 가까운 회의"}</p>
-                <p className="text-xs text-slate-600">{formatActionTime(nearestMeeting.startAt)}</p>
+      <FadeContent blur duration={700} delay={90} threshold={0}>
+        <section>
+          {nearestMeeting ? (
+            <a
+              href={nearestMeeting.meetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 p-4 shadow-sm transition hover:border-emerald-300 hover:shadow"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                  <Video className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">회의</p>
+                  <p className="truncate text-sm font-semibold text-slate-900">{nearestMeeting.title || "가장 가까운 회의"}</p>
+                  <p className="text-xs text-slate-600">{formatActionTime(nearestMeeting.startAt)}</p>
+                </div>
+                <ExternalLink className="h-4 w-4 text-slate-500 transition group-hover:text-slate-900" />
               </div>
-              <ExternalLink className="h-4 w-4 text-slate-500 transition group-hover:text-slate-900" />
-            </div>
-          </a>
-        ) : (
-          <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-300 text-white">
-                <Video className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">회의</p>
-                <p className="text-sm font-semibold text-slate-700">예정된 회의가 없습니다</p>
-                <p className="text-xs text-slate-500">회의가 생성되면 바로 입장할 수 있어요.</p>
+            </a>
+          ) : (
+            <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-300 text-white">
+                  <Video className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">회의</p>
+                  <p className="text-sm font-semibold text-slate-700">예정된 회의가 없습니다</p>
+                  <p className="text-xs text-slate-500">회의가 생성되면 바로 입장할 수 있어요.</p>
+                </div>
               </div>
-            </div>
-          </article>
-        )}
-      </section>
+            </article>
+          )}
+        </section>
+      </FadeContent>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {cards.map((item) => {
+        {cards.map((item, index) => {
           const Icon = item.icon;
           return (
-            <Card key={item.title}>
-              <CardContent className="pt-5">
-                <div className="flex items-start justify-between">
-                  <p className="text-sm font-medium text-slate-500">{item.title}</p>
-                  <Icon className={`h-4 w-4 ${item.accent}`} />
-                </div>
-                {loading ? <Skeleton className="mt-3 h-9 w-20" /> : <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{item.value}</p>}
-              </CardContent>
-            </Card>
+            <FadeContent key={item.title} blur duration={650} delay={180 + index * 70} threshold={0}>
+              <GlareHover
+                className="h-full w-full rounded-xl"
+                borderRadius="12px"
+                glareOpacity={0.2}
+                glareSize={230}
+                borderColor="transparent"
+                background="transparent"
+              >
+                <Card className="h-full">
+                  <CardContent className="pt-5">
+                    <div className="flex items-start justify-between">
+                      <p className="text-sm font-medium text-slate-500">{item.title}</p>
+                      <Icon className={`h-4 w-4 ${item.accent}`} />
+                    </div>
+                    {loading ? <Skeleton className="mt-3 h-9 w-20" /> : <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{item.value}</p>}
+                  </CardContent>
+                </Card>
+              </GlareHover>
+            </FadeContent>
           );
         })}
       </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>요청 추이</CardTitle>
-                <CardDescription>최근 4주 요청 생성 건수</CardDescription>
+      <FadeContent blur duration={740} delay={300} threshold={0}>
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <Card className="xl:col-span-2">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>요청 추이</CardTitle>
+                  <CardDescription>최근 4주 요청 생성 건수</CardDescription>
+                </div>
+                <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">총 {requests.length.toLocaleString("ko-KR")}건</span>
               </div>
-              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">총 {requests.length.toLocaleString("ko-KR")}건</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-hidden rounded-lg border border-slate-100 bg-slate-50/70 p-3">
-              <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-64 w-full">
-                <defs>
-                  <linearGradient id="clientTaskAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="#6366f1" stopOpacity="0.05" />
-                  </linearGradient>
-                </defs>
-                {chart.guides.map((guide, index) => (
-                  <g key={index}>
-                    <line x1={36} x2={702} y1={guide.y} y2={guide.y} stroke="#cbd5e1" strokeDasharray="4 6" />
-                    <text x={10} y={guide.y + 4} fontSize={10} fill="#64748b">
-                      {guide.value}
-                    </text>
-                  </g>
-                ))}
-                <path d={chart.areaPath} fill="url(#clientTaskAreaGradient)" />
-                <path d={chart.linePath} fill="none" stroke="#4f46e5" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
-                {chart.points.map((point) => (
-                  <circle key={point.label} cx={point.x} cy={point.y} r={4} fill="#4f46e5" />
-                ))}
-              </svg>
-              <div className="mt-1 grid grid-cols-4 text-center text-xs text-slate-500">
-                {requestTrend.map((point) => (
-                  <div key={point.label}>{point.label}</div>
-                ))}
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-hidden rounded-lg border border-slate-100 bg-slate-50/70 p-3">
+                <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-64 w-full">
+                  <defs>
+                    <linearGradient id="clientTaskAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
+                      <stop offset="100%" stopColor="#6366f1" stopOpacity="0.05" />
+                    </linearGradient>
+                  </defs>
+                  {chart.guides.map((guide, index) => (
+                    <g key={index}>
+                      <line x1={36} x2={702} y1={guide.y} y2={guide.y} stroke="#cbd5e1" strokeDasharray="4 6" />
+                      <text x={10} y={guide.y + 4} fontSize={10} fill="#64748b">
+                        {guide.value}
+                      </text>
+                    </g>
+                  ))}
+                  <path d={chart.areaPath} fill="url(#clientTaskAreaGradient)" />
+                  <path d={chart.linePath} fill="none" stroke="#4f46e5" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                  {chart.points.map((point) => (
+                    <circle key={point.label} cx={point.x} cy={point.y} r={4} fill="#4f46e5" />
+                  ))}
+                </svg>
+                <div className="mt-1 grid grid-cols-4 text-center text-xs text-slate-500">
+                  {requestTrend.map((point) => (
+                    <div key={point.label}>{point.label}</div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <History className="h-4 w-4 text-slate-600" />
-              <div>
-                <CardTitle>최근 액션</CardTitle>
-                <CardDescription>최신 변경 3건</CardDescription>
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-slate-600" />
+                <div>
+                  <CardTitle>최근 액션</CardTitle>
+                  <CardDescription>최신 변경 3건</CardDescription>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {recentActions.map((item) => (
-              <article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                <p className="mt-1 text-sm text-slate-700">{item.message}</p>
-                <p className="mt-2 text-xs text-slate-500">{formatActionTime(item.createdAt)}</p>
-              </article>
-            ))}
-            {!loading && recentActions.length === 0 ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">표시할 액션이 없습니다.</p> : null}
-            {loading ? <Skeleton className="h-16 w-full rounded-lg" /> : null}
-          </CardContent>
-        </Card>
-      </section>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentActions.map((item) => (
+                <article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                  <p className="mt-1 text-sm text-slate-700">{item.message}</p>
+                  <p className="mt-2 text-xs text-slate-500">{formatActionTime(item.createdAt)}</p>
+                </article>
+              ))}
+              {!loading && recentActions.length === 0 ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">표시할 액션이 없습니다.</p> : null}
+              {loading ? <Skeleton className="h-16 w-full rounded-lg" /> : null}
+            </CardContent>
+          </Card>
+        </section>
+      </FadeContent>
     </div>
   );
 }
