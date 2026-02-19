@@ -2,6 +2,9 @@
   "name": "bridge-monorepo",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=20"
+  },
   "packageManager": "pnpm@10.11.0",
   "scripts": {
     "build": "turbo run build",

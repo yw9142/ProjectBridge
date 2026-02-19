@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import SignaturePad from "signature_pad";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, handleAuthError } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
 type SignatureFieldType = "SIGNATURE" | "INITIAL" | "DATE" | "TEXT" | "CHECKBOX";
@@ -32,6 +32,10 @@ const SIGNATURE_FIELD_TYPES: SignatureFieldType[] = ["SIGNATURE", "INITIAL"];
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 export function SigningPageClient({ contractId }: { contractId: string }) {
@@ -80,6 +84,13 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
     async function load() {
       setLoading(true);
       setError(null);
+      if (!isUuid(contractId)) {
+        if (active) {
+          setError("유효하지 않은 서명 링크입니다. 최신 계약 링크로 다시 접속해 주세요.");
+          setLoading(false);
+        }
+        return;
+      }
       try {
         const response = await apiFetch<SigningData>(`/api/signing/contracts/${contractId}`);
         if (!active) {
@@ -88,6 +99,9 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
         setData(response);
         setFieldValues(buildInitialFieldValues(response));
       } catch (e) {
+        if (handleAuthError(e, "/login")) {
+          return;
+        }
         if (active) {
           setError(e instanceof Error ? e.message : "서명 정보를 불러오지 못했습니다.");
         }
@@ -114,17 +128,6 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
     if (!canvas) {
       return;
     }
-
-    const dpr = window.devicePixelRatio || 1;
-    const targetWidth = canvas.clientWidth || 600;
-    const targetHeight = 180;
-    canvas.width = targetWidth * dpr;
-    canvas.height = targetHeight * dpr;
-    const context = canvas.getContext("2d");
-    if (context) {
-      context.scale(dpr, dpr);
-    }
-
     const pad = new SignaturePad(canvas, {
       minWidth: 0.8,
       maxWidth: 2.2,
@@ -133,7 +136,34 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
     });
     signaturePadRef.current = pad;
 
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const targetWidth = Math.max(canvas.clientWidth || 0, 320);
+      const targetHeight = 180;
+      const strokes = pad.toData();
+
+      canvas.width = Math.floor(targetWidth * dpr);
+      canvas.height = Math.floor(targetHeight * dpr);
+      const context = canvas.getContext("2d");
+      if (context) {
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.scale(dpr, dpr);
+      }
+
+      pad.clear();
+      if (strokes.length > 0) {
+        pad.fromData(strokes);
+      }
+    };
+    resizeCanvas();
+
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resizeCanvas) : null;
+    resizeObserver?.observe(canvas);
+    window.addEventListener("resize", resizeCanvas);
+
     return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", resizeCanvas);
       pad.off();
       signaturePadRef.current = null;
     };
@@ -173,8 +203,11 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
         return;
       }
 
-      setResult(response.alreadySigned ? "이미 서명이 완료된 문서입니다." : "서명이 완료되었습니다.");
+      setResult(response.alreadySigned ? "이미 서명되었습니다." : "서명이 완료되었습니다.");
     } catch (e) {
+      if (handleAuthError(e, "/login")) {
+        return;
+      }
       setError(e instanceof Error ? e.message : "서명 제출에 실패했습니다.");
     } finally {
       setSubmitting(false);
@@ -190,7 +223,7 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
   }
 
   if (loading) {
-    return <main className="min-h-screen bg-slate-50 p-6">서명 정보를 불러오는 중...</main>;
+    return <main className="min-h-screen bg-slate-50 p-6">서명 정보를 불러오는 중입니다...</main>;
   }
 
   if (error && !data) {
@@ -204,7 +237,7 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
   if (!data) {
     return (
       <main className="min-h-screen bg-slate-50 p-6">
-        <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-4">서명 데이터가 없습니다.</div>
+        <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-4">서명 정보를 불러오지 못했습니다.</div>
       </main>
     );
   }
@@ -215,7 +248,7 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">전자서명</h1>
+              <h1 className="text-2xl font-bold text-slate-900">계약서 서명</h1>
               <p className="text-sm text-slate-500">{data.envelope.title}</p>
             </div>
             <StatusBadge status={data.envelope.status} />
@@ -231,7 +264,7 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
               <dd>{data.recipient.recipientEmail}</dd>
             </div>
             <div>
-              <dt className="font-semibold">필드 수</dt>
+              <dt className="font-semibold">필드</dt>
               <dd>{recipientFields.length}</dd>
             </div>
             <div>
@@ -264,7 +297,7 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
                         onChange={(event) => updateFieldValue(field.id, event.target.checked ? "true" : "false")}
                         disabled={isSigned}
                       />
-                      체크
+                      체크박스
                     </label>
                   ) : field.type === "DATE" ? (
                     <input
@@ -277,7 +310,7 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
                   ) : (
                     <input
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      placeholder={field.type === "TEXT" ? "값을 입력하세요" : "서명(선택)"}
+                      placeholder={field.type === "TEXT" ? "값을 입력해주세요" : "서명(이름)"}
                       value={fieldValues[field.id] ?? ""}
                       onChange={(event) => updateFieldValue(field.id, event.target.value)}
                       disabled={isSigned}
@@ -291,7 +324,7 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
           {hasSignatureField ? (
             <div className="mt-4 space-y-2 rounded-lg border border-slate-200 bg-white p-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-800">서명 캔버스</p>
+                <p className="text-sm font-semibold text-slate-800">서명 영역</p>
                 <button
                   type="button"
                   onClick={clearSignaturePad}
@@ -330,7 +363,7 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
                 onClick={() => router.push(`/client/projects/${data.projectId}/contracts`)}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
               >
-                계약 목록으로
+                계약서 목록
               </button>
             ) : null}
           </div>
@@ -342,3 +375,5 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
     </main>
   );
 }
+
+

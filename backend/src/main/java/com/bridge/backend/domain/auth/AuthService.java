@@ -299,18 +299,6 @@ public class AuthService {
         );
     }
 
-    @Transactional
-    public void setPassword(UUID userId, String password) {
-        UserEntity user = userRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found."));
-        user.setPasswordHash(passwordEncoder.encode(password));
-        if (user.getStatus() == UserStatus.INVITED) {
-            user.setStatus(UserStatus.ACTIVE);
-        }
-        userRepository.save(user);
-        failedLoginAttempts.remove(user.getEmail().toLowerCase(Locale.ROOT));
-    }
-
     private AppException invalidCredentials(String key) {
         failedLoginAttempts.put(key, failedLoginAttempts.getOrDefault(key, 0) + 1);
         return new AppException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Invalid email or password.");

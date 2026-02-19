@@ -30,6 +30,7 @@ import com.bridge.backend.domain.project.ProjectMemberEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.MessageDigest;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -44,11 +46,17 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
 public class SigningController {
+    private static final long MAX_SIGNABLE_PDF_BYTES = 20L * 1024L * 1024L;
+    private static final int MAX_TEXT_FIELD_LENGTH = 2000;
+    private static final int MAX_SIGNATURE_DATA_URL_LENGTH = 2_500_000;
+    private static final Set<String> CHECKBOX_VALUES = Set.of("true", "false", "1", "0", "yes", "no", "y", "n", "on", "off");
+
     private final SignatureRecipientRepository recipientRepository;
     private final SignatureFieldRepository fieldRepository;
     private final SignatureEventRepository eventRepository;
@@ -118,6 +126,7 @@ public class SigningController {
     }
 
     @PostMapping("/api/signing/contracts/{contractId}/submit")
+    @Transactional
     public ApiSuccess<Map<String, Object>> submit(@PathVariable UUID contractId,
                                                    @RequestBody(required = false) SubmitSigningRequest request) {
         SigningContext context = resolveSigningContext(contractId);
@@ -127,7 +136,8 @@ public class SigningController {
                     "signed", true,
                     "completed", completed,
                     "alreadySigned", true,
-                    "fileVersionId", context.contract().getFileVersionId()
+                    "fileVersionId", context.contract().getFileVersionId(),
+                    "projectId", context.contract().getProjectId()
             ));
         }
 
@@ -176,7 +186,8 @@ public class SigningController {
                     "signed", true,
                     "completed", true,
                     "alreadySigned", false,
-                    "fileVersionId", signedVersion.getId()
+                    "fileVersionId", signedVersion.getId(),
+                    "projectId", context.contract().getProjectId()
             ));
         }
 
@@ -187,7 +198,8 @@ public class SigningController {
                 "signed", true,
                 "completed", false,
                 "alreadySigned", false,
-                "fileVersionId", signedVersion.getId()
+                "fileVersionId", signedVersion.getId(),
+                "projectId", context.contract().getProjectId()
         ));
     }
 
@@ -196,7 +208,7 @@ public class SigningController {
         ContractEntity contract = requireActiveContract(contractId);
         ProjectMemberEntity member = guardService.requireProjectMember(contract.getProjectId(), principal.getUserId(), principal.getTenantId());
         if (member.getRole() != MemberRole.CLIENT_OWNER && member.getRole() != MemberRole.CLIENT_MEMBER) {
-            throw new AppException(HttpStatus.FORBIDDEN, "ROLE_FORBIDDEN", "Only client members can sign.");
+            throw new AppException(HttpStatus.FORBIDDEN, "ROLE_FORBIDDEN", "Only client owners or client members can sign.");
         }
 
         EnvelopeEntity envelope = envelopeRepository.findByContractIdAndTenantIdAndDeletedAtIsNull(contractId, principal.getTenantId())
@@ -229,6 +241,13 @@ public class SigningController {
         }
 
         FileVersionEntity baseVersion = requireActiveVersion(baseFileVersionId);
+        if (baseVersion.getSize() > MAX_SIGNABLE_PDF_BYTES) {
+            throw new AppException(
+                    HttpStatus.BAD_REQUEST,
+                    "CONTRACT_PDF_TOO_LARGE",
+                    "Contract PDF is too large to sign in-app."
+            );
+        }
         byte[] sourcePdf = storageService.downloadObject(baseVersion.getObjectKey());
         byte[] signedPdf = pdfSigningService.applyRecipientFields(
                 sourcePdf,
@@ -270,30 +289,35 @@ public class SigningController {
             throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TICKET_INVALID", "Upload ticket is invalid or expired.");
         }
 
-        versions.stream()
-                .filter(FileVersionEntity::isLatest)
-                .forEach(v -> {
-                    v.setLatest(false);
-                    fileVersionRepository.save(v);
-                });
+        try {
+            versions.stream()
+                    .filter(FileVersionEntity::isLatest)
+                    .forEach(v -> {
+                        v.setLatest(false);
+                        fileVersionRepository.save(v);
+                    });
 
-        FileVersionEntity signedVersion = new FileVersionEntity();
-        signedVersion.setTenantId(contract.getTenantId());
-        signedVersion.setFileId(baseVersion.getFileId());
-        signedVersion.setVersion(uploadTarget.version());
-        signedVersion.setObjectKey(uploadTarget.objectKey());
-        signedVersion.setContentType(uploadTarget.contentType());
-        signedVersion.setSize(uploadTarget.size());
-        signedVersion.setChecksum(uploadTarget.checksum());
-        signedVersion.setLatest(true);
-        signedVersion.setCreatedBy(actorUserId);
-        signedVersion.setUpdatedBy(actorUserId);
-        FileVersionEntity savedVersion = fileVersionRepository.save(signedVersion);
+            FileVersionEntity signedVersion = new FileVersionEntity();
+            signedVersion.setTenantId(contract.getTenantId());
+            signedVersion.setFileId(baseVersion.getFileId());
+            signedVersion.setVersion(uploadTarget.version());
+            signedVersion.setObjectKey(uploadTarget.objectKey());
+            signedVersion.setContentType(uploadTarget.contentType());
+            signedVersion.setSize(uploadTarget.size());
+            signedVersion.setChecksum(uploadTarget.checksum());
+            signedVersion.setLatest(true);
+            signedVersion.setCreatedBy(actorUserId);
+            signedVersion.setUpdatedBy(actorUserId);
+            FileVersionEntity savedVersion = fileVersionRepository.save(signedVersion);
 
-        contract.setFileVersionId(savedVersion.getId());
-        contract.setUpdatedBy(actorUserId);
-        contractRepository.save(contract);
-        return savedVersion;
+            contract.setFileVersionId(savedVersion.getId());
+            contract.setUpdatedBy(actorUserId);
+            contractRepository.save(contract);
+            return savedVersion;
+        } catch (RuntimeException ex) {
+            storageService.deleteByUploadUrl(uploadTarget.uploadUrl());
+            throw ex;
+        }
     }
 
     private void validateSubmittedFieldValues(List<SignatureFieldEntity> fields,
@@ -301,21 +325,48 @@ public class SigningController {
                                               String signatureDataUrl) {
         for (SignatureFieldEntity field : fields) {
             String value = fieldValues.get(field.getId());
-            if (field.getType() == SignatureFieldType.CHECKBOX) {
-                continue;
-            }
-            if (field.getType() == SignatureFieldType.DATE) {
-                continue;
-            }
-            if (field.getType() == SignatureFieldType.SIGNATURE || field.getType() == SignatureFieldType.INITIAL) {
-                if (!hasValue(value) && !hasValue(signatureDataUrl)) {
-                    throw new AppException(HttpStatus.BAD_REQUEST, "SIGNING_FIELD_REQUIRED", "Signature field value is required.");
+            SignatureFieldType type = field.getType();
+            if (type == SignatureFieldType.CHECKBOX) {
+                if (hasValue(value) && !CHECKBOX_VALUES.contains(value.trim().toLowerCase())) {
+                    throw new AppException(HttpStatus.BAD_REQUEST, "SIGNING_FIELD_INVALID", "Checkbox field value is invalid.");
                 }
                 continue;
             }
+            if (type == SignatureFieldType.DATE) {
+                if (hasValue(value)) {
+                    try {
+                        LocalDate.parse(value.trim());
+                    } catch (Exception ex) {
+                        throw new AppException(HttpStatus.BAD_REQUEST, "SIGNING_DATE_INVALID", "Date field must be in yyyy-MM-dd format.");
+                    }
+                }
+                continue;
+            }
+            if (type == SignatureFieldType.SIGNATURE || type == SignatureFieldType.INITIAL) {
+                String dataUrl = hasValue(value) ? value : signatureDataUrl;
+                if (!hasValue(dataUrl)) {
+                    throw new AppException(HttpStatus.BAD_REQUEST, "SIGNING_FIELD_REQUIRED", "Signature field value is required.");
+                }
+                validateSignatureDataUrl(dataUrl);
+                continue;
+            }
+
             if (!hasValue(value)) {
                 throw new AppException(HttpStatus.BAD_REQUEST, "SIGNING_FIELD_REQUIRED", "Field value is required.");
             }
+            if (value.length() > MAX_TEXT_FIELD_LENGTH) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "SIGNING_FIELD_TOO_LONG", "Field value is too long.");
+            }
+        }
+    }
+
+    private void validateSignatureDataUrl(String signatureDataUrl) {
+        String trimmed = signatureDataUrl == null ? "" : signatureDataUrl.trim();
+        if (!trimmed.startsWith("data:image/") || !trimmed.contains(";base64,")) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "SIGNATURE_FORMAT_INVALID", "Signature must be a valid image data URL.");
+        }
+        if (trimmed.length() > MAX_SIGNATURE_DATA_URL_LENGTH) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "SIGNATURE_TOO_LARGE", "Signature image data is too large.");
         }
     }
 

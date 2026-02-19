@@ -18,6 +18,7 @@ import com.bridge.backend.domain.project.ProjectMemberRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -191,6 +192,7 @@ public class ContractController {
     }
 
     @PostMapping("/api/contracts/{contractId}/signer")
+    @Transactional
     public ApiSuccess<Map<String, Object>> assignSigner(@PathVariable UUID contractId, @RequestBody @Valid AssignSignerRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         ContractEntity contract = requireActiveContract(contractId);
@@ -217,6 +219,13 @@ public class ContractController {
         if (envelope.getStatus() == EnvelopeStatus.COMPLETED || envelope.getStatus() == EnvelopeStatus.VOIDED) {
             envelope.setStatus(EnvelopeStatus.DRAFT);
             envelope.setCompletedAt(null);
+        }
+        if (envelope.getStatus() == EnvelopeStatus.SENT || envelope.getStatus() == EnvelopeStatus.PARTIALLY_SIGNED) {
+            throw new AppException(
+                    HttpStatus.BAD_REQUEST,
+                    "ENVELOPE_REASSIGNMENT_NOT_ALLOWED",
+                    "Cannot reassign signer after envelope has been sent."
+            );
         }
 
         softDeleteRecipients(envelope.getId(), principal.getTenantId(), principal.getUserId());

@@ -3,8 +3,9 @@
 export default async function SigningPage({
   params,
 }: {
-  params: Promise<{ recipientToken: string }>;
+  params: Promise<{ contractId: string }>;
 }) {
-  const { recipientToken: contractId } = await params;
+  const { contractId } = await params;
   return <SigningPageClient contractId={contractId} />;
 }
+

@@ -2,8 +2,7 @@
 
 import { ChangeEvent, FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_BASE, apiFetch, handleAuthError } from "@/lib/api";
-import { getAccessToken } from "@/lib/auth";
+import { apiFetch, apiFetchResponse, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
 import { Modal } from "@/components/ui/modal";
@@ -349,22 +348,22 @@ export default function ProjectContractsPage() {
     if (pdfLibRef.current) {
       return pdfLibRef.current;
     }
-    const lib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url).toString();
-    lib.GlobalWorkerOptions.workerSrc = workerSrc;
-    pdfLibRef.current = lib;
-    return lib;
+    try {
+      const lib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+      const workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url).toString();
+      lib.GlobalWorkerOptions.workerSrc = workerSrc;
+      pdfLibRef.current = lib;
+      return lib;
+    } catch {
+      throw new Error("PDF 렌더러를 불러오지 못했습니다.");
+    }
   }
 
   async function fetchPdfBytes(fileVersionId: string) {
-    const token = getAccessToken();
-    const response = await fetch(`${API_BASE}/api/file-versions/${fileVersionId}/content`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    const response = await apiFetchResponse(`/api/file-versions/${fileVersionId}/content`, {
+      method: "GET",
       cache: "no-store",
     });
-    if (!response.ok) {
-      throw new Error("PDF 미리보기를 불러오지 못했습니다.");
-    }
     return response.arrayBuffer();
   }
 
@@ -489,7 +488,9 @@ export default function ProjectContractsPage() {
       } catch (e) {
         const renderCancelled = e instanceof Error && e.name === "RenderingCancelledException";
         if (!cancelled && !renderCancelled) {
-          setPreviewError(e instanceof Error ? e.message : "PDF 미리보기를 불러오지 못했습니다.");
+          if (!handleAuthError(e, "/pm/login")) {
+            setPreviewError(e instanceof Error ? e.message : "PDF 미리보기를 불러오지 못했습니다.");
+          }
         }
       } finally {
         if (!cancelled) {

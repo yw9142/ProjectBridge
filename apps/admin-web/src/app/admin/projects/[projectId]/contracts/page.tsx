@@ -1,9 +1,8 @@
-"use client";
+﻿"use client";
 
 import { ChangeEvent, FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_BASE, apiFetch, handleAuthError } from "@/lib/api";
-import { getAccessToken } from "@/lib/auth";
+import { apiFetch, apiFetchResponse, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
 import { Modal } from "@/components/ui/modal";
@@ -79,8 +78,8 @@ type RectSelection = { x: number; y: number; w: number; h: number };
 const PDF_PREVIEW_SCALE = 1.2;
 
 const statusLabels: Record<ContractStatus, string> = {
-  DRAFT: "진행 중",
-  ACTIVE: "완료",
+  DRAFT: "임시 저장",
+  ACTIVE: "활성화",
   ARCHIVED: "보관",
 };
 
@@ -250,7 +249,7 @@ export default function ProjectContractsPage() {
   function parseNumberValue(raw: string, fieldLabel: string) {
     const parsed = Number(raw);
     if (!Number.isFinite(parsed)) {
-      throw new Error(`${fieldLabel} 값을 확인해 주세요.`);
+      throw new Error(`${fieldLabel} 값을 숫자로 변환할 수 없습니다.`);
     }
     return parsed;
   }
@@ -349,22 +348,22 @@ export default function ProjectContractsPage() {
     if (pdfLibRef.current) {
       return pdfLibRef.current;
     }
-    const lib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url).toString();
-    lib.GlobalWorkerOptions.workerSrc = workerSrc;
-    pdfLibRef.current = lib;
-    return lib;
+    try {
+      const lib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+      const workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url).toString();
+      lib.GlobalWorkerOptions.workerSrc = workerSrc;
+      pdfLibRef.current = lib;
+      return lib;
+    } catch {
+      throw new Error("PDF 렌더러를 불러오지 못했습니다.");
+    }
   }
 
   async function fetchPdfBytes(fileVersionId: string) {
-    const token = getAccessToken();
-    const response = await fetch(`${API_BASE}/api/file-versions/${fileVersionId}/content`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    const response = await apiFetchResponse(`/api/file-versions/${fileVersionId}/content`, {
+      method: "GET",
       cache: "no-store",
     });
-    if (!response.ok) {
-      throw new Error("PDF 미리보기를 불러오지 못했습니다.");
-    }
     return response.arrayBuffer();
   }
 
@@ -402,7 +401,7 @@ export default function ProjectContractsPage() {
     }
     const context = canvas.getContext("2d");
     if (!context) {
-      throw new Error("PDF 캔버스를 준비하지 못했습니다.");
+      throw new Error("PDF 렌더러를 불러오지 못했습니다.");
     }
 
     canvas.width = Math.ceil(viewport.width);
@@ -489,7 +488,9 @@ export default function ProjectContractsPage() {
       } catch (e) {
         const renderCancelled = e instanceof Error && e.name === "RenderingCancelledException";
         if (!cancelled && !renderCancelled) {
-          setPreviewError(e instanceof Error ? e.message : "PDF 미리보기를 불러오지 못했습니다.");
+          if (!handleAuthError(e, "/admin/login")) {
+            setPreviewError(e instanceof Error ? e.message : "PDF 미리보기를 불러오지 못했습니다.");
+          }
         }
       } finally {
         if (!cancelled) {
@@ -655,7 +656,7 @@ export default function ProjectContractsPage() {
       window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "계약서 열기에 실패했습니다.");
+        setError(e instanceof Error ? e.message : "계약서 다운로드에 실패했습니다.");
       }
     }
   }
@@ -675,7 +676,7 @@ export default function ProjectContractsPage() {
       applyFieldDefaults(signer);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "서명자 정보를 불러오지 못했습니다.");
+        setError(e instanceof Error ? e.message : "서명 정보를 불러오지 못했습니다.");
       }
     } finally {
       setSigningLoading(false);
@@ -743,25 +744,25 @@ export default function ProjectContractsPage() {
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">계약</h1>
-          <p className="text-sm text-slate-500">계약 진행 현황을 확인하고 마지막 수정 이력을 관리합니다.</p>
+          <h1 className="text-xl font-bold text-slate-900">계약서</h1>
+          <p className="text-sm text-slate-500">계약서 목록을 관리합니다.</p>
         </div>
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
         >
-          계약 생성
+          계약서 생성
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">완료 처리</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">활성화</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{doneCount}</p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">진행 중</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">임시 저장</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{inProgressCount}</p>
         </div>
       </div>
@@ -771,7 +772,7 @@ export default function ProjectContractsPage() {
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3 whitespace-nowrap">계약명</th>
-              <th className="px-4 py-3 whitespace-nowrap">등록자</th>
+              <th className="px-4 py-3 whitespace-nowrap">작성자</th>
               <th className="px-4 py-3 whitespace-nowrap">계약서</th>
               <th className="px-4 py-3 whitespace-nowrap">상태</th>
               <th className="px-4 py-3 whitespace-nowrap">서명자</th>
@@ -798,7 +799,7 @@ export default function ProjectContractsPage() {
                         onClick={() => void openContractPdf(contract.fileVersionId as string)}
                         className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                       >
-                        {version ? `${version.fileName} v${version.version}` : "PDF 보기"}
+                        {version ? `${version.fileName} v${version.version}` : "PDF 蹂닿린"}
                       </button>
                     ) : (
                       <span className="text-xs text-slate-500">PDF 없음</span>
@@ -828,7 +829,7 @@ export default function ProjectContractsPage() {
                         onClick={() => openSigningStatus(contract.id)}
                         className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                       >
-                        서명 확인
+                        서명 상태 보기
                       </button>
                       <button
                         type="button"
@@ -847,8 +848,8 @@ export default function ProjectContractsPage() {
                       </button>
                       <ConfirmActionButton
                         label="삭제"
-                        title="계약을 삭제할까요?"
-                        description="삭제 후 복구할 수 없습니다."
+                        title="계약서를 삭제하시겠습니까?"
+                        description="계약서를 삭제하면 복구할 수 없습니다."
                         onConfirm={() => deleteContract(contract.id)}
                         triggerVariant="destructive"
                         triggerSize="sm"
@@ -856,7 +857,7 @@ export default function ProjectContractsPage() {
                         confirmVariant="destructive"
                       />
                     </div>
-                    {!signer?.assigned && !canAssignSigner ? <p className="mt-2 text-xs text-slate-500">서명자 지정 전 계약서 PDF를 먼저 업로드해 주세요.</p> : null}
+                    {!signer?.assigned && !canAssignSigner ? <p className="mt-2 text-xs text-slate-500">서명자가 지정되지 않았고 계약서 PDF 파일이 없습니다.</p> : null}
                   </td>
                 </tr>
               );
@@ -864,7 +865,7 @@ export default function ProjectContractsPage() {
             {!loading && sortedContracts.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-6 text-center text-sm text-slate-500">
-                  등록된 계약이 없습니다.
+                  계약서가 없습니다.
                 </td>
               </tr>
             ) : null}
@@ -872,17 +873,17 @@ export default function ProjectContractsPage() {
         </table>
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="계약 생성" description="계약명과 계약서 PDF를 입력합니다.">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="계약서 생성" description="계약서 명과 계약서 PDF를 입력합니다.">
         <form onSubmit={createContract} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="계약명" value={createName} onChange={(e) => setCreateName(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="계약서 명" value={createName} onChange={(e) => setCreateName(e.target.value)} required />
           <input type="file" accept="application/pdf" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" onChange={onPickCreatePdf} required />
-          {createPdf ? <p className="text-xs text-slate-500">선택 파일: {createPdf.name}</p> : null}
+          {createPdf ? <p className="text-xs text-slate-500">계약서 파일: {createPdf.name}</p> : null}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              취소
+              痍⑥냼
             </button>
             <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
-              생성
+              ?앹꽦
             </button>
           </div>
         </form>
@@ -891,8 +892,8 @@ export default function ProjectContractsPage() {
       <Modal
         open={Boolean(editingId)}
         onClose={() => setEditingId(null)}
-        title="계약 수정"
-        description="계약명을 수정하고, 필요하면 PDF를 교체합니다."
+        title="계약서 수정"
+        description="계약서 명을 수정하고, 필요하면 PDF를 교체합니다."
       >
         <form onSubmit={saveEdit} className="space-y-3">
           <input className="w-full rounded-lg border border-slate-300 px-3 py-2" value={editName} onChange={(e) => setEditName(e.target.value)} required />
@@ -963,7 +964,7 @@ export default function ProjectContractsPage() {
                   activePlacement === "signature" ? "bg-indigo-600 !text-white" : "border border-slate-300 text-slate-700 hover:bg-slate-100"
                 }`}
               >
-                서명 영역 편집
+                서명 페이지 선택
               </button>
               <button
                 type="button"
@@ -976,7 +977,7 @@ export default function ProjectContractsPage() {
                   activePlacement === "date" ? "bg-emerald-600 !text-white" : "border border-slate-300 text-slate-700 hover:bg-slate-100"
                 }`}
               >
-                날짜 영역 편집
+                날짜 페이지 선택
               </button>
               <label className="ml-2 inline-flex items-center gap-2 text-xs text-slate-700">
                 <input type="checkbox" checked={includeDateField} onChange={(e) => setIncludeDateField(e.target.checked)} />
@@ -1004,7 +1005,7 @@ export default function ProjectContractsPage() {
               >
                 다음 페이지
               </button>
-              <span className="text-slate-500">PDF 위에서 드래그하면 {activePlacement === "signature" ? "서명" : "날짜"} 영역이 지정됩니다.</span>
+              <span className="text-slate-500">PDF 페이지를 클릭하여 서명 또는 날짜 위치를 지정합니다.</span>
             </div>
 
             <div className="overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-2">
@@ -1029,7 +1030,7 @@ export default function ProjectContractsPage() {
                       height: `${signaturePreviewRect.h * 100}%`,
                     }}
                   >
-                    <span className="absolute -top-5 left-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold !text-white">서명</span>
+                    <span className="absolute -top-5 left-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold !text-white">?쒕챸</span>
                   </div>
                 ) : null}
                 {includeDateField && datePreviewRect.page === previewPage ? (
@@ -1042,7 +1043,7 @@ export default function ProjectContractsPage() {
                       height: `${datePreviewRect.h * 100}%`,
                     }}
                   >
-                    <span className="absolute -top-5 left-0 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold !text-white">날짜</span>
+                    <span className="absolute -top-5 left-0 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold !text-white">?좎쭨</span>
                   </div>
                 ) : null}
               </div>
@@ -1059,15 +1060,15 @@ export default function ProjectContractsPage() {
           </div>
 
           <div className="rounded-lg border border-slate-200 p-3">
-            <p className="mb-2 text-sm font-semibold text-slate-900">현재 지정 상태</p>
-            {signingLoading ? <p className="text-sm text-slate-500">불러오는 중...</p> : null}
+            <p className="mb-2 text-sm font-semibold text-slate-900">서명자 정보</p>
+            {signingLoading ? <p className="text-sm text-slate-500">서명자 정보 로딩 중...</p> : null}
             {!signingLoading && currentSigningInfo?.assigned ? (
               <p className="text-sm text-slate-700">
-                {currentSigningInfo.recipientName} ({currentSigningInfo.recipientEmail}) / 서명 요청: {formatEnvelopeStatus(currentSigningInfo.envelopeStatus)} / 수신 상태:{" "}
+                {currentSigningInfo.recipientName} ({currentSigningInfo.recipientEmail}) / 서명 상태: {formatEnvelopeStatus(currentSigningInfo.envelopeStatus)} / 수신 상태:{" "}
                 {formatRecipientStatus(currentSigningInfo.recipientStatus)}
               </p>
             ) : null}
-            {!signingLoading && !currentSigningInfo?.assigned ? <p className="text-sm text-slate-500">지정된 서명자가 없습니다.</p> : null}
+            {!signingLoading && !currentSigningInfo?.assigned ? <p className="text-sm text-slate-500">서명자가 지정되지 않았습니다.</p> : null}
           </div>
 
           <div className="flex justify-end gap-2">
@@ -1076,7 +1077,7 @@ export default function ProjectContractsPage() {
               onClick={resetSigningModal}
               className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
             >
-              닫기
+              취소
             </button>
             <button
               type="submit"

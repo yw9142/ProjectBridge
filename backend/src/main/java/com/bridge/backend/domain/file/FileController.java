@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -87,7 +88,7 @@ public class FileController {
 
         String parentPath = normalizeFolderPath(request.parentPath());
         if (!"/".equals(parentPath) && fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), parentPath).isEmpty()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_PARENT_NOT_FOUND", "상위 폴더를 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_PARENT_NOT_FOUND", "상위 폴더가 존재하지 않습니다.");
         }
 
         String folderName = normalizeFolderName(request.name());
@@ -116,7 +117,7 @@ public class FileController {
             throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_RENAME_FORBIDDEN", "루트 폴더는 이름을 변경할 수 없습니다.");
         }
         fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), sourcePath)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FOLDER_NOT_FOUND", "이름을 변경할 폴더를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FOLDER_NOT_FOUND", "폴더를 찾을 수 없습니다."));
 
         String destinationPath = buildFolderPath(parentFolderPath(sourcePath), normalizeFolderName(request.name()));
         return ApiSuccess.of(relocateFolderTree(projectId, principal.getTenantId(), principal.getUserId(), sourcePath, destinationPath));
@@ -131,11 +132,11 @@ public class FileController {
         String sourcePath = normalizeFolderPath(request.sourcePath());
         String targetPath = normalizeFolderPath(request.targetPath());
         if ("/".equals(sourcePath)) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_MOVE_FORBIDDEN", "루트 폴더는 이동할 수 없습니다. 이동은 하위 폴더에서만 가능합니다.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_MOVE_FORBIDDEN", "루트 폴더는 이동할 수 없습니다.");
         }
 
         fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), sourcePath)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FOLDER_NOT_FOUND", "이동할 폴더를 찾을 수 없습니다. 이동은 하위 폴더에서만 가능합니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FOLDER_NOT_FOUND", "폴더를 찾을 수 없습니다."));
 
         if (!"/".equals(targetPath) && fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), targetPath).isEmpty()) {
             throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_TARGET_NOT_FOUND", "대상 폴더를 찾을 수 없습니다.");
@@ -156,7 +157,7 @@ public class FileController {
             throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_DELETE_FORBIDDEN", "루트 폴더는 삭제할 수 없습니다.");
         }
         fileFolderRepository.findByProjectIdAndTenantIdAndPathAndDeletedAtIsNull(projectId, principal.getTenantId(), folderPath)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FOLDER_NOT_FOUND", "삭제할 폴더를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FOLDER_NOT_FOUND", "폴더를 찾을 수 없습니다."));
 
         List<FileFolderEntity> allFolders = fileFolderRepository.findByProjectIdAndTenantIdAndDeletedAtIsNullOrderByPathAsc(projectId, principal.getTenantId());
         Set<String> deletingPaths = new HashSet<>();
@@ -208,7 +209,7 @@ public class FileController {
                 Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER, MemberRole.CLIENT_OWNER, MemberRole.CLIENT_MEMBER));
         VisibilityScope visibilityScope = resolveVisibilityScope(request.visibilityScope());
         if (isClientRole(member.getRole()) && visibilityScope == VisibilityScope.INTERNAL) {
-            throw new AppException(HttpStatus.FORBIDDEN, "FILE_VISIBILITY_FORBIDDEN", "클라이언트 권한으로 내부 범위 파일을 생성할 수 없습니다.");
+            throw new AppException(HttpStatus.FORBIDDEN, "FILE_VISIBILITY_FORBIDDEN", "클라이언트 멤버는 내부 파일을 생성할 수 없습니다.");
         }
         FileEntity file = new FileEntity();
         file.setTenantId(principal.getTenantId());
@@ -373,9 +374,9 @@ public class FileController {
     public ApiSuccess<Map<String, Object>> downloadUrl(@PathVariable UUID fileVersionId) {
         var principal = SecurityUtils.requirePrincipal();
         FileVersionEntity version = fileVersionRepository.findById(fileVersionId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "File version not found."));
         if (version.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "삭제된 파일 버전입니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "File version has been deleted.");
         }
         FileEntity file = requireActiveFile(version.getFileId());
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
@@ -383,24 +384,29 @@ public class FileController {
     }
 
     @GetMapping("/api/file-versions/{fileVersionId}/content")
-    public ResponseEntity<byte[]> downloadContent(@PathVariable UUID fileVersionId) {
+    public ResponseEntity<StreamingResponseBody> downloadContent(@PathVariable UUID fileVersionId) {
         var principal = SecurityUtils.requirePrincipal();
         FileVersionEntity version = fileVersionRepository.findById(fileVersionId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "File version not found."));
         if (version.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "삭제된 파일 버전입니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "File version has been deleted.");
         }
         FileEntity file = requireActiveFile(version.getFileId());
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
 
-        byte[] bytes = storageService.downloadObject(version.getObjectKey());
         MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
         if (version.getContentType() != null && !version.getContentType().isBlank()) {
             mediaType = MediaType.parseMediaType(version.getContentType());
         }
+        StreamingResponseBody stream = outputStream -> {
+            try (var input = storageService.downloadObjectStream(version.getObjectKey())) {
+                input.transferTo(outputStream);
+            }
+        };
         return ResponseEntity.ok()
                 .contentType(mediaType)
-                .body(bytes);
+                .contentLength(version.getSize())
+                .body(stream);
     }
 
     @PostMapping("/api/file-versions/{fileVersionId}/comments")
@@ -440,9 +446,9 @@ public class FileController {
     public ApiSuccess<FileCommentEntity> resolve(@PathVariable UUID commentId) {
         var principal = SecurityUtils.requirePrincipal();
         FileCommentEntity comment = fileCommentRepository.findById(commentId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_COMMENT_NOT_FOUND", "파일 코멘트를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_COMMENT_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
         if (comment.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "FILE_COMMENT_NOT_FOUND", "삭제된 파일 코멘트입니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_COMMENT_NOT_FOUND", "파일 버전을 찾을 수 없습니다.");
         }
         FileVersionEntity version = fileVersionRepository.findById(comment.getFileVersionId())
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_VERSION_NOT_FOUND", "파일 버전을 찾을 수 없습니다."));
@@ -460,7 +466,7 @@ public class FileController {
         FileEntity file = fileRepository.findById(fileId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "파일을 찾을 수 없습니다."));
         if (file.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "삭제된 파일입니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "파일을 찾을 수 없습니다.");
         }
         return file;
     }
@@ -473,7 +479,7 @@ public class FileController {
 
     private void ensureVisibleToMember(FileEntity file, ProjectMemberEntity member) {
         if (isClientRole(member.getRole()) && file.getVisibilityScope() == VisibilityScope.INTERNAL) {
-            throw new AppException(HttpStatus.FORBIDDEN, "FILE_NOT_VISIBLE", "클라이언트 권한으로 내부 범위 파일을 볼 수 없습니다.");
+            throw new AppException(HttpStatus.FORBIDDEN, "FILE_NOT_VISIBLE", "클라이언트 멤버는 내부 파일을 볼 수 없습니다.");
         }
     }
 
@@ -518,7 +524,7 @@ public class FileController {
             );
         }
         if (destinationPath.startsWith(sourcePath + "/")) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_MOVE_INVALID", "하위 폴더로는 이동할 수 없습니다.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "FOLDER_MOVE_INVALID", "대상 폴더가 소스 폴더의 하위 폴더입니다.");
         }
 
         List<FileFolderEntity> allFolders = fileFolderRepository.findByProjectIdAndTenantIdAndDeletedAtIsNullOrderByPathAsc(projectId, tenantId);
@@ -540,7 +546,7 @@ public class FileController {
         for (String movingPath : movingPaths) {
             String nextPath = destinationPath + movingPath.substring(sourcePath.length());
             if (occupiedPaths.contains(nextPath)) {
-                throw new AppException(HttpStatus.CONFLICT, "FOLDER_ALREADY_EXISTS", "대상 위치에 동일한 폴더가 존재합니다.");
+                throw new AppException(HttpStatus.CONFLICT, "FOLDER_ALREADY_EXISTS", "이미 존재하는 폴더입니다.");
             }
             pathReplacements.put(movingPath, nextPath);
         }

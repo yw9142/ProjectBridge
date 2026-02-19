@@ -33,6 +33,10 @@ public class PdfSigningService {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final PDType1Font DEFAULT_FONT = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
     private static final PDType1Font SIGNATURE_FONT = new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE);
+    private static final int MAX_DATA_URL_CHARS = 2_500_000;
+    private static final int MAX_BASE64_CHARS = 2_400_000;
+    private static final int MAX_IMAGE_BYTES = 1_800_000;
+    private static final int MAX_IMAGE_DIMENSION = 4096;
 
     public byte[] applyRecipientFields(byte[] sourcePdfBytes,
                                        List<SignatureFieldEntity> recipientFields,
@@ -115,6 +119,11 @@ public class PdfSigningService {
         if (image == null) {
             return false;
         }
+        if (image.getWidth() <= 0 || image.getHeight() <= 0
+                || image.getWidth() > MAX_IMAGE_DIMENSION
+                || image.getHeight() > MAX_IMAGE_DIMENSION) {
+            return false;
+        }
         PDImageXObject xObject = LosslessFactory.createFromImage(document, image);
         stream.drawImage(xObject, rect.x(), rect.y(), rect.width(), rect.height());
         return true;
@@ -178,12 +187,24 @@ public class PdfSigningService {
         if (dataUrl == null || dataUrl.isBlank()) {
             return null;
         }
-        Matcher matcher = DATA_URL_PATTERN.matcher(dataUrl.trim());
+        String normalized = dataUrl.trim();
+        if (normalized.length() > MAX_DATA_URL_CHARS) {
+            return null;
+        }
+        Matcher matcher = DATA_URL_PATTERN.matcher(normalized);
         if (!matcher.matches()) {
             return null;
         }
+        String encoded = matcher.group(1);
+        if (encoded.length() > MAX_BASE64_CHARS) {
+            return null;
+        }
         try {
-            return Base64.getDecoder().decode(matcher.group(1));
+            byte[] decoded = Base64.getDecoder().decode(encoded);
+            if (decoded.length > MAX_IMAGE_BYTES) {
+                return null;
+            }
+            return decoded;
         } catch (IllegalArgumentException ex) {
             return null;
         }

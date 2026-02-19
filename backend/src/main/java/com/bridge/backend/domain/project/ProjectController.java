@@ -5,6 +5,7 @@ import com.bridge.backend.common.model.enums.MemberRole;
 import com.bridge.backend.common.model.enums.ProjectStatus;
 import com.bridge.backend.common.security.SecurityUtils;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -90,7 +91,7 @@ public class ProjectController {
     public record UpdateProjectRequest(String name, String description, ProjectStatus status) {
     }
 
-    public record InviteRequest(@NotBlank String loginId, @NotBlank String password, String name, MemberRole role) {
+    public record InviteRequest(@Email @NotBlank String loginId, @NotBlank String password, String name, MemberRole role) {
     }
 
     public record UpdateMemberRequest(MemberRole role) {

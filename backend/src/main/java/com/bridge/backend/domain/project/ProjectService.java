@@ -17,10 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Service
 public class ProjectService {
     private static final String PASSWORD_MASK = "********";
+    private static final Pattern SIMPLE_EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    private static final int MIN_PASSWORD_LENGTH = 10;
+    private static final int MAX_PASSWORD_LENGTH = 72;
 
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
@@ -135,7 +139,10 @@ public class ProjectService {
         }
 
         String normalizedLoginId = loginId.trim().toLowerCase(Locale.ROOT);
-        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(normalizedLoginId).orElseGet(() -> {
+        validateLoginId(normalizedLoginId);
+        Optional<UserEntity> existingUserOpt = userRepository.findByEmailAndDeletedAtIsNull(normalizedLoginId);
+        UserEntity savedUser = existingUserOpt.orElseGet(() -> {
+            validatePasswordPolicy(password);
             UserEntity entity = new UserEntity();
             entity.setEmail(normalizedLoginId);
             entity.setName((name == null || name.isBlank()) ? normalizedLoginId.split("@")[0] : name.trim());
@@ -145,13 +152,6 @@ public class ProjectService {
             entity.setUpdatedBy(principal.getUserId());
             return userRepository.save(entity);
         });
-        user.setPasswordHash(passwordEncoder.encode(password));
-        user.setStatus(UserStatus.ACTIVE);
-        if (name != null && !name.isBlank()) {
-            user.setName(name.trim());
-        }
-        user.setUpdatedBy(principal.getUserId());
-        UserEntity savedUser = userRepository.save(user);
 
         if (tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), savedUser.getId()).isEmpty()) {
             TenantMemberEntity tenantMember = new TenantMemberEntity();
@@ -222,6 +222,7 @@ public class ProjectService {
 
         if (hasLoginId) {
             String normalizedLoginId = loginId.trim().toLowerCase(Locale.ROOT);
+            validateLoginId(normalizedLoginId);
             userRepository.findByEmailAndDeletedAtIsNull(normalizedLoginId).ifPresent(existing -> {
                 if (!existing.getId().equals(user.getId())) {
                     throw new AppException(HttpStatus.CONFLICT, "LOGIN_ID_DUPLICATE", "이미 존재하는 로그인 ID입니다.");
@@ -234,6 +235,7 @@ public class ProjectService {
         }
 
         if (hasPassword) {
+            validatePasswordPolicy(password);
             user.setPasswordHash(passwordEncoder.encode(password));
             user.setStatus(UserStatus.ACTIVE);
         }
@@ -258,6 +260,32 @@ public class ProjectService {
         member.setUpdatedBy(principal.getUserId());
         projectMemberRepository.save(member);
         return Map.of("deleted", true);
+    }
+
+    private void validateLoginId(String loginId) {
+        if (!SIMPLE_EMAIL_PATTERN.matcher(loginId).matches()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "LOGIN_ID_INVALID", "Login id must be a valid email address.");
+        }
+    }
+
+    private void validatePasswordPolicy(String password) {
+        if (password.length() < MIN_PASSWORD_LENGTH || password.length() > MAX_PASSWORD_LENGTH) {
+            throw new AppException(
+                    HttpStatus.BAD_REQUEST,
+                    "PASSWORD_POLICY_VIOLATION",
+                    "Password must be 10-72 characters and include upper/lowercase letters and a number."
+            );
+        }
+        boolean hasUpper = password.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = password.chars().anyMatch(Character::isLowerCase);
+        boolean hasDigit = password.chars().anyMatch(Character::isDigit);
+        if (!hasUpper || !hasLower || !hasDigit) {
+            throw new AppException(
+                    HttpStatus.BAD_REQUEST,
+                    "PASSWORD_POLICY_VIOLATION",
+                    "Password must be 10-72 characters and include upper/lowercase letters and a number."
+            );
+        }
     }
 
     private ProjectMemberAccount toProjectMemberAccount(ProjectMemberEntity member, UserEntity user) {

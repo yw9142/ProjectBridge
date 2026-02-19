@@ -34,7 +34,7 @@ export default function ProjectEventsPage() {
         }
       } catch (e) {
         if (!handleAuthError(e, "/login") && active) {
-          setError(e instanceof Error ? e.message : "蹂寃??대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+          setError(e instanceof Error ? e.message : "변경 이력 로딩 중 오류가 발생했습니다.");
         }
       } finally {
         if (active) {
