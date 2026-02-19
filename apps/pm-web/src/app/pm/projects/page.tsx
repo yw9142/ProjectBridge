@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { PmLogoutButton } from "@/components/layout/PmLogoutButton";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Project = {
   id: string;
@@ -58,7 +59,13 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {loading ? <p className="mt-6 text-sm text-slate-500">불러오는 중...</p> : null}
+        {loading ? (
+          <div className="mt-6 space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        ) : null}
         {error ? <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
         <div className="mt-6 space-y-3">

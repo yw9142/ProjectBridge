@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -127,6 +128,16 @@ export default function ClientVaultPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-3">
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : null}
               {sortedItems.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-semibold text-slate-900">{item.name}</TableCell>

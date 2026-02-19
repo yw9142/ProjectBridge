@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { ChangeEvent, FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -6,6 +6,7 @@ import { apiFetch, apiFetchResponse, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
 import { Modal } from "@/components/ui/modal";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ContractStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 
@@ -758,11 +759,11 @@ export default function ProjectContractsPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">완료 처리</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{doneCount}</p>
+          {loading ? <Skeleton className="mt-1 h-8 w-14" /> : <p className="mt-1 text-2xl font-bold text-slate-900">{doneCount}</p>}
         </div>
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">진행 중</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{inProgressCount}</p>
+          {loading ? <Skeleton className="mt-1 h-8 w-14" /> : <p className="mt-1 text-2xl font-bold text-slate-900">{inProgressCount}</p>}
         </div>
       </div>
 
@@ -782,7 +783,17 @@ export default function ProjectContractsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
-            {sortedContracts.map((contract) => {
+            {loading ? (
+              <tr>
+                <td colSpan={9} className="px-4 py-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </td>
+              </tr>
+            ) : null}{sortedContracts.map((contract) => {
               const version = contract.fileVersionId ? fileVersionMap.get(contract.fileVersionId) : undefined;
               const signer = signersByContract[contract.id];
               const displayStatus = resolveDisplayStatus(contract, signer);
@@ -1008,7 +1019,7 @@ export default function ProjectContractsPage() {
             </div>
 
             <div className="overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-2">
-              {previewLoading ? <p className="text-sm text-slate-500">PDF 미리보기 로딩 중...</p> : null}
+              {previewLoading ? <Skeleton className="h-5 w-40" /> : null}
               {previewError ? <p className="text-sm text-red-600">{previewError}</p> : null}
               <div
                 ref={previewOverlayRef}
@@ -1060,7 +1071,7 @@ export default function ProjectContractsPage() {
 
           <div className="rounded-lg border border-slate-200 p-3">
             <p className="mb-2 text-sm font-semibold text-slate-900">현재 지정 상태</p>
-            {signingLoading ? <p className="text-sm text-slate-500">불러오는 중...</p> : null}
+            {signingLoading ? <Skeleton className="h-5 w-36" /> : null}
             {!signingLoading && currentSigningInfo?.assigned ? (
               <p className="text-sm text-slate-700">
                 {currentSigningInfo.recipientName} ({currentSigningInfo.recipientEmail}) / 서명 요청: {formatEnvelopeStatus(currentSigningInfo.envelopeStatus)} / 수신 상태:{" "}

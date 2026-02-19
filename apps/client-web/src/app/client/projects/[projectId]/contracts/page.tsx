@@ -6,6 +6,7 @@ import { apiFetch, handleAuthError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Contract = {
   id: string;
@@ -196,11 +197,11 @@ export default function ClientContractsPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">서명 완료</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{signedCount}</p>
+            {loading ? <Skeleton className="mt-1 h-8 w-14" /> : <p className="mt-1 text-2xl font-bold text-slate-900">{signedCount}</p>}
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">서명 진행중</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{waitingCount}</p>
+            {loading ? <Skeleton className="mt-1 h-8 w-14" /> : <p className="mt-1 text-2xl font-bold text-slate-900">{waitingCount}</p>}
           </div>
         </div>
 
@@ -217,7 +218,17 @@ export default function ClientContractsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedContracts.map((contract) => {
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    <div className="space-y-2 py-2">
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : null}{sortedContracts.map((contract) => {
                 const version = contract.fileVersionId ? fileVersionMap.get(contract.fileVersionId) : undefined;
                 const signer = signersByContract[contract.id];
                 const canSign = Boolean(

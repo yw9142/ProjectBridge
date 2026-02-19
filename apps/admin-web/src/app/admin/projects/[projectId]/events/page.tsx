@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type PmEvent = {
   id: string;
@@ -54,7 +55,13 @@ export default function ProjectEventsPage() {
         <p className="text-sm text-slate-500">PM 사용자가 수행한 변경 이벤트를 시간순으로 확인합니다.</p>
       </div>
 
-      {loading ? <p className="text-sm text-slate-500">불러오는 중...</p> : null}
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      ) : null}
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
       <div className="space-y-2">

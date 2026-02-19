@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { ConfirmActionButton, ConfirmSubmitButton } from "@/components/ui/confirm-action";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
 
@@ -131,7 +132,7 @@ export default function ClientPostDetailPage() {
         <Link href={`/client/projects/${projectId}/posts`} className="text-sm text-indigo-600 hover:underline">
           목록으로
         </Link>
-        <p className="mt-3 text-sm text-slate-500">게시글을 불러오는 중입니다.</p>
+        <div className="mt-3 space-y-2"><Skeleton className="h-5 w-40" /><Skeleton className="h-20 w-full" /></div>
         {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       </section>
     );

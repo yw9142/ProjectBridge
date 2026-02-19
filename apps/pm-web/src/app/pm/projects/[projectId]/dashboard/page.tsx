@@ -4,6 +4,7 @@ import { CalendarClock, CheckCheck, ClipboardList, ExternalLink, HandCoins, Hist
 import { useEffect, useMemo, useState } from "react";
 import { useProjectId } from "@/lib/use-project-id";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Project = { id: string; name: string; description?: string | null; status: string };
 type RequestType = "APPROVAL" | "INFO_REQUEST" | "FEEDBACK" | "SIGNATURE" | "PAYMENT_CONFIRMATION" | "VAULT_ACCESS" | "MEETING_CONFIRMATION";
@@ -135,7 +136,7 @@ export default function DashboardPage() {
         );
       } catch (e) {
         if (!handleAuthError(e, "/login") && active) {
-          setError(e instanceof Error ? e.message : "대시보드 데이터를 불러오지 못했습니다.");
+          setError(e instanceof Error ? e.message : "대시보드 정보를 불러오지 못했습니다.");
         }
       } finally {
         if (active) {
@@ -186,7 +187,7 @@ export default function DashboardPage() {
       return { start, end };
     });
 
-    const labels = ["4주 전", "3주 전", "2주 전", "이번 주"];
+    const labels = ["4주 전", "3주 전", "2주 전", "1주 전"];
     const counts = [0, 0, 0, 0];
 
     for (const item of requests) {
@@ -235,15 +236,15 @@ export default function DashboardPage() {
   const kpiCards = [
     { title: "요청", value: summary.activeRequests.toLocaleString("ko-KR"), icon: ClipboardList, accent: "text-indigo-600" },
     { title: "승인 대기", value: summary.pendingApprovals.toLocaleString("ko-KR"), icon: CheckCheck, accent: "text-amber-600" },
-    { title: "다가오는 회의", value: summary.upcomingMeetings.toLocaleString("ko-KR"), icon: CalendarClock, accent: "text-sky-600" },
-    { title: "정산 금액", value: summary.invoiceAmountText, icon: HandCoins, accent: "text-emerald-600" },
+    { title: "다가오는 미팅", value: summary.upcomingMeetings.toLocaleString("ko-KR"), icon: CalendarClock, accent: "text-sky-600" },
+    { title: "송장 금액", value: summary.invoiceAmountText, icon: HandCoins, accent: "text-emerald-600" },
   ];
 
   return (
     <div className="space-y-6">
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h1 className="text-2xl font-bold text-slate-900">{project?.name ?? "프로젝트"}</h1>
-        <p className="text-sm text-slate-500">{project?.description || "프로젝트 룸 운영 현황"}</p>
+        <p className="text-sm text-slate-500">{project?.description || "프로젝트 설명"}</p>
         <p className="mt-2 text-xs text-slate-400">status: {project?.status ?? "-"}</p>
       </section>
 
@@ -262,8 +263,8 @@ export default function DashboardPage() {
                 <Video className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">회의</p>
-                <p className="truncate text-sm font-semibold text-slate-900">{nearestMeeting.title || "가장 가까운 회의"}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">미팅</p>
+                <p className="truncate text-sm font-semibold text-slate-900">{nearestMeeting.title || "가장 가까운 미팅"}</p>
                 <p className="text-xs text-slate-600">{formatActionTime(nearestMeeting.startAt)}</p>
               </div>
               <ExternalLink className="h-4 w-4 text-slate-500 transition group-hover:text-slate-900" />
@@ -276,9 +277,9 @@ export default function DashboardPage() {
                 <Video className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">회의</p>
-                <p className="text-sm font-semibold text-slate-700">예정된 회의가 없습니다</p>
-                <p className="text-xs text-slate-500">회의가 생성되면 바로 입장할 수 있어요.</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">미팅</p>
+                <p className="text-sm font-semibold text-slate-700">미팅 정보를 불러오지 못했습니다.</p>
+                <p className="text-xs text-slate-500">미팅 정보를 불러오지 못했습니다.</p>
               </div>
             </div>
           </article>
@@ -294,7 +295,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-slate-500">{card.title}</p>
                 <Icon className={`h-4 w-4 ${card.accent}`} />
               </div>
-              <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{loading ? "-" : card.value}</p>
+              {loading ? <Skeleton className="mt-3 h-9 w-20" /> : <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{card.value}</p>}
             </article>
           );
         })}
@@ -304,10 +305,10 @@ export default function DashboardPage() {
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">테스크 추이</h2>
-              <p className="text-xs text-slate-500">최근 4주 요청 생성 건수</p>
+              <h2 className="text-lg font-semibold text-slate-900">요청 트렌드</h2>
+              <p className="text-xs text-slate-500">4주 전부터 1주 전까지의 요청 트렌드</p>
             </div>
-            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">총 {requests.length.toLocaleString("ko-KR")}건</span>
+            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">요청 {requests.length.toLocaleString("ko-KR")}건</span>
           </div>
           <div className="overflow-hidden rounded-lg border border-slate-100 bg-slate-50/70 p-3">
             <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-64 w-full">
@@ -357,11 +358,13 @@ export default function DashboardPage() {
                 </p>
               </article>
             ))}
-            {!loading && recentActions.length === 0 ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">표시할 최근 액션이 없습니다.</p> : null}
-            {loading ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">불러오는 중...</p> : null}
+            {!loading && recentActions.length === 0 ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">최근 액션이 없습니다.</p> : null}
+            {loading ? <Skeleton className="h-16 w-full rounded-lg" /> : null}
           </div>
         </article>
       </section>
     </div>
   );
 }
+
+

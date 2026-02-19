@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
 import { Modal } from "@/components/ui/modal";
@@ -223,6 +224,16 @@ export default function ProjectRequestsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
+            {loading ? (
+              <tr>
+                <td colSpan={99} className="px-4 py-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </td>
+              </tr>
+            ) : null}
             {sortedItems.map((item) => (
               <tr key={item.id}>
                 <td className="px-4 py-3">

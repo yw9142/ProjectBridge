@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Modal } from "@/components/ui/modal";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Tenant = {
   id: string;
@@ -110,6 +111,35 @@ export default function TenantDetailPage() {
     }
   }
 
+  if (loading && !tenant) {
+    return (
+      <AdminShell>
+        <section className="space-y-5">
+          <div className="flex items-end justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">테넌트 상세</h1>
+              <p className="text-sm text-slate-500">tenantId: {tenantId}</p>
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-36" />
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-slate-200 p-4">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          </div>
+        </section>
+      </AdminShell>
+    );
+  }
+
   return (
     <AdminShell>
       <section className="space-y-5">
@@ -166,6 +196,16 @@ export default function TenantDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
+            {loading ? (
+              <tr>
+                <td colSpan={99} className="px-4 py-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </td>
+              </tr>
+            ) : null}
               {projects.map((project) => (
                 <tr key={project.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{project.name}</td>
@@ -208,6 +248,16 @@ export default function TenantDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
+            {loading ? (
+              <tr>
+                <td colSpan={99} className="px-4 py-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </td>
+              </tr>
+            ) : null}
               {pmUsers.map((user) => (
                 <tr key={user.userId}>
                   <td className="px-4 py-3 font-medium text-slate-900">{user.name || "-"}</td>

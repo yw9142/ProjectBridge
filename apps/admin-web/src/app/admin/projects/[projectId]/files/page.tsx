@@ -3,6 +3,7 @@
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { ChevronRight, Download, FileText, Folder, FolderOpen, GripVertical, Plus } from "lucide-react";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
 import { Modal } from "@/components/ui/modal";
@@ -641,6 +642,16 @@ export default function ProjectFilesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
+            {loading ? (
+              <tr>
+                <td colSpan={99} className="px-4 py-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </td>
+              </tr>
+            ) : null}
               {treeRows.map((row) => {
                 if (row.kind === "folder") {
                   const isDropTarget = dropTargetPath === row.path && canDrop(row.path);

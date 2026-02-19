@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type UserStatus = "INVITED" | "ACTIVE" | "SUSPENDED" | "DEACTIVATED";
 
@@ -95,6 +96,33 @@ export default function UserDetailPage() {
     }
   }
 
+  if (loading && !detail) {
+    return (
+      <AdminShell>
+        <section className="space-y-5">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">사용자 상세</h1>
+            <p className="text-sm text-slate-500">userId: {userId}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-5 w-56" />
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-5 w-44" />
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-slate-200 p-4">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          </div>
+        </section>
+      </AdminShell>
+    );
+  }
+
   return (
     <AdminShell>
       <section className="space-y-5">
@@ -153,6 +181,16 @@ export default function UserDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
+            {loading ? (
+              <tr>
+                <td colSpan={99} className="px-4 py-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </td>
+              </tr>
+            ) : null}
               {detail?.memberships.map((membership) => (
                 <tr key={`${membership.tenantId}:${membership.role}`}>
                   <td className="px-4 py-3 font-medium text-slate-900">{membership.tenantName}</td>

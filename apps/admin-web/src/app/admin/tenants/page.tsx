@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -6,6 +6,7 @@ import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Modal } from "@/components/ui/modal";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 import { setAuthCookies } from "@/lib/auth";
 
 type Tenant = {
@@ -127,11 +128,11 @@ export default function TenantsPage() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm text-slate-500">전체 테넌트</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{stats.total}</p>
+            {loading ? <Skeleton className="mt-1 h-8 w-20" /> : <p className="mt-1 text-2xl font-bold text-slate-900">{stats.total}</p>}
           </article>
           <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm text-slate-500">활성 테넌트</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{stats.active}</p>
+            {loading ? <Skeleton className="mt-1 h-8 w-20" /> : <p className="mt-1 text-2xl font-bold text-slate-900">{stats.active}</p>}
           </article>
         </div>
 
@@ -147,6 +148,16 @@ export default function TenantsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
+            {loading ? (
+              <tr>
+                <td colSpan={99} className="px-4 py-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </td>
+              </tr>
+            ) : null}
               {items.map((tenant) => (
                 <tr key={tenant.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{tenant.name}</td>
