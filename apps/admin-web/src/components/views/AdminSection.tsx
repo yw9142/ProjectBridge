@@ -1,4 +1,4 @@
-ï»¿export function AdminSection({
+export function AdminSection({
   title,
   description,
   children,
@@ -14,8 +14,9 @@
         <p className="text-sm text-slate-500">{description}</p>
       </div>
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-        {children ?? "ì´ ì„¹ì…˜ì€ ë°±ì—”ë“œ ì—°ë™ ë°ì´í„°ë¡œ í™•ì¥ë©ë‹ˆë‹¤."}
+        {children ?? "ÀÌ ¼½¼ÇÀº ¹é¿£µå ¿¬µ¿ µ¥ÀÌÅÍ·Î È®ÀåµË´Ï´Ù."}
       </div>
     </section>
   );
 }
+

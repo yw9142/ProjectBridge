@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
-import { Modal } from "@/components/ui/modal";
+import { Modal } from "@bridge/ui";
 
 type VaultRequest = {
   id: string;
@@ -65,6 +65,7 @@ export default function ProjectVaultPage() {
   const [items, setItems] = useState<VaultRequest[]>([]);
   const [credentialsMap, setCredentialsMap] = useState<Record<string, CredentialPair>>({});
   const [loading, setLoading] = useState(true);
+  const [revealingId, setRevealingId] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [platformName, setPlatformName] = useState("");
@@ -78,33 +79,16 @@ export default function ProjectVaultPage() {
 
   const [error, setError] = useState<string | null>(null);
 
-  async function hydrateCredentials(requests: VaultRequest[]) {
-    const nextMap: Record<string, CredentialPair> = {};
-    await Promise.all(
-      requests
-        .filter((item) => item.credentialReady)
-        .map(async (item) => {
-          try {
-            const revealed = await apiFetch<{ secret: string }>(`/api/vault/secrets/${item.id}/reveal`, { method: "POST" });
-            nextMap[item.id] = parseCredential(revealed.secret);
-          } catch {
-            nextMap[item.id] = { id: "-", password: "조회 실패" };
-          }
-        }),
-    );
-    setCredentialsMap(nextMap);
-  }
-
   async function load() {
     setError(null);
     setLoading(true);
     try {
       const data = await apiFetch<VaultRequest[]>(`/api/projects/${projectId}/vault/account-requests`);
       setItems(data);
-      await hydrateCredentials(data);
+      setCredentialsMap({});
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
-        setError(e instanceof Error ? e.message : "Vault 요청 목록을 불러오지 못했습니다.");
+        setError(e instanceof Error ? e.message : "Vault ��û ����� �ҷ����� ���߽��ϴ�.");
       }
     } finally {
       setLoading(false);
@@ -131,7 +115,7 @@ export default function ProjectVaultPage() {
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
-        setError(e instanceof Error ? e.message : "계정 요청 생성에 실패했습니다.");
+        setError(e instanceof Error ? e.message : "���� ��û ������ �����߽��ϴ�.");
       }
     }
   }
@@ -158,8 +142,26 @@ export default function ProjectVaultPage() {
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
-        setError(e instanceof Error ? e.message : "계정 정보 입력에 실패했습니다.");
+        setError(e instanceof Error ? e.message : "���� ���� �Է¿� �����߽��ϴ�.");
       }
+    }
+  }
+
+  async function revealSecret(secretId: string) {
+    setError(null);
+    setRevealingId(secretId);
+    try {
+      const revealed = await apiFetch<{ secret: string }>(`/api/vault/secrets/${secretId}/reveal`, { method: "POST" });
+      setCredentialsMap((prev) => ({
+        ...prev,
+        [secretId]: parseCredential(revealed.secret),
+      }));
+    } catch (e) {
+      if (!handleAuthError(e, "/login")) {
+        setError(e instanceof Error ? e.message : "���� ���� ��ȸ�� �����߽��ϴ�.");
+      }
+    } finally {
+      setRevealingId(null);
     }
   }
 
@@ -167,15 +169,15 @@ export default function ProjectVaultPage() {
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Vault 계정 요청</h1>
-          <p className="text-sm text-slate-500">계정 요청과 계정 정보를 테이블에서 확인하고 처리합니다.</p>
+          <h1 className="text-xl font-bold text-slate-900">Vault ���� ��û</h1>
+          <p className="text-sm text-slate-500">���� ��û�� ���� ������ ���̺���� Ȯ���ϰ� ó���մϴ�.</p>
         </div>
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
         >
-          계정 요청
+          ���� ��û
         </button>
       </div>
 
@@ -183,14 +185,14 @@ export default function ProjectVaultPage() {
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">플랫폼</th>
+              <th className="px-4 py-3">�÷���</th>
               <th className="px-4 py-3">URL</th>
-              <th className="px-4 py-3">요청 이유</th>
-              <th className="px-4 py-3">상태</th>
+              <th className="px-4 py-3">��û ����</th>
+              <th className="px-4 py-3">����</th>
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">PW</th>
-              <th className="px-4 py-3">제공 시각</th>
-              <th className="px-4 py-3">작업</th>
+              <th className="px-4 py-3">���� �ð�</th>
+              <th className="px-4 py-3">�۾�</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
@@ -202,7 +204,7 @@ export default function ProjectVaultPage() {
                   <td className="px-4 py-3 text-slate-700">{item.siteUrl || "-"}</td>
                   <td className="px-4 py-3 text-slate-700">
                     <p>{item.requestReason || "-"}</p>
-                    <p className="mt-1 text-xs text-slate-500">등록자: {item.createdByName ?? item.createdBy ?? "-"}</p>
+                    <p className="mt-1 text-xs text-slate-500">�����: {item.createdByName ?? item.createdBy ?? "-"}</p>
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -210,20 +212,32 @@ export default function ProjectVaultPage() {
                         item.credentialReady ? vaultStatusStyles.READY : vaultStatusStyles.PENDING
                       }`}
                     >
-                      {item.credentialReady ? "입력 완료" : "입력 대기"}
+                      {item.credentialReady ? "�Է� �Ϸ�" : "�Է� ���"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{credential?.id ?? "-"}</td>
                   <td className="px-4 py-3 text-slate-700">{credential?.password ?? "-"}</td>
                   <td className="px-4 py-3 text-slate-700">{formatDate(item.providedAt)}</td>
                   <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => openProvisionModal(item.id)}
-                      className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    >
-                      계정 입력
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openProvisionModal(item.id)}
+                        className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        ���� �Է�
+                      </button>
+                      {item.credentialReady ? (
+                        <button
+                          type="button"
+                          disabled={revealingId === item.id}
+                          onClick={() => void revealSecret(item.id)}
+                          className="rounded border border-indigo-300 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+                        >
+                          {revealingId === item.id ? "��ȸ ��" : "��ȸ"}
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               );
@@ -231,7 +245,7 @@ export default function ProjectVaultPage() {
             {!loading && items.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
-                  요청 내역이 없습니다.
+                  ��û ������ �����ϴ�.
                 </td>
               </tr>
             ) : null}
@@ -239,46 +253,46 @@ export default function ProjectVaultPage() {
         </table>
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="계정 요청 생성" description="플랫폼 접근 계정을 요청합니다.">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="���� ��û ����" description="�÷��� ���� ������ ��û�մϴ�.">
         <form onSubmit={createAccountRequest} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="플랫폼명" value={platformName} onChange={(e) => setPlatformName(e.target.value)} required />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="사이트 URL" value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="�÷�����" value={platformName} onChange={(e) => setPlatformName(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="����Ʈ URL" value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} required />
           <textarea
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             rows={4}
-            placeholder="요청 이유"
+            placeholder="��û ����"
             value={requestReason}
             onChange={(e) => setRequestReason(e.target.value)}
             required
           />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              취소
+              ���
             </button>
             <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
-              요청 생성
+              ��û ����
             </button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={provisionOpen} onClose={() => setProvisionOpen(false)} title="계정 정보 입력" description="요청된 플랫폼의 로그인 계정을 입력합니다.">
+      <Modal open={provisionOpen} onClose={() => setProvisionOpen(false)} title="���� ���� �Է�" description="��û�� �÷����� �α��� ������ �Է��մϴ�.">
         <form onSubmit={provisionSecret} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="로그인 ID" value={provisionLoginId} onChange={(e) => setProvisionLoginId(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="�α��� ID" value={provisionLoginId} onChange={(e) => setProvisionLoginId(e.target.value)} required />
           <input
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             type="text"
-            placeholder="비밀번호"
+            placeholder="��й�ȣ"
             value={provisionPassword}
             onChange={(e) => setProvisionPassword(e.target.value)}
             required
           />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setProvisionOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              취소
+              ���
             </button>
             <button type="submit" className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold !text-white hover:bg-slate-800">
-              저장
+              ����
             </button>
           </div>
         </form>

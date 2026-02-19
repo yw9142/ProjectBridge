@@ -4,23 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
-  { key: "dashboard", label: "ëŒ€ì‹œë³´ë“œ" },
-  { key: "posts", label: "ì»¤ë®¤ë‹ˆì¼€ì´ì…˜" },
-  { key: "requests", label: "ìš”ì²­" },
-  { key: "files", label: "íŒŒì¼" },
-  { key: "meetings", label: "íšŒì˜" },
-  { key: "contracts", label: "ê³„ì•½" },
-  { key: "billing", label: "ì •ì‚°" },
+  { key: "dashboard", label: "´ë½Ãº¸µå" },
+  { key: "posts", label: "Ä¿¹Â´ÏÄÉÀÌ¼Ç" },
+  { key: "requests", label: "¿äÃ»" },
+  { key: "files", label: "ÆÄÀÏ" },
+  { key: "meetings", label: "È¸ÀÇ" },
+  { key: "contracts", label: "°è¾à" },
+  { key: "billing", label: "Á¤»ê" },
   { key: "vault", label: "Vault" },
-  { key: "events", label: "ë³€ê²½ ì´ë ¥" },
-  { key: "settings/members", label: "ë©¤ë²„ ì„¤ì •" },
+  { key: "events", label: "º¯°æ ÀÌ·Â" },
+  { key: "settings/members", label: "¸â¹ö ¼³Á¤" },
 ];
 
 export function AdminProjectTabs({ projectId }: { projectId: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1" aria-label="ê´€ë¦¬ì í”„ë¡œì íŠ¸ íƒ­">
+    <nav className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1" aria-label="°ü¸®ÀÚ ÇÁ·ÎÁ§Æ® ÅÇ">
       {items.map((item) => {
         const href = `/admin/projects/${projectId}/${item.key}`;
         const active = pathname === href || pathname.startsWith(`${href}/`);

@@ -4,7 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
-import { Modal } from "@/components/ui/modal";
+import { Modal } from "@bridge/ui";
 
 type InvoiceStatus = "DRAFT" | "ISSUED" | "CONFIRMED" | "CLOSED" | "OVERDUE" | "CANCELLED";
 type InvoicePhase = "ADVANCE" | "INTERMEDIATE" | "FINAL";
@@ -25,6 +25,7 @@ type Invoice = {
 type Presign = {
   uploadUrl: string;
   objectKey: string;
+  uploadToken: string;
 };
 
 const statuses: Array<{ value: InvoiceStatus; label: string }> = [
@@ -131,6 +132,7 @@ export default function ProjectBillingPage() {
       body: JSON.stringify({
         attachmentType: "INVOICE_PDF" as AttachmentType,
         objectKey: presign.objectKey,
+        uploadToken: presign.uploadToken,
       }),
     });
   }

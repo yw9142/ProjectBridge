@@ -4,7 +4,12 @@ import { sanitizeNextPath } from "./lib/auth";
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/_next") || path.startsWith("/favicon");
+  const isPublic =
+    path === "/login" ||
+    path === "/sign" ||
+    path.startsWith("/sign/") ||
+    path.startsWith("/_next") ||
+    path.startsWith("/favicon");
   const token = request.cookies.get("bridge_client_access_token")?.value;
 
   if (!isPublic && !token) {

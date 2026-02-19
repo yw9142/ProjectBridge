@@ -9,7 +9,12 @@ import com.bridge.backend.domain.auth.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.OffsetDateTime;
@@ -56,9 +61,10 @@ public class NotificationController {
     @PostMapping("/{id}/read")
     public ApiSuccess<Map<String, Object>> read(@PathVariable UUID id) {
         var principal = SecurityUtils.requirePrincipal();
-        NotificationEntity notification = notificationRepository.findById(id).orElseThrow();
+        NotificationEntity notification = notificationRepository.findByIdAndTenantIdAndDeletedAtIsNull(id, principal.getTenantId())
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "NOTIFICATION_NOT_FOUND", "Notification not found."));
         if (!notification.getUserId().equals(principal.getUserId())) {
-            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Îã§Î•∏ ÏÇ¨Ïö©ÏûêÏùò ÏïåÎ¶ºÏûÖÎãàÎã§.");
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Cannot read another user's notification.");
         }
         notification.setReadAt(OffsetDateTime.now());
         notification.setUpdatedBy(principal.getUserId());
@@ -79,9 +85,9 @@ public class NotificationController {
         if (!isPlatformAdmin) {
             var currentMember = tenantMemberRepository
                     .findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), principal.getUserId())
-                    .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Í∂åÌïúÏù¥ ÏóÜÏäµÎãàÎã§."));
+                    .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "±««—¿Ã æ¯Ω¿¥œ¥Ÿ."));
             if (!isPmRole(currentMember.getRole())) {
-                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Í∂åÌïúÏù¥ ÏóÜÏäµÎãàÎã§.");
+                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "±««—¿Ã æ¯Ω¿¥œ¥Ÿ.");
             }
         }
         List<Map<String, Object>> events = outboxEventRepository

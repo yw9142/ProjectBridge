@@ -1,14 +1,14 @@
-ï»¿import { StatusBadge } from "../ui/StatusBadge";
+import { StatusBadge } from "../ui/StatusBadge";
 
 export function ProjectDashboard() {
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {[
-          ["í™œì„± ìš”ì²­", "12"],
-          ["ë¯¸í™•ì¸ ì½”ë©˜íŠ¸", "7"],
-          ["ëŒ€ê¸° ì¤‘ ì„œëª…", "3"],
-          ["ì˜ˆì • íšŒì˜", "4"],
+          ["È°¼º ¿äÃ»", "12"],
+          ["¹ÌÈ®ÀÎ ÄÚ¸àÆ®", "7"],
+          ["´ë±â Áß ¼­¸í", "3"],
+          ["¿¹Á¤ È¸ÀÇ", "4"],
         ].map(([label, value]) => (
           <article key={label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-slate-500">{label}</p>
@@ -18,11 +18,12 @@ export function ProjectDashboard() {
       </section>
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">ìµœê·¼ ì•¡ì…˜</h3>
+          <h3 className="text-lg font-semibold text-slate-900">ÃÖ±Ù ¾×¼Ç</h3>
           <StatusBadge status="IN_PROGRESS" />
         </div>
-        <p className="text-sm text-slate-600">ìš”ì²­ ìƒíƒœ, íŒŒì¼ ì½”ë©˜íŠ¸, ì„œëª… ì´ë²¤íŠ¸ë¥¼ ì‘ì—… ìš°ì„ ìˆœìœ„ì— ë§ê²Œ í‘œì‹œí•©ë‹ˆë‹¤.</p>
+        <p className="text-sm text-slate-600">¿äÃ» »óÅÂ, ÆÄÀÏ ÄÚ¸àÆ®, ¼­¸í ÀÌº¥Æ®¸¦ ÀÛ¾÷ ¿ì¼±¼øÀ§¿¡ ¸Â°Ô Ç¥½ÃÇÕ´Ï´Ù.</p>
       </section>
     </div>
   );
 }
+

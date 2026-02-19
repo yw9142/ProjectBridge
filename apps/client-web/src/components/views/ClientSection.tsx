@@ -1,4 +1,4 @@
-ï»¿import { StatusBadge } from "@/components/ui/StatusBadge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export function ClientSection({
   title,
@@ -18,7 +18,8 @@ export function ClientSection({
         </div>
         <StatusBadge status={status} />
       </div>
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-sm text-slate-700">í´ë¼ì´ì–¸íŠ¸ ê´€ì  ì‘ì—… ë¦¬ìŠ¤íŠ¸ì™€ ìƒì„¸ ì •ë³´ê°€ ë°°ì¹˜ë©ë‹ˆë‹¤.</div>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-sm text-slate-700">Å¬¶óÀÌ¾ğÆ® °üÁ¡ ÀÛ¾÷ ¸®½ºÆ®¿Í »ó¼¼ Á¤º¸°¡ ¹èÄ¡µË´Ï´Ù.</div>
     </section>
   );
 }
+

@@ -9,9 +9,9 @@ export function PmLogoutButton() {
 
   return (
     <ConfirmActionButton
-      label={submitting ? "로그아웃 중..." : "로그아웃"}
-      title="로그아웃할까요?"
-      description="현재 세션이 종료되고 로그인 페이지로 이동합니다."
+      label={submitting ? "로그?�웃 �?.." : "로그?�웃"}
+      title="로그?�웃?�까??"
+      description="?�재 ?�션??종료?�고 로그???�이지�??�동?�니??"
       disabled={submitting}
       onConfirm={async () => {
         setSubmitting(true);
@@ -22,3 +22,4 @@ export function PmLogoutButton() {
     />
   );
 }
+

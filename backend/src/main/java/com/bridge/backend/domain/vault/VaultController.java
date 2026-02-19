@@ -8,6 +8,8 @@ import com.bridge.backend.common.model.enums.VaultSecretType;
 import com.bridge.backend.common.security.SecurityUtils;
 import com.bridge.backend.common.tenant.AccessGuardService;
 import com.bridge.backend.domain.notification.OutboxService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
@@ -19,32 +21,40 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 public class VaultController {
     private final VaultPolicyRepository policyRepository;
     private final VaultSecretRepository secretRepository;
     private final VaultAccessRequestRepository accessRequestRepository;
+    private final VaultAccessEventRepository accessEventRepository;
     private final VaultCryptoService vaultCryptoService;
     private final AccessGuardService guardService;
     private final OutboxService outboxService;
+    private final ObjectMapper objectMapper;
 
     public VaultController(VaultPolicyRepository policyRepository,
                            VaultSecretRepository secretRepository,
                            VaultAccessRequestRepository accessRequestRepository,
+                           VaultAccessEventRepository accessEventRepository,
                            VaultCryptoService vaultCryptoService,
                            AccessGuardService guardService,
-                           OutboxService outboxService) {
+                           OutboxService outboxService,
+                           ObjectMapper objectMapper) {
         this.policyRepository = policyRepository;
         this.secretRepository = secretRepository;
         this.accessRequestRepository = accessRequestRepository;
+        this.accessEventRepository = accessEventRepository;
         this.vaultCryptoService = vaultCryptoService;
         this.guardService = guardService;
         this.outboxService = outboxService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/api/projects/{projectId}/vault/policies")
@@ -80,7 +90,11 @@ public class VaultController {
     public ApiSuccess<List<VaultSecretEntity>> accountRequests(@PathVariable UUID projectId) {
         var principal = SecurityUtils.requirePrincipal();
         guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
-        return ApiSuccess.of(secretRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId()));
+        List<VaultSecretEntity> requests = secretRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId())
+                .stream()
+                .filter(secret -> secret.getRequestReason() != null && !secret.getRequestReason().isBlank())
+                .collect(Collectors.toList());
+        return ApiSuccess.of(requests);
     }
 
     @PostMapping("/api/projects/{projectId}/vault/secrets")
@@ -161,8 +175,14 @@ public class VaultController {
     @PatchMapping("/api/vault/access-requests/{requestId}")
     public ApiSuccess<VaultAccessRequestEntity> patchRequest(@PathVariable UUID requestId, @RequestBody @Valid PatchRequest request) {
         var principal = SecurityUtils.requirePrincipal();
+        if (request.status() == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "ACCESS_REQUEST_STATUS_REQUIRED", "Access request status is required.");
+        }
+        if (request.status() == VaultAccessRequestStatus.REQUESTED) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "ACCESS_REQUEST_STATUS_INVALID", "Cannot transition to REQUESTED.");
+        }
         VaultAccessRequestEntity accessRequest = accessRequestRepository.findById(requestId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "ACCESS_REQUEST_NOT_FOUND", "접근 요청을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "ACCESS_REQUEST_NOT_FOUND", "Access request not found."));
         VaultSecretEntity secret = requireActiveSecret(accessRequest.getSecretId());
         guardService.requireProjectMemberRole(secret.getProjectId(), principal.getUserId(), principal.getTenantId(),
                 Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
@@ -179,13 +199,47 @@ public class VaultController {
     public ApiSuccess<Map<String, Object>> reveal(@PathVariable UUID secretId) {
         var principal = SecurityUtils.requirePrincipal();
         VaultSecretEntity secret = requireActiveSecret(secretId);
-        guardService.requireProjectMember(secret.getProjectId(), principal.getUserId(), principal.getTenantId());
+        var member = guardService.requireProjectMember(secret.getProjectId(), principal.getUserId(), principal.getTenantId());
 
         if (!secret.isCredentialReady()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "SECRET_NOT_READY", "아직 계정 정보가 제공되지 않았습니다.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "SECRET_NOT_READY", "Credential is not ready yet.");
+        }
+
+        VaultRevealPolicy policy = resolveRevealPolicy(secret.getProjectId(), principal.getTenantId());
+        enforceTtlPolicy(secret, policy);
+        enforceMaxViewsPolicy(secretId, principal.getTenantId(), principal.getUserId(), policy);
+
+        UUID accessRequestId = null;
+        if (policy.requireApprovedRequest() || isClientRole(member.getRole())) {
+            VaultAccessRequestEntity accessRequest = accessRequestRepository
+                    .findTopBySecretIdAndRequesterUserIdAndTenantIdAndDeletedAtIsNullOrderByCreatedAtDesc(secretId, principal.getUserId(), principal.getTenantId())
+                    .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "ACCESS_REQUEST_REQUIRED", "Approved access request is required."));
+            if (accessRequest.getStatus() != VaultAccessRequestStatus.APPROVED) {
+                throw new AppException(HttpStatus.FORBIDDEN, "ACCESS_REQUEST_NOT_APPROVED", "Access request is not approved.");
+            }
+            if (accessRequest.getExpiresAt() != null && accessRequest.getExpiresAt().isBefore(OffsetDateTime.now())) {
+                accessRequest.setStatus(VaultAccessRequestStatus.EXPIRED);
+                accessRequest.setUpdatedBy(principal.getUserId());
+                accessRequestRepository.save(accessRequest);
+                throw new AppException(HttpStatus.FORBIDDEN, "ACCESS_REQUEST_EXPIRED", "Access request has expired.");
+            }
+            accessRequest.setStatus(VaultAccessRequestStatus.EXPIRED);
+            accessRequest.setUpdatedBy(principal.getUserId());
+            accessRequestRepository.save(accessRequest);
+            accessRequestId = accessRequest.getId();
         }
 
         String plainText = vaultCryptoService.decrypt(secret.getSecretCiphertext(), secret.getNonce());
+
+        VaultAccessEventEntity accessEvent = new VaultAccessEventEntity();
+        accessEvent.setTenantId(principal.getTenantId());
+        accessEvent.setSecretId(secretId);
+        accessEvent.setRequestId(accessRequestId);
+        accessEvent.setViewerUserId(principal.getUserId());
+        accessEvent.setCreatedBy(principal.getUserId());
+        accessEvent.setUpdatedBy(principal.getUserId());
+        accessEventRepository.save(accessEvent);
+
         outboxService.publish(principal.getTenantId(), principal.getUserId(), "vault_secret", secretId,
                 "vault.secret.revealed", "Vault secret revealed", secret.getName(), Map.of("secretId", secretId));
         return ApiSuccess.of(Map.of("secret", plainText, "version", secret.getVersion()));
@@ -221,11 +275,59 @@ public class VaultController {
 
     private VaultSecretEntity requireActiveSecret(UUID secretId) {
         VaultSecretEntity secret = secretRepository.findById(secretId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "SECRET_NOT_FOUND", "Vault 항목을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "SECRET_NOT_FOUND", "Vault secret not found."));
         if (secret.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "SECRET_NOT_FOUND", "Vault 항목을 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "SECRET_NOT_FOUND", "Vault secret not found.");
         }
         return secret;
+    }
+
+    private boolean isClientRole(MemberRole role) {
+        return role == MemberRole.CLIENT_OWNER || role == MemberRole.CLIENT_MEMBER;
+    }
+
+    private void enforceTtlPolicy(VaultSecretEntity secret, VaultRevealPolicy policy) {
+        Integer ttlMinutes = policy.ttlMinutes();
+        if (ttlMinutes == null || ttlMinutes <= 0 || secret.getProvidedAt() == null) {
+            return;
+        }
+        OffsetDateTime expiresAt = secret.getProvidedAt().plusMinutes(ttlMinutes);
+        if (expiresAt.isBefore(OffsetDateTime.now())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "SECRET_ACCESS_EXPIRED", "Secret access window has expired.");
+        }
+    }
+
+    private void enforceMaxViewsPolicy(UUID secretId, UUID tenantId, UUID userId, VaultRevealPolicy policy) {
+        Integer maxViewsPerUser = policy.maxViewsPerUser();
+        if (maxViewsPerUser == null || maxViewsPerUser <= 0) {
+            return;
+        }
+        long viewedCount = accessEventRepository.countBySecretIdAndTenantIdAndViewerUserIdAndDeletedAtIsNull(secretId, tenantId, userId);
+        if (viewedCount >= maxViewsPerUser) {
+            throw new AppException(HttpStatus.FORBIDDEN, "SECRET_VIEW_LIMIT_REACHED", "Secret view limit exceeded.");
+        }
+    }
+
+    private VaultRevealPolicy resolveRevealPolicy(UUID projectId, UUID tenantId) {
+        return policyRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, tenantId).stream()
+                .max(Comparator.comparing(VaultPolicyEntity::getCreatedAt))
+                .map(policy -> parsePolicy(policy.getRuleJson()))
+                .orElse(VaultRevealPolicy.DEFAULT);
+    }
+
+    private VaultRevealPolicy parsePolicy(String ruleJson) {
+        if (ruleJson == null || ruleJson.isBlank()) {
+            return VaultRevealPolicy.DEFAULT;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(ruleJson);
+            boolean requireApprovedRequest = root.path("requireApprovedRequest").asBoolean(VaultRevealPolicy.DEFAULT.requireApprovedRequest());
+            Integer maxViews = root.has("maxViews") && !root.path("maxViews").isNull() ? root.path("maxViews").asInt() : null;
+            Integer ttlMinutes = root.has("ttlMinutes") && !root.path("ttlMinutes").isNull() ? root.path("ttlMinutes").asInt() : null;
+            return new VaultRevealPolicy(requireApprovedRequest, maxViews, ttlMinutes);
+        } catch (Exception ignored) {
+            return VaultRevealPolicy.DEFAULT;
+        }
     }
 
     public record CreatePolicyRequest(@NotBlank String name, @NotBlank String ruleJson) {
@@ -247,5 +349,9 @@ public class VaultController {
     }
 
     public record PatchRequest(VaultAccessRequestStatus status) {
+    }
+
+    private record VaultRevealPolicy(boolean requireApprovedRequest, Integer maxViewsPerUser, Integer ttlMinutes) {
+        private static final VaultRevealPolicy DEFAULT = new VaultRevealPolicy(false, null, null);
     }
 }

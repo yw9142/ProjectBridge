@@ -9,9 +9,12 @@ import com.bridge.backend.common.model.enums.MemberRole;
 import com.bridge.backend.common.security.SecurityUtils;
 import com.bridge.backend.common.tenant.AccessGuardService;
 import com.bridge.backend.domain.file.StorageService;
+import com.bridge.backend.domain.file.UploadTicketEntity;
+import com.bridge.backend.domain.file.UploadTicketRepository;
 import com.bridge.backend.domain.notification.OutboxService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,17 +36,20 @@ import java.util.UUID;
 public class BillingController {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceAttachmentRepository attachmentRepository;
+    private final UploadTicketRepository uploadTicketRepository;
     private final AccessGuardService guardService;
     private final StorageService storageService;
     private final OutboxService outboxService;
 
     public BillingController(InvoiceRepository invoiceRepository,
                              InvoiceAttachmentRepository attachmentRepository,
+                             UploadTicketRepository uploadTicketRepository,
                              AccessGuardService guardService,
                              StorageService storageService,
                              OutboxService outboxService) {
         this.invoiceRepository = invoiceRepository;
         this.attachmentRepository = attachmentRepository;
+        this.uploadTicketRepository = uploadTicketRepository;
         this.guardService = guardService;
         this.storageService = storageService;
         this.outboxService = outboxService;
@@ -143,7 +150,21 @@ public class BillingController {
         var principal = SecurityUtils.requirePrincipal();
         InvoiceEntity invoice = requireActiveInvoice(invoiceId);
         guardService.requireProjectMember(invoice.getProjectId(), principal.getUserId(), principal.getTenantId());
-        return ApiSuccess.of(storageService.createUploadPresign(invoiceId, 1, request.contentType()));
+        Map<String, Object> presigned = storageService.createUploadPresign(invoiceId, 1, request.contentType());
+        UploadTicketEntity ticket = new UploadTicketEntity();
+        ticket.setTenantId(principal.getTenantId());
+        ticket.setAggregateType("invoice_attachment");
+        ticket.setAggregateId(invoiceId);
+        ticket.setObjectKey(String.valueOf(presigned.get("objectKey")));
+        ticket.setContentType(request.contentType());
+        ticket.setExpiresAt(OffsetDateTime.now().plusMinutes(15));
+        ticket.setCreatedBy(principal.getUserId());
+        ticket.setUpdatedBy(principal.getUserId());
+        UploadTicketEntity savedTicket = uploadTicketRepository.save(ticket);
+
+        Map<String, Object> response = new HashMap<>(presigned);
+        response.put("uploadToken", savedTicket.getId());
+        return ApiSuccess.of(response);
     }
 
     @PostMapping("/api/invoices/{invoiceId}/attachments/complete")
@@ -151,6 +172,11 @@ public class BillingController {
         var principal = SecurityUtils.requirePrincipal();
         InvoiceEntity invoice = requireActiveInvoice(invoiceId);
         guardService.requireProjectMember(invoice.getProjectId(), principal.getUserId(), principal.getTenantId());
+        UploadTicketEntity ticket = requireUsableUploadTicket(request.uploadToken(), principal.getTenantId(), "invoice_attachment", invoiceId);
+        if (!ticket.getObjectKey().equals(request.objectKey())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_OBJECT_KEY_MISMATCH", "Upload ticket object key mismatch.");
+        }
+
         InvoiceAttachmentEntity entity = new InvoiceAttachmentEntity();
         entity.setTenantId(principal.getTenantId());
         entity.setInvoiceId(invoiceId);
@@ -158,7 +184,11 @@ public class BillingController {
         entity.setObjectKey(request.objectKey());
         entity.setCreatedBy(principal.getUserId());
         entity.setUpdatedBy(principal.getUserId());
-        return ApiSuccess.of(attachmentRepository.save(entity));
+        InvoiceAttachmentEntity saved = attachmentRepository.save(entity);
+        ticket.setConsumedAt(OffsetDateTime.now());
+        ticket.setUpdatedBy(principal.getUserId());
+        uploadTicketRepository.save(ticket);
+        return ApiSuccess.of(saved);
     }
 
     private InvoiceEntity requireActiveInvoice(UUID invoiceId) {
@@ -175,6 +205,21 @@ public class BillingController {
         return "INV-" + prefix + "-" + projectId.toString().substring(0, 8) + "-" + System.currentTimeMillis();
     }
 
+    private UploadTicketEntity requireUsableUploadTicket(UUID uploadToken, UUID tenantId, String aggregateType, UUID aggregateId) {
+        UploadTicketEntity ticket = uploadTicketRepository.findByIdAndTenantIdAndDeletedAtIsNull(uploadToken, tenantId)
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TOKEN_NOT_FOUND", "Upload token is invalid."));
+        if (!aggregateType.equals(ticket.getAggregateType()) || !aggregateId.equals(ticket.getAggregateId())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TOKEN_SCOPE_MISMATCH", "Upload token scope mismatch.");
+        }
+        if (ticket.getConsumedAt() != null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TOKEN_CONSUMED", "Upload token already consumed.");
+        }
+        if (ticket.getExpiresAt().isBefore(OffsetDateTime.now())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TOKEN_EXPIRED", "Upload token expired.");
+        }
+        return ticket;
+    }
+
     public record CreateInvoiceRequest(String invoiceNumber, long amount, String currency, OffsetDateTime dueAt, InvoicePhase phase) {
     }
 
@@ -187,6 +232,6 @@ public class BillingController {
     public record PresignAttachmentRequest(@NotBlank String contentType) {
     }
 
-    public record CompleteAttachmentRequest(InvoiceAttachmentType attachmentType, @NotBlank String objectKey) {
+    public record CompleteAttachmentRequest(InvoiceAttachmentType attachmentType, @NotBlank String objectKey, @NotNull UUID uploadToken) {
     }
 }

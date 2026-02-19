@@ -1,8 +1,6 @@
-"use client";
-
 import { ReactNode } from "react";
 
-type ModalProps = {
+export type ModalProps = {
   open: boolean;
   title: string;
   description?: string;

@@ -1,4 +1,4 @@
-ï»¿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -30,7 +30,7 @@ export default function ProjectsPage() {
         }
       } catch (e) {
         if (!handleAuthError(e, "/login") && active) {
-          setError(e instanceof Error ? e.message : "í”„ë¡œì íŠ¸ ëª©ë¡ì„ ë¶ˆëŸ¬ì˜¤ì§€ ëª»í–ˆìŠµë‹ˆë‹¤.");
+          setError(e instanceof Error ? e.message : "ÇÁ·ÎÁ§Æ® ¸ñ·ÏÀ» ºÒ·¯¿ÀÁö ¸øÇß½À´Ï´Ù.");
         }
       } finally {
         if (active) {
@@ -49,16 +49,16 @@ export default function ProjectsPage() {
     <main className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">í”„ë¡œì íŠ¸ ëª©ë¡</h1>
+          <h1 className="text-2xl font-bold text-slate-900">ÇÁ·ÎÁ§Æ® ¸ñ·Ï</h1>
           <div className="flex items-center gap-2">
             <PmLogoutButton />
             <Link href="/pm/projects/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
-              ìƒˆ í”„ë¡œì íŠ¸
+              »õ ÇÁ·ÎÁ§Æ®
             </Link>
           </div>
         </div>
 
-        {loading ? <p className="mt-6 text-sm text-slate-500">ë¶ˆëŸ¬ì˜¤ëŠ” ì¤‘...</p> : null}
+        {loading ? <p className="mt-6 text-sm text-slate-500">ºÒ·¯¿À´Â Áß...</p> : null}
         {error ? <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
         <div className="mt-6 space-y-3">
@@ -69,14 +69,15 @@ export default function ProjectsPage() {
               className="block rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:bg-indigo-50/40"
             >
               <p className="font-semibold text-slate-900">{project.name}</p>
-              <p className="text-sm text-slate-500">{project.description || "ì„¤ëª… ì—†ìŒ"}</p>
+              <p className="text-sm text-slate-500">{project.description || "¼³¸í ¾øÀ½"}</p>
               <p className="mt-1 text-xs text-slate-400">status: {project.status}</p>
             </Link>
           ))}
-          {!loading && items.length === 0 ? <p className="text-sm text-slate-500">ë“±ë¡ëœ í”„ë¡œì íŠ¸ê°€ ì—†ìŠµë‹ˆë‹¤.</p> : null}
+          {!loading && items.length === 0 ? <p className="text-sm text-slate-500">µî·ÏµÈ ÇÁ·ÎÁ§Æ®°¡ ¾ø½À´Ï´Ù.</p> : null}
         </div>
       </div>
     </main>
   );
 }
+
 

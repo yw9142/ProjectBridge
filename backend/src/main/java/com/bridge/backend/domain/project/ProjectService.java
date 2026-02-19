@@ -16,7 +16,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class ProjectService {
@@ -188,15 +194,11 @@ public class ProjectService {
 
     @Transactional
     public Map<String, Object> acceptInvitation(AuthPrincipal principal, String invitationToken) {
-        InvitationEntity invitation = invitationRepository.findByInvitationTokenAndDeletedAtIsNull(invitationToken)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "초대 토큰을 찾을 수 없습니다."));
-        if (invitation.getExpiresAt().isBefore(OffsetDateTime.now())) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "INVITATION_EXPIRED", "초대가 만료되었습니다.");
-        }
+        InvitationEntity invitation = requireActiveInvitation(invitationToken);
         UserEntity user = userRepository.findById(principal.getUserId())
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found."));
         if (!user.getEmail().equalsIgnoreCase(invitation.getInvitedEmail())) {
-            throw new AppException(HttpStatus.FORBIDDEN, "INVITATION_EMAIL_MISMATCH", "초대 대상 이메일이 일치하지 않습니다.");
+            throw new AppException(HttpStatus.FORBIDDEN, "INVITATION_EMAIL_MISMATCH", "Invitation email does not match.");
         }
         if (projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(invitation.getProjectId(), user.getId()).isEmpty()) {
             ProjectMemberEntity member = new ProjectMemberEntity();
@@ -213,13 +215,84 @@ public class ProjectService {
         return Map.of("accepted", true, "projectId", invitation.getProjectId());
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> getInvitation(String invitationToken) {
+        InvitationEntity invitation = requireActiveInvitation(invitationToken);
+        return Map.of(
+                "invitationToken", invitation.getInvitationToken(),
+                "projectId", invitation.getProjectId(),
+                "tenantId", invitation.getTenantId(),
+                "invitedEmail", invitation.getInvitedEmail(),
+                "role", invitation.getRole(),
+                "expiresAt", invitation.getExpiresAt(),
+                "accepted", invitation.getAcceptedAt() != null
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> acceptInvitationPublic(String invitationToken, String email, String password, String name) {
+        InvitationEntity invitation = requireActiveInvitation(invitationToken);
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+        if (!invitation.getInvitedEmail().equalsIgnoreCase(normalizedEmail)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "INVITATION_EMAIL_MISMATCH", "Invitation email does not match.");
+        }
+
+        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(normalizedEmail).orElseGet(() -> {
+            UserEntity created = new UserEntity();
+            created.setEmail(normalizedEmail);
+            created.setName((name == null || name.isBlank()) ? normalizedEmail.split("@")[0] : name.trim());
+            created.setPasswordHash(passwordEncoder.encode(password));
+            created.setStatus(UserStatus.ACTIVE);
+            created.setCreatedBy(invitation.getCreatedBy());
+            created.setUpdatedBy(invitation.getCreatedBy());
+            return userRepository.save(created);
+        });
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setStatus(UserStatus.ACTIVE);
+        if (name != null && !name.isBlank()) {
+            user.setName(name.trim());
+        }
+        user.setUpdatedBy(invitation.getCreatedBy());
+        userRepository.save(user);
+
+        if (tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(invitation.getTenantId(), user.getId()).isEmpty()) {
+            TenantMemberEntity tenantMember = new TenantMemberEntity();
+            tenantMember.setTenantId(invitation.getTenantId());
+            tenantMember.setUserId(user.getId());
+            tenantMember.setRole(invitation.getRole());
+            tenantMember.setCreatedBy(invitation.getCreatedBy());
+            tenantMember.setUpdatedBy(invitation.getCreatedBy());
+            tenantMemberRepository.save(tenantMember);
+        }
+
+        if (projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(invitation.getProjectId(), user.getId()).isEmpty()) {
+            ProjectMemberEntity member = new ProjectMemberEntity();
+            member.setTenantId(invitation.getTenantId());
+            member.setProjectId(invitation.getProjectId());
+            member.setUserId(user.getId());
+            member.setRole(invitation.getRole());
+            member.setCreatedBy(invitation.getCreatedBy());
+            member.setUpdatedBy(invitation.getCreatedBy());
+            projectMemberRepository.save(member);
+        }
+
+        invitation.setAcceptedAt(OffsetDateTime.now());
+        invitationRepository.save(invitation);
+
+        return Map.of(
+                "accepted", true,
+                "projectId", invitation.getProjectId(),
+                "tenantId", invitation.getTenantId()
+        );
+    }
+
     @Transactional
     public ProjectMemberEntity updateMemberRole(AuthPrincipal principal, UUID projectId, UUID memberId, MemberRole role) {
         accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(), Set.of(MemberRole.PM_OWNER));
         ProjectMemberEntity member = projectMemberRepository.findById(memberId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "멤버를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "Member not found."));
         if (member.getDeletedAt() != null || !member.getProjectId().equals(projectId)) {
-            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "멤버를 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "Member not found.");
         }
         member.setRole(role);
         member.setUpdatedBy(principal.getUserId());
@@ -234,25 +307,25 @@ public class ProjectService {
                                                     String password) {
         accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(), Set.of(MemberRole.PM_OWNER));
         ProjectMemberEntity member = projectMemberRepository.findById(memberId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "Member not found."));
         if (member.getDeletedAt() != null || !member.getProjectId().equals(projectId)) {
-            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "硫ㅻ쾭瑜?李얠쓣 ???놁뒿?덈떎.");
+            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "Member not found.");
         }
 
         boolean hasLoginId = loginId != null && !loginId.isBlank();
         boolean hasPassword = password != null && !password.isBlank();
         if (!hasLoginId && !hasPassword) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "ACCOUNT_UPDATE_EMPTY", "蹂寃쏀븷 怨꾩젙 ?뺣낫媛 ?놁뒿?덈떎.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "ACCOUNT_UPDATE_EMPTY", "At least one account field is required.");
         }
 
         UserEntity user = userRepository.findByIdAndDeletedAtIsNull(member.getUserId())
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found."));
 
         if (hasLoginId) {
             String normalizedLoginId = loginId.trim().toLowerCase(Locale.ROOT);
             userRepository.findByEmailAndDeletedAtIsNull(normalizedLoginId).ifPresent(existing -> {
                 if (!existing.getId().equals(user.getId())) {
-                    throw new AppException(HttpStatus.CONFLICT, "LOGIN_ID_DUPLICATE", "?대? 濡쒓렇??ID媛 ?대? ?ъ슜 以묒엯?덈떎.");
+                    throw new AppException(HttpStatus.CONFLICT, "LOGIN_ID_DUPLICATE", "Login ID is already in use.");
                 }
             });
             user.setEmail(normalizedLoginId);
@@ -275,12 +348,12 @@ public class ProjectService {
     public Map<String, Object> removeMember(AuthPrincipal principal, UUID projectId, UUID memberId) {
         accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(), Set.of(MemberRole.PM_OWNER));
         ProjectMemberEntity member = projectMemberRepository.findById(memberId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "멤버를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "Member not found."));
         if (member.getDeletedAt() != null || !member.getProjectId().equals(projectId)) {
-            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "멤버를 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "Member not found.");
         }
         if (member.getUserId().equals(principal.getUserId())) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "SELF_REMOVE_FORBIDDEN", "본인 멤버십은 삭제할 수 없습니다.");
+            throw new AppException(HttpStatus.BAD_REQUEST, "SELF_REMOVE_FORBIDDEN", "Cannot remove self from project.");
         }
         member.setDeletedAt(OffsetDateTime.now());
         member.setUpdatedBy(principal.getUserId());
@@ -291,5 +364,14 @@ public class ProjectService {
     private ProjectMemberAccount toProjectMemberAccount(ProjectMemberEntity member, UserEntity user) {
         String loginId = user == null ? "" : user.getEmail();
         return new ProjectMemberAccount(member.getId(), member.getUserId(), member.getRole(), loginId, PASSWORD_MASK);
+    }
+
+    private InvitationEntity requireActiveInvitation(String invitationToken) {
+        InvitationEntity invitation = invitationRepository.findByInvitationTokenAndDeletedAtIsNull(invitationToken)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found."));
+        if (invitation.getExpiresAt().isBefore(OffsetDateTime.now())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVITATION_EXPIRED", "Invitation expired.");
+        }
+        return invitation;
     }
 }

@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
-import { Modal } from "@/components/ui/modal";
+import { Modal } from "@bridge/ui";
 
 type MeetingStatus = "SCHEDULED" | "CANCELLED";
 type AttendeeResponse = "INVITED" | "ACCEPTED" | "DECLINED" | "TENTATIVE";

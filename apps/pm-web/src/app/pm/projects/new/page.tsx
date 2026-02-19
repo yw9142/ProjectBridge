@@ -1,4 +1,4 @@
-ï»¿"use client";
+"use client";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -31,7 +31,7 @@ export default function NewProjectPage() {
       router.replace(`/pm/projects/${created.id}/dashboard`);
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
-        setError(e instanceof Error ? e.message : "í”„ë¡œì íŠ¸ ìƒì„±ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
+        setError(e instanceof Error ? e.message : "ÇÁ·ÎÁ§Æ® »ı¼º¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
       }
     } finally {
       setSubmitting(false);
@@ -43,28 +43,28 @@ export default function NewProjectPage() {
       <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">ìƒˆ í”„ë¡œì íŠ¸ ìƒì„±</h1>
-            <p className="mt-1 text-sm text-slate-500">í”„ë¡œì íŠ¸ ê¸°ë³¸ì •ë³´ë¥¼ ì…ë ¥í•´ ìƒì„±í•©ë‹ˆë‹¤.</p>
+            <h1 className="text-2xl font-bold text-slate-900">»õ ÇÁ·ÎÁ§Æ® »ı¼º</h1>
+            <p className="mt-1 text-sm text-slate-500">ÇÁ·ÎÁ§Æ® ±âº»Á¤º¸¸¦ ÀÔ·ÂÇØ »ı¼ºÇÕ´Ï´Ù.</p>
           </div>
           <PmLogoutButton />
         </div>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>
-            <label className="text-sm font-medium text-slate-700">í”„ë¡œì íŠ¸ëª…</label>
+            <label className="text-sm font-medium text-slate-700">ÇÁ·ÎÁ§Æ®¸í</label>
             <input
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-              placeholder="í”„ë¡œì íŠ¸ëª…ì„ ì…ë ¥í•˜ì„¸ìš”"
+              placeholder="ÇÁ·ÎÁ§Æ®¸íÀ» ÀÔ·ÂÇÏ¼¼¿ä"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">ì„¤ëª…</label>
+            <label className="text-sm font-medium text-slate-700">¼³¸í</label>
             <textarea
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               rows={5}
-              placeholder="í”„ë¡œì íŠ¸ ì„¤ëª…"
+              placeholder="ÇÁ·ÎÁ§Æ® ¼³¸í"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -73,9 +73,9 @@ export default function NewProjectPage() {
           {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
           <ConfirmSubmitButton
-            label={submitting ? "ìƒì„± ì¤‘..." : "ìƒì„±"}
-            title="ìƒˆ í”„ë¡œì íŠ¸ë¥¼ ìƒì„±í• ê¹Œìš”?"
-            description="ì…ë ¥í•œ í”„ë¡œì íŠ¸ëª…ê³¼ ì„¤ëª…ìœ¼ë¡œ í”„ë¡œì íŠ¸ê°€ ìƒì„±ë©ë‹ˆë‹¤."
+            label={submitting ? "»ı¼º Áß..." : "»ı¼º"}
+            title="»õ ÇÁ·ÎÁ§Æ®¸¦ »ı¼ºÇÒ±î¿ä?"
+            description="ÀÔ·ÂÇÑ ÇÁ·ÎÁ§Æ®¸í°ú ¼³¸íÀ¸·Î ÇÁ·ÎÁ§Æ®°¡ »ı¼ºµË´Ï´Ù."
             disabled={submitting}
             triggerClassName="rounded-lg bg-indigo-600 px-4 py-2 !text-white hover:bg-indigo-700 disabled:opacity-60"
           />
@@ -84,4 +84,5 @@ export default function NewProjectPage() {
     </main>
   );
 }
+
 

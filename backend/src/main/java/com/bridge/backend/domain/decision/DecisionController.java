@@ -71,8 +71,23 @@ public class DecisionController {
         DecisionEntity entity = requireActiveDecision(decisionId);
         guardService.requireProjectMemberRole(entity.getProjectId(), principal.getUserId(), principal.getTenantId(),
                 Set.of(MemberRole.PM_OWNER, MemberRole.CLIENT_OWNER));
+        if (request.status() == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "DECISION_STATUS_REQUIRED", "Decision status is required.");
+        }
+        ensureStatusTransition(entity.getStatus(), request.status());
+        if (entity.getStatus() == DecisionStatus.APPROVED && request.status() != DecisionStatus.APPROVED) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "DECISION_APPROVED_IMMUTABLE", "Approved decision status cannot be changed.");
+        }
+        if (entity.getStatus() == DecisionStatus.APPROVED
+                && request.relatedFileVersionId() != null
+                && !request.relatedFileVersionId().equals(entity.getRelatedFileVersionId())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "DECISION_APPROVED_FILE_IMMUTABLE", "Approved decision file version cannot be changed.");
+        }
         entity.setStatus(request.status());
         if (request.status() == DecisionStatus.APPROVED && request.relatedFileVersionId() != null) {
+            if (entity.getRelatedFileVersionId() != null && !request.relatedFileVersionId().equals(entity.getRelatedFileVersionId())) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "DECISION_APPROVED_FILE_IMMUTABLE", "Approved decision file version cannot be changed.");
+            }
             entity.setRelatedFileVersionId(request.relatedFileVersionId());
         }
         entity.setUpdatedBy(principal.getUserId());
@@ -94,12 +109,19 @@ public class DecisionController {
         if (request.rationale() != null) {
             entity.setRationale(request.rationale());
         }
+        if (entity.getStatus() == DecisionStatus.APPROVED
+                && (Boolean.TRUE.equals(request.clearRelatedFileVersion())
+                || request.relatedFileVersionId() != null
+                || (request.status() != null && request.status() != DecisionStatus.APPROVED))) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "DECISION_APPROVED_IMMUTABLE", "Approved decision file/status cannot be changed.");
+        }
         if (Boolean.TRUE.equals(request.clearRelatedFileVersion())) {
             entity.setRelatedFileVersionId(null);
         } else if (request.relatedFileVersionId() != null) {
             entity.setRelatedFileVersionId(request.relatedFileVersionId());
         }
         if (request.status() != null) {
+            ensureStatusTransition(entity.getStatus(), request.status());
             entity.setStatus(request.status());
         }
         entity.setUpdatedBy(principal.getUserId());
@@ -120,11 +142,26 @@ public class DecisionController {
 
     private DecisionEntity requireActiveDecision(UUID decisionId) {
         DecisionEntity entity = decisionRepository.findById(decisionId)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "DECISION_NOT_FOUND", "결정을 찾을 수 없습니다."));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "DECISION_NOT_FOUND", "Decision not found."));
         if (entity.getDeletedAt() != null) {
-            throw new AppException(HttpStatus.NOT_FOUND, "DECISION_NOT_FOUND", "결정을 찾을 수 없습니다.");
+            throw new AppException(HttpStatus.NOT_FOUND, "DECISION_NOT_FOUND", "Decision not found.");
         }
         return entity;
+    }
+
+    private void ensureStatusTransition(DecisionStatus current, DecisionStatus next) {
+        if (current == next) {
+            return;
+        }
+        boolean valid = switch (current) {
+            case PROPOSED -> next == DecisionStatus.APPROVED || next == DecisionStatus.REJECTED;
+            case REJECTED -> next == DecisionStatus.PROPOSED;
+            case APPROVED -> false;
+        };
+        if (!valid) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "DECISION_STATUS_TRANSITION_INVALID",
+                    "Invalid status transition: " + current + " -> " + next);
+        }
     }
 
     public record CreateDecision(@NotBlank String title, String rationale, UUID relatedFileVersionId) {

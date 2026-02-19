@@ -1,4 +1,4 @@
-ï»¿"use client";
+"use client";
 
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -47,14 +47,14 @@ function LoginForm() {
       });
       const json = await response.json();
       if (!response.ok) {
-        throw new Error(json?.error?.message ?? "ë¡œê·¸ì¸ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
+        throw new Error(json?.error?.message ?? "·Î±×ÀÎ¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
       }
 
       const data = json?.data;
       if (data?.requiresTenantSelection) {
         const options = (Array.isArray(data.tenantOptions) ? data.tenantOptions : []) as TenantOption[];
         if (options.length === 0) {
-          throw new Error("ì„ íƒ ê°€ëŠ¥í•œ í…Œë„ŒíŠ¸ê°€ ì—†ìŠµë‹ˆë‹¤.");
+          throw new Error("¼±ÅÃ °¡´ÉÇÑ Å×³ÍÆ®°¡ ¾ø½À´Ï´Ù.");
         }
         setTenantOptions(options);
         setSelectedTenantSlug(options[0].tenantSlug);
@@ -62,13 +62,13 @@ function LoginForm() {
       }
 
       if (!data?.accessToken || !data?.refreshToken) {
-        throw new Error("ë¡œê·¸ì¸ ì‘ë‹µì´ ì˜¬ë°”ë¥´ì§€ ì•ŠìŠµë‹ˆë‹¤.");
+        throw new Error("·Î±×ÀÎ ÀÀ´äÀÌ ¿Ã¹Ù¸£Áö ¾Ê½À´Ï´Ù.");
       }
 
       setAuthCookies(data.accessToken, data.refreshToken);
       router.replace(sanitizeNextPath(params.get("next"), "/client/projects"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "ìš”ì²­ ì²˜ë¦¬ ì¤‘ ì˜¤ë¥˜ê°€ ë°œìƒí–ˆìŠµë‹ˆë‹¤.");
+      setError(e instanceof Error ? e.message : "¿äÃ» Ã³¸® Áß ¿À·ù°¡ ¹ß»ıÇß½À´Ï´Ù.");
     } finally {
       setSubmitting(false);
     }
@@ -87,16 +87,16 @@ function LoginForm() {
             <p className="text-sm font-semibold text-foreground">Bridge Client</p>
           </div>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            ìš”ì²­ ìŠ¹ì¸, íŒŒì¼ ê²€í† , ê³„ì•½ ì§„í–‰ ìƒíƒœë¥¼ í•œ í™”ë©´ì—ì„œ ë¹ ë¥´ê²Œ í™•ì¸í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.
+            ¿äÃ» ½ÂÀÎ, ÆÄÀÏ °ËÅä, °è¾à ÁøÇà »óÅÂ¸¦ ÇÑ È­¸é¿¡¼­ ºü¸£°Ô È®ÀÎÇÒ ¼ö ÀÖ½À´Ï´Ù.
           </p>
         </section>
 
         <form onSubmit={onSubmit} className="p-6 sm:p-8">
-          <h1 className="text-2xl font-semibold text-foreground">Client ë¡œê·¸ì¸</h1>
-          <p className="mt-1 text-sm text-muted-foreground">í´ë¼ì´ì–¸íŠ¸ ì‘ì—… ê³µê°„ì— ë¡œê·¸ì¸í•˜ì„¸ìš”.</p>
+          <h1 className="text-2xl font-semibold text-foreground">Client ·Î±×ÀÎ</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Å¬¶óÀÌ¾ğÆ® ÀÛ¾÷ °ø°£¿¡ ·Î±×ÀÎÇÏ¼¼¿ä.</p>
 
           <label htmlFor="client-email" className="mt-6 block text-sm font-medium text-foreground">
-            ì´ë©”ì¼
+            ÀÌ¸ŞÀÏ
           </label>
           <input
             id="client-email"
@@ -115,7 +115,7 @@ function LoginForm() {
           />
 
           <label htmlFor="client-password" className="mt-4 block text-sm font-medium text-foreground">
-            ë¹„ë°€ë²ˆí˜¸
+            ºñ¹Ğ¹øÈ£
           </label>
           <input
             id="client-password"
@@ -135,7 +135,7 @@ function LoginForm() {
           {tenantOptions ? (
             <div className="mt-4 space-y-2">
               <label htmlFor="client-tenant" className="block text-sm font-medium text-foreground">
-                í…Œë„ŒíŠ¸ ì„ íƒ
+                Å×³ÍÆ® ¼±ÅÃ
               </label>
               <select
                 id="client-tenant"
@@ -157,7 +157,7 @@ function LoginForm() {
                 }}
                 className="text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                ë‹¤ë¥¸ ê³„ì •ìœ¼ë¡œ ë‹¤ì‹œ ì…ë ¥
+                ´Ù¸¥ °èÁ¤À¸·Î ´Ù½Ã ÀÔ·Â
               </button>
             </div>
           ) : null}
@@ -172,7 +172,7 @@ function LoginForm() {
             disabled={submitting}
             className="mt-6 inline-flex h-9 w-full items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium !text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? "ì²˜ë¦¬ ì¤‘..." : tenantOptions ? "ì„ íƒí•œ í…Œë„ŒíŠ¸ë¡œ ì…ì¥" : "ë¡œê·¸ì¸"}
+            {submitting ? "Ã³¸® Áß..." : tenantOptions ? "¼±ÅÃÇÑ Å×³ÍÆ®·Î ÀÔÀå" : "·Î±×ÀÎ"}
           </button>
         </form>
       </div>
@@ -183,4 +183,5 @@ function LoginForm() {
 function LoginPageFallback() {
   return <main className="min-h-screen bg-background" />;
 }
+
 

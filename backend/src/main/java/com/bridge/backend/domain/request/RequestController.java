@@ -90,7 +90,10 @@ public class RequestController {
         if (request.description() != null) entity.setDescription(request.description());
         if (request.assigneeUserId() != null) entity.setAssigneeUserId(request.assigneeUserId());
         if (request.dueAt() != null) entity.setDueAt(request.dueAt());
-        if (request.status() != null) entity.setStatus(request.status());
+        if (request.status() != null) {
+            ensureStatusTransition(entity.getStatus(), request.status());
+            entity.setStatus(request.status());
+        }
         entity.setUpdatedBy(principal.getUserId());
         return ApiSuccess.of(requestRepository.save(entity));
     }
@@ -100,6 +103,10 @@ public class RequestController {
         var principal = SecurityUtils.requirePrincipal();
         RequestEntity entity = requireActiveRequest(requestId);
         guardService.requireProjectMember(entity.getProjectId(), principal.getUserId(), principal.getTenantId());
+        if (request.status() == null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "REQUEST_STATUS_REQUIRED", "Request status is required.");
+        }
+        ensureStatusTransition(entity.getStatus(), request.status());
         entity.setStatus(request.status());
         entity.setUpdatedBy(principal.getUserId());
         RequestEntity saved = requestRepository.save(entity);
@@ -147,6 +154,23 @@ public class RequestController {
         event.setCreatedBy(actorId);
         event.setUpdatedBy(actorId);
         requestEventRepository.save(event);
+    }
+
+    private void ensureStatusTransition(RequestStatus current, RequestStatus next) {
+        if (current == next) {
+            return;
+        }
+        boolean valid = switch (current) {
+            case DRAFT -> next == RequestStatus.SENT || next == RequestStatus.CANCELLED;
+            case SENT -> next == RequestStatus.ACKED || next == RequestStatus.REJECTED || next == RequestStatus.CANCELLED;
+            case ACKED -> next == RequestStatus.IN_PROGRESS || next == RequestStatus.CANCELLED;
+            case IN_PROGRESS -> next == RequestStatus.DONE || next == RequestStatus.CANCELLED;
+            case DONE, REJECTED, CANCELLED -> false;
+        };
+        if (!valid) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "REQUEST_STATUS_TRANSITION_INVALID",
+                    "Invalid status transition: " + current + " -> " + next);
+        }
     }
 
     public record CreateRequest(RequestType type, @NotBlank String title, String description, UUID assigneeUserId, OffsetDateTime dueAt) {

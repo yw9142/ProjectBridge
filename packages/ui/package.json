@@ -8,6 +8,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "scripts": {
     "build": "echo \"ui: no build step\"",
     "dev": "echo \"ui: no dev step\"",

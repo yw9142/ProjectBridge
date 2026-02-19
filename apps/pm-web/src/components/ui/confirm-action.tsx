@@ -39,7 +39,7 @@ export function ConfirmActionButton({
   label,
   title,
   description,
-  confirmText = "확인",
+  confirmText = "?�인",
   cancelText = "취소",
   disabled,
   onConfirm,
@@ -84,7 +84,7 @@ export function ConfirmSubmitButton({
   label,
   title,
   description,
-  confirmText = "확인",
+  confirmText = "?�인",
   cancelText = "취소",
   disabled,
   triggerVariant = "primary",
@@ -125,3 +125,4 @@ export function ConfirmSubmitButton({
     </AlertDialog>
   );
 }
+

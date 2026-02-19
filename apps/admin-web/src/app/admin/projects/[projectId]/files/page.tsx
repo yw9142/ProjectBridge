@@ -5,7 +5,7 @@ import { ChevronRight, Download, FileText, Folder, FolderOpen, GripVertical, Plu
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
-import { Modal } from "@/components/ui/modal";
+import { Modal } from "@bridge/ui";
 
 type VisibilityScope = "SHARED" | "INTERNAL";
 
@@ -40,6 +40,7 @@ type PresignResponse = {
   uploadUrl: string;
   objectKey: string;
   contentType: string;
+  uploadToken: string;
 };
 
 type LatestVersionMap = Record<string, FileVersion | null>;
@@ -346,6 +347,7 @@ export default function ProjectFilesPage() {
         contentType,
         size: uploadFile.size,
         checksum: `${uploadFile.name}-${uploadFile.size}-${uploadFile.lastModified}`,
+        uploadToken: presign.uploadToken,
       }),
     });
   }

@@ -1,19 +1,23 @@
 package com.bridge.backend.domain.notification;
 
+import com.bridge.backend.common.model.enums.MemberRole;
+import com.bridge.backend.domain.admin.TenantMemberEntity;
+import com.bridge.backend.domain.admin.TenantMemberRepository;
+import com.bridge.backend.domain.project.ProjectMemberEntity;
+import com.bridge.backend.domain.project.ProjectMemberRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.bridge.backend.common.model.enums.MemberRole;
-import com.bridge.backend.domain.admin.TenantMemberRepository;
-import com.bridge.backend.domain.project.ProjectMemberRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class OutboxService {
@@ -45,7 +49,7 @@ public class OutboxService {
         outbox.setAggregateType(aggregateType);
         outbox.setAggregateId(aggregateId);
         outbox.setEventType(eventType);
-        outbox.setEventPayload(toJson(Map.of("title", title, "message", message, "payload", payload, "userId", userId.toString())));
+        outbox.setEventPayload(toJson(buildOutboxPayload(userId, title, message, payload)));
         outboxEventRepository.save(outbox);
     }
 
@@ -54,43 +58,69 @@ public class OutboxService {
     public void consume() {
         outboxEventRepository.findTop100ByProcessedAtIsNullOrderByCreatedAtAsc().forEach(evt -> {
             Map<String, Object> payload = parseJson(evt.getEventPayload());
-            UUID actorUserId = UUID.fromString(String.valueOf(payload.get("userId")));
-            var actorMember = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(evt.getTenantId(), actorUserId).orElse(null);
-            if (actorMember != null && isClientRole(actorMember.getRole())) {
-                List<UUID> recipientIds = tenantMemberRepository.findByTenantIdAndDeletedAtIsNull(evt.getTenantId())
-                        .stream()
-                        .filter(member -> isPmRole(member.getRole()))
-                        .map(member -> member.getUserId())
-                        .distinct()
-                        .collect(Collectors.toList());
-                for (UUID recipientId : recipientIds) {
-                    createNotification(evt, recipientId, payload);
-                }
+            UUID actorUserId = extractActorUserId(payload.get("userId"));
+            UUID projectId = extractProjectId(payload.get("payload"));
+
+            TenantMemberEntity actorMember = null;
+            if (actorUserId != null) {
+                actorMember = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(evt.getTenantId(), actorUserId).orElse(null);
             }
-            if (actorMember != null && isPmRole(actorMember.getRole()) && isPmToClientRequestEvent(evt)) {
-                UUID projectId = extractProjectId(payload.get("payload"));
-                if (projectId != null) {
-                    List<UUID> recipientIds = projectMemberRepository.findByProjectIdAndDeletedAtIsNull(projectId)
-                            .stream()
-                            .filter(member -> evt.getTenantId().equals(member.getTenantId()))
-                            .filter(member -> isClientRole(member.getRole()))
-                            .map(member -> member.getUserId())
-                            .distinct()
-                            .collect(Collectors.toList());
-                    for (UUID recipientId : recipientIds) {
-                        createNotification(evt, recipientId, payload);
-                    }
-                }
+
+            Set<UUID> recipients = resolveRecipients(evt.getTenantId(), projectId, actorUserId, actorMember);
+            for (UUID recipientId : recipients) {
+                createNotification(evt, recipientId, payload);
             }
+
             evt.setProcessedAt(OffsetDateTime.now());
             outboxEventRepository.save(evt);
         });
     }
 
+    private Set<UUID> resolveRecipients(UUID tenantId, UUID projectId, UUID actorUserId, TenantMemberEntity actorMember) {
+        boolean actorIsClient = actorMember != null && isClientRole(actorMember.getRole());
+        boolean actorIsPm = actorMember != null && isPmRole(actorMember.getRole());
+
+        List<UUID> rawRecipients;
+        if (projectId != null) {
+            List<ProjectMemberEntity> projectMembers = projectMemberRepository.findByProjectIdAndDeletedAtIsNull(projectId);
+            rawRecipients = new ArrayList<>();
+            for (ProjectMemberEntity member : projectMembers) {
+                if (!tenantId.equals(member.getTenantId())) {
+                    continue;
+                }
+                if (actorIsClient && !isPmRole(member.getRole())) {
+                    continue;
+                }
+                if (actorIsPm && !isClientRole(member.getRole())) {
+                    continue;
+                }
+                rawRecipients.add(member.getUserId());
+            }
+        } else {
+            List<TenantMemberEntity> tenantMembers = tenantMemberRepository.findByTenantIdAndDeletedAtIsNull(tenantId);
+            rawRecipients = new ArrayList<>();
+            for (TenantMemberEntity member : tenantMembers) {
+                if (actorIsClient && !isPmRole(member.getRole())) {
+                    continue;
+                }
+                if (actorIsPm && !isClientRole(member.getRole())) {
+                    continue;
+                }
+                rawRecipients.add(member.getUserId());
+            }
+        }
+
+        Set<UUID> recipients = new HashSet<>(rawRecipients);
+        if (actorUserId != null) {
+            recipients.remove(actorUserId);
+        }
+        return recipients;
+    }
+
     private void createNotification(OutboxEventEntity event, UUID recipientId, Map<String, Object> payload) {
         String rawEventType = event.getEventType();
-        String localizedTitle = NotificationTextLocalizer.localizeTitle(rawEventType, String.valueOf(payload.get("title")));
-        String localizedMessage = NotificationTextLocalizer.localizeMessage(rawEventType, String.valueOf(payload.get("message")));
+        String localizedTitle = NotificationTextLocalizer.localizeTitle(rawEventType, String.valueOf(payload.getOrDefault("title", "")));
+        String localizedMessage = NotificationTextLocalizer.localizeMessage(rawEventType, String.valueOf(payload.getOrDefault("message", "")));
         String localizedEventType = NotificationTextLocalizer.localizeEventType(rawEventType);
 
         NotificationEntity notification = new NotificationEntity();
@@ -110,8 +140,24 @@ public class OutboxService {
         ));
     }
 
-    private boolean isPmToClientRequestEvent(OutboxEventEntity event) {
-        return "request".equals(event.getAggregateType()) && "request.created".equals(event.getEventType());
+    private Map<String, Object> buildOutboxPayload(UUID userId, String title, String message, Object payload) {
+        var values = new java.util.HashMap<String, Object>();
+        values.put("title", title);
+        values.put("message", message);
+        values.put("payload", payload);
+        values.put("userId", userId == null ? null : userId.toString());
+        return values;
+    }
+
+    private UUID extractActorUserId(Object userIdRaw) {
+        if (userIdRaw == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(String.valueOf(userIdRaw));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private boolean isClientRole(MemberRole role) {

@@ -1,10 +1,10 @@
-ï»¿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Modal } from "@/components/ui/modal";
+import { Modal } from "@bridge/ui";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { setAuthCookies } from "@/lib/auth";
 
@@ -46,7 +46,7 @@ export default function TenantsPage() {
       setItems(data);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "í…Œë„ŒíŠ¸ ëª©ë¡ì„ ë¶ˆëŸ¬ì˜¤ì§€ ëª»í–ˆìŠµë‹ˆë‹¤.");
+        setError(e instanceof Error ? e.message : "Å×³ÍÆ® ¸ñ·ÏÀ» ºÒ·¯¿ÀÁö ¸øÇß½À´Ï´Ù.");
       }
     } finally {
       setLoading(false);
@@ -72,7 +72,7 @@ export default function TenantsPage() {
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "í…Œë„ŒíŠ¸ ìƒì„±ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
+        setError(e instanceof Error ? e.message : "Å×³ÍÆ® »ı¼º¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
       }
     } finally {
       setSubmitting(false);
@@ -88,13 +88,13 @@ export default function TenantsPage() {
         body: JSON.stringify({ tenantId: tenant.id }),
       });
       if (!switched?.accessToken || !switched?.refreshToken) {
-        throw new Error("í…Œë„ŒíŠ¸ ì „í™˜ ì‘ë‹µì´ ì˜¬ë°”ë¥´ì§€ ì•ŠìŠµë‹ˆë‹¤.");
+        throw new Error("Å×³ÍÆ® ÀüÈ¯ ÀÀ´äÀÌ ¿Ã¹Ù¸£Áö ¾Ê½À´Ï´Ù.");
       }
       setAuthCookies(switched.accessToken, switched.refreshToken);
       router.push(`/admin/tenants/${tenant.id}`);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "í…Œë„ŒíŠ¸ ì „í™˜ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
+        setError(e instanceof Error ? e.message : "Å×³ÍÆ® ÀüÈ¯¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
       }
     } finally {
       setSwitchingTenantId(null);
@@ -112,25 +112,25 @@ export default function TenantsPage() {
       <section className="space-y-5">
         <div className="flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">í…Œë„ŒíŠ¸ ê´€ë¦¬</h1>
-            <p className="text-sm text-slate-500">í…Œë„ŒíŠ¸ë¥¼ ìƒì„±í•˜ê³  ìƒíƒœë¥¼ í™•ì¸í•©ë‹ˆë‹¤.</p>
+            <h1 className="text-2xl font-bold text-slate-900">Å×³ÍÆ® °ü¸®</h1>
+            <p className="text-sm text-slate-500">Å×³ÍÆ®¸¦ »ı¼ºÇÏ°í »óÅÂ¸¦ È®ÀÎÇÕ´Ï´Ù.</p>
           </div>
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
           >
-            í…Œë„ŒíŠ¸ ìƒì„±
+            Å×³ÍÆ® »ı¼º
           </button>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">ì „ì²´ í…Œë„ŒíŠ¸</p>
+            <p className="text-sm text-slate-500">ÀüÃ¼ Å×³ÍÆ®</p>
             <p className="mt-1 text-2xl font-bold text-slate-900">{stats.total}</p>
           </article>
           <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">í™œì„± í…Œë„ŒíŠ¸</p>
+            <p className="text-sm text-slate-500">È°¼º Å×³ÍÆ®</p>
             <p className="mt-1 text-2xl font-bold text-slate-900">{stats.active}</p>
           </article>
         </div>
@@ -139,11 +139,11 @@ export default function TenantsPage() {
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">í…Œë„ŒíŠ¸ëª…</th>
+                <th className="px-4 py-3">Å×³ÍÆ®¸í</th>
                 <th className="px-4 py-3">Slug</th>
-                <th className="px-4 py-3">ìƒíƒœ</th>
-                <th className="px-4 py-3">ìƒì„±ì¼</th>
-                <th className="px-4 py-3">ì‘ì—…</th>
+                <th className="px-4 py-3">»óÅÂ</th>
+                <th className="px-4 py-3">»ı¼ºÀÏ</th>
+                <th className="px-4 py-3">ÀÛ¾÷</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -162,7 +162,7 @@ export default function TenantsPage() {
                       disabled={switchingTenantId === tenant.id}
                       className="inline-flex rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
-                      {switchingTenantId === tenant.id ? "ì „í™˜ ì¤‘..." : "ìƒì„¸ ë³´ê¸°"}
+                      {switchingTenantId === tenant.id ? "ÀüÈ¯ Áß..." : "»ó¼¼ º¸±â"}
                     </button>
                   </td>
                 </tr>
@@ -170,7 +170,7 @@ export default function TenantsPage() {
               {!loading && items.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
-                    ë“±ë¡ëœ í…Œë„ŒíŠ¸ê°€ ì—†ìŠµë‹ˆë‹¤.
+                    µî·ÏµÈ Å×³ÍÆ®°¡ ¾ø½À´Ï´Ù.
                   </td>
                 </tr>
               ) : null}
@@ -178,10 +178,10 @@ export default function TenantsPage() {
           </table>
         </div>
 
-        <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="í…Œë„ŒíŠ¸ ìƒì„±" description="ì´ë¦„ê³¼ slugë¥¼ ì…ë ¥í•´ í…Œë„ŒíŠ¸ë¥¼ ìƒì„±í•©ë‹ˆë‹¤.">
+        <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Å×³ÍÆ® »ı¼º" description="ÀÌ¸§°ú slug¸¦ ÀÔ·ÂÇØ Å×³ÍÆ®¸¦ »ı¼ºÇÕ´Ï´Ù.">
           <form onSubmit={createTenant} className="space-y-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">í…Œë„ŒíŠ¸ ì´ë¦„</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Å×³ÍÆ® ÀÌ¸§</label>
               <input
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
                 value={name}
@@ -204,14 +204,14 @@ export default function TenantsPage() {
                 onClick={() => setCreateOpen(false)}
                 className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
-                ì·¨ì†Œ
+                Ãë¼Ò
               </button>
               <button
                 type="submit"
                 disabled={submitting}
                 className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60"
               >
-                {submitting ? "ìƒì„± ì¤‘..." : "ìƒì„±"}
+                {submitting ? "»ı¼º Áß..." : "»ı¼º"}
               </button>
             </div>
           </form>
@@ -222,4 +222,5 @@ export default function TenantsPage() {
     </AdminShell>
   );
 }
+
 

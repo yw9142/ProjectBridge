@@ -1,10 +1,10 @@
-﻿"use client";
+"use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
-import { Modal } from "@/components/ui/modal";
+import { Modal } from "@bridge/ui";
 
 type ContractStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 
@@ -31,6 +31,19 @@ type PresignResponse = {
   uploadUrl: string;
   objectKey: string;
   contentType: string;
+  uploadToken: string;
+};
+
+type EnvelopeResponse = {
+  id: string;
+  title: string;
+};
+
+type RecipientResponse = {
+  id: string;
+  recipientName: string;
+  recipientEmail: string;
+  recipientToken: string;
 };
 
 const statusLabels: Record<ContractStatus, string> = {
@@ -87,6 +100,12 @@ export default function ProjectContractsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPdf, setEditPdf] = useState<File | null>(null);
+  const [signOpen, setSignOpen] = useState(false);
+  const [signContractId, setSignContractId] = useState<string | null>(null);
+  const [signRecipientName, setSignRecipientName] = useState("");
+  const [signRecipientEmail, setSignRecipientEmail] = useState("");
+  const [signLink, setSignLink] = useState<string | null>(null);
+  const [signSubmitting, setSignSubmitting] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -153,6 +172,7 @@ export default function ProjectContractsPage() {
         contentType,
         size: pdf.size,
         checksum: `${pdf.name}-${pdf.size}-${pdf.lastModified}`,
+        uploadToken: presign.uploadToken,
       }),
     });
 
@@ -259,6 +279,50 @@ export default function ProjectContractsPage() {
     }
   }
 
+  function openSignModal(contract: Contract) {
+    setSignOpen(true);
+    setSignContractId(contract.id);
+    setSignRecipientName("");
+    setSignRecipientEmail("");
+    setSignLink(null);
+  }
+
+  async function createSignatureRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!signContractId) {
+      return;
+    }
+    setError(null);
+    setSignSubmitting(true);
+    try {
+      const contract = contracts.find((item) => item.id === signContractId);
+      const envelope = await apiFetch<EnvelopeResponse>(`/api/contracts/${signContractId}/envelopes`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: contract ? `${contract.name} 서명 요청` : "서명 요청",
+        }),
+      });
+      const recipient = await apiFetch<RecipientResponse>(`/api/envelopes/${envelope.id}/recipients`, {
+        method: "POST",
+        body: JSON.stringify({
+          name: signRecipientName,
+          email: signRecipientEmail,
+          signingOrder: 1,
+        }),
+      });
+      await apiFetch(`/api/envelopes/${envelope.id}/send`, {
+        method: "POST",
+      });
+      setSignLink(`/sign/${recipient.recipientToken}`);
+    } catch (e) {
+      if (!handleAuthError(e, "/admin/login")) {
+        setError(e instanceof Error ? e.message : "서명 요청 생성에 실패했습니다.");
+      }
+    } finally {
+      setSignSubmitting(false);
+    }
+  }
+
   async function openContractPdf(fileVersionId: string) {
     setError(null);
     try {
@@ -346,6 +410,13 @@ export default function ProjectContractsPage() {
                       >
                         수정
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => openSignModal(contract)}
+                        className="rounded border border-indigo-300 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                      >
+                        서명 요청
+                      </button>
                       <ConfirmActionButton
                         label="삭제"
                         title="계약을 삭제할까요?"
@@ -404,6 +475,39 @@ export default function ProjectContractsPage() {
             </button>
             <button type="submit" className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold !text-white hover:bg-slate-800">
               저장
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={signOpen} onClose={() => setSignOpen(false)} title="서명 요청 생성" description="수신자 정보를 입력해 서명 요청 링크를 생성합니다.">
+        <form onSubmit={createSignatureRequest} className="space-y-3">
+          <input
+            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            placeholder="수신자 이름"
+            value={signRecipientName}
+            onChange={(e) => setSignRecipientName(e.target.value)}
+            required
+          />
+          <input
+            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            type="email"
+            placeholder="수신자 이메일"
+            value={signRecipientEmail}
+            onChange={(e) => setSignRecipientEmail(e.target.value)}
+            required
+          />
+          {signLink ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              서명 링크: <span className="font-mono">{signLink}</span>
+            </div>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setSignOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+              취소
+            </button>
+            <button type="submit" disabled={signSubmitting} className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60">
+              {signSubmitting ? "생성 중" : "링크 생성"}
             </button>
           </div>
         </form>

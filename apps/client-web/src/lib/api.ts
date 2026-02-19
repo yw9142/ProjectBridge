@@ -185,6 +185,26 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   throw new Error("Unexpected API response format.");
 }
 
+export async function apiFetchPublic<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await rawFetch(path, init, null);
+  const raw = await response.text();
+  const payload = parseEnvelope<T>(raw);
+
+  if (!response.ok) {
+    throw new Error(buildErrorMessage(response, payload, raw));
+  }
+
+  if (payload && "data" in payload) {
+    return payload.data as T;
+  }
+
+  if (!raw || response.status === 204) {
+    return undefined as T;
+  }
+
+  throw new Error("Unexpected API response format.");
+}
+
 export function handleAuthError(error: unknown, loginPath: string) {
   if (error instanceof ApiAuthError) {
     redirectToLogin(loginPath);

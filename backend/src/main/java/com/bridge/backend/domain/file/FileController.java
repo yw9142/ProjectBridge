@@ -11,6 +11,7 @@ import com.bridge.backend.domain.notification.OutboxService;
 import com.bridge.backend.domain.project.ProjectMemberEntity;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,6 +37,7 @@ public class FileController {
     private final FileFolderRepository fileFolderRepository;
     private final FileVersionRepository fileVersionRepository;
     private final FileCommentRepository fileCommentRepository;
+    private final UploadTicketRepository uploadTicketRepository;
     private final AccessGuardService guardService;
     private final StorageService storageService;
     private final OutboxService outboxService;
@@ -44,6 +46,7 @@ public class FileController {
                           FileFolderRepository fileFolderRepository,
                           FileVersionRepository fileVersionRepository,
                           FileCommentRepository fileCommentRepository,
+                          UploadTicketRepository uploadTicketRepository,
                           AccessGuardService guardService,
                           StorageService storageService,
                           OutboxService outboxService) {
@@ -51,6 +54,7 @@ public class FileController {
         this.fileFolderRepository = fileFolderRepository;
         this.fileVersionRepository = fileVersionRepository;
         this.fileCommentRepository = fileCommentRepository;
+        this.uploadTicketRepository = uploadTicketRepository;
         this.guardService = guardService;
         this.storageService = storageService;
         this.outboxService = outboxService;
@@ -306,7 +310,22 @@ public class FileController {
                 .findFirst()
                 .map(v -> v.getVersion() + 1)
                 .orElse(1);
-        return ApiSuccess.of(storageService.createUploadPresign(fileId, nextVersion, request.contentType()));
+        Map<String, Object> presigned = storageService.createUploadPresign(fileId, nextVersion, request.contentType());
+        UploadTicketEntity ticket = new UploadTicketEntity();
+        ticket.setTenantId(principal.getTenantId());
+        ticket.setAggregateType("file_version");
+        ticket.setAggregateId(fileId);
+        ticket.setObjectKey(String.valueOf(presigned.get("objectKey")));
+        ticket.setContentType(request.contentType());
+        ticket.setExpectedVersion(nextVersion);
+        ticket.setExpiresAt(OffsetDateTime.now().plusMinutes(15));
+        ticket.setCreatedBy(principal.getUserId());
+        ticket.setUpdatedBy(principal.getUserId());
+        UploadTicketEntity savedTicket = uploadTicketRepository.save(ticket);
+
+        Map<String, Object> response = new HashMap<>(presigned);
+        response.put("uploadToken", savedTicket.getId());
+        return ApiSuccess.of(response);
     }
 
     @PostMapping("/api/files/{fileId}/versions/complete")
@@ -314,6 +333,17 @@ public class FileController {
         var principal = SecurityUtils.requirePrincipal();
         FileEntity file = requireActiveFile(fileId);
         requireVisibleFileMember(file, principal.getUserId(), principal.getTenantId());
+        UploadTicketEntity ticket = requireUsableUploadTicket(request.uploadToken(), principal.getTenantId(), "file_version", fileId);
+        if (!ticket.getObjectKey().equals(request.objectKey())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_OBJECT_KEY_MISMATCH", "Upload ticket object key mismatch.");
+        }
+        if (!ticket.getContentType().equals(request.contentType())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_CONTENT_TYPE_MISMATCH", "Upload ticket content type mismatch.");
+        }
+        if (ticket.getExpectedVersion() != null && ticket.getExpectedVersion() != request.version()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_VERSION_MISMATCH", "Upload ticket version mismatch.");
+        }
+
         fileVersionRepository.findByFileIdAndTenantIdAndDeletedAtIsNullOrderByVersionDesc(fileId, principal.getTenantId())
                 .forEach(v -> {
                     if (v.isLatest()) {
@@ -333,6 +363,9 @@ public class FileController {
         version.setCreatedBy(principal.getUserId());
         version.setUpdatedBy(principal.getUserId());
         FileVersionEntity saved = fileVersionRepository.save(version);
+        ticket.setConsumedAt(OffsetDateTime.now());
+        ticket.setUpdatedBy(principal.getUserId());
+        uploadTicketRepository.save(ticket);
         outboxService.publish(principal.getTenantId(), principal.getUserId(), "file_version", saved.getId(),
                 "file.version.created", "File version uploaded", file.getName(), Map.of("fileId", fileId, "version", saved.getVersion()));
         return ApiSuccess.of(saved);
@@ -581,6 +614,21 @@ public class FileController {
         return parentPath + "/" + folderName;
     }
 
+    private UploadTicketEntity requireUsableUploadTicket(UUID uploadToken, UUID tenantId, String aggregateType, UUID aggregateId) {
+        UploadTicketEntity ticket = uploadTicketRepository.findByIdAndTenantIdAndDeletedAtIsNull(uploadToken, tenantId)
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TOKEN_NOT_FOUND", "Upload token is invalid."));
+        if (!aggregateType.equals(ticket.getAggregateType()) || !aggregateId.equals(ticket.getAggregateId())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TOKEN_SCOPE_MISMATCH", "Upload token scope mismatch.");
+        }
+        if (ticket.getConsumedAt() != null) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TOKEN_CONSUMED", "Upload token already consumed.");
+        }
+        if (ticket.getExpiresAt().isBefore(OffsetDateTime.now())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TOKEN_EXPIRED", "Upload token expired.");
+        }
+        return ticket;
+    }
+
     public record CreateFileRequest(@NotBlank String name, String description, String folder, VisibilityScope visibilityScope) {
     }
 
@@ -602,7 +650,12 @@ public class FileController {
     public record PresignRequest(@NotBlank String contentType) {
     }
 
-    public record CompleteRequest(int version, @NotBlank String objectKey, @NotBlank String contentType, long size, @NotBlank String checksum) {
+    public record CompleteRequest(int version,
+                                  @NotBlank String objectKey,
+                                  @NotBlank String contentType,
+                                  long size,
+                                  @NotBlank String checksum,
+                                  @NotNull UUID uploadToken) {
     }
 
     public record CreateCommentRequest(@NotBlank String body, double coordX, double coordY, double coordW, double coordH) {

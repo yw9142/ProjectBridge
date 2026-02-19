@@ -26,3 +26,4 @@ function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement
 }
 
 export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle };
+

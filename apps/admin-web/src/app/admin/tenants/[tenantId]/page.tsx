@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Modal } from "@/components/ui/modal";
+import { Modal } from "@bridge/ui";
 import { apiFetch, handleAuthError } from "@/lib/api";
 
 type Tenant = {

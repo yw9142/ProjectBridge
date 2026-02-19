@@ -95,6 +95,17 @@ public class ProjectController {
         return ApiSuccess.of(projectService.acceptInvitation(SecurityUtils.requirePrincipal(), invitationToken));
     }
 
+    @GetMapping("/api/invitations/{invitationToken}")
+    public ApiSuccess<Map<String, Object>> invitation(@PathVariable String invitationToken) {
+        return ApiSuccess.of(projectService.getInvitation(invitationToken));
+    }
+
+    @PostMapping("/api/invitations/{invitationToken}/accept-public")
+    public ApiSuccess<Map<String, Object>> acceptPublic(@PathVariable String invitationToken,
+                                                        @RequestBody @Valid PublicAcceptRequest request) {
+        return ApiSuccess.of(projectService.acceptInvitationPublic(invitationToken, request.email(), request.password(), request.name()));
+    }
+
     public record CreateProjectRequest(@NotBlank String name, String description) {
     }
 
@@ -108,5 +119,8 @@ public class ProjectController {
     }
 
     public record UpdateMemberAccountRequest(String loginId, String password) {
+    }
+
+    public record PublicAcceptRequest(@Email @NotBlank String email, @NotBlank String password, String name) {
     }
 }

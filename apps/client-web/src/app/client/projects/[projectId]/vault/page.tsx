@@ -6,7 +6,7 @@ import { apiFetch, handleAuthError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
+import { Modal } from "@bridge/ui";
 
 type VaultAccountRequest = {
   id: string;

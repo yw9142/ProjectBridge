@@ -1,4 +1,4 @@
-ï»¿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -7,14 +7,14 @@ import { ClientLogoutButton } from "./ClientLogoutButton";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
 
 const menu = [
-  { key: "home", label: "ëŒ€ì‹œë³´ë“œ", icon: LayoutDashboard },
-  { key: "posts", label: "ì»¤ë®¤ë‹ˆì¼€ì´ì…˜", icon: MessageSquare },
-  { key: "requests", label: "ìš”ì²­", icon: SquareCheck },
-  { key: "files", label: "íŒŒì¼", icon: FolderOpen },
-  { key: "meetings", label: "íšŒì˜", icon: Calendar },
-  { key: "contracts", label: "ê³„ì•½", icon: FileSignature },
-  { key: "billing", label: "ì •ì‚°", icon: Receipt },
-  { key: "vault", label: "ê¸ˆê³ ", icon: Lock },
+  { key: "home", label: "´ë½Ãº¸µå", icon: LayoutDashboard },
+  { key: "posts", label: "Ä¿¹Â´ÏÄÉÀÌ¼Ç", icon: MessageSquare },
+  { key: "requests", label: "¿äÃ»", icon: SquareCheck },
+  { key: "files", label: "ÆÄÀÏ", icon: FolderOpen },
+  { key: "meetings", label: "È¸ÀÇ", icon: Calendar },
+  { key: "contracts", label: "°è¾à", icon: FileSignature },
+  { key: "billing", label: "Á¤»ê", icon: Receipt },
+  { key: "vault", label: "±İ°í", icon: Lock },
 ];
 
 export function ClientProjectShell({ projectId, children }: { projectId: string; children: React.ReactNode }) {
@@ -28,14 +28,14 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
             <div className="leading-tight">
               <p className="text-sm font-semibold text-foreground">Bridge Client</p>
-              <p className="text-xs text-muted-foreground">í˜‘ì—… ì‘ì—…ê³µê°„</p>
+              <p className="text-xs text-muted-foreground">Çù¾÷ ÀÛ¾÷°ø°£</p>
             </div>
           </Link>
         </div>
 
         <div className="p-2">
-          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">í”„ë¡œì íŠ¸ ë‚´ë¹„ê²Œì´ì…˜</p>
-          <nav className="space-y-0.5" aria-label="í´ë¼ì´ì–¸íŠ¸ í”„ë¡œì íŠ¸ ë©”ë‰´">
+          <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">ÇÁ·ÎÁ§Æ® ³»ºñ°ÔÀÌ¼Ç</p>
+          <nav className="space-y-0.5" aria-label="Å¬¶óÀÌ¾ğÆ® ÇÁ·ÎÁ§Æ® ¸Ş´º">
             {menu.map((item) => {
               const href = `/client/projects/${projectId}/${item.key}`;
               const Icon = item.icon;
@@ -62,15 +62,15 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
         <header className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur">
           <div className="mx-auto flex h-14 w-full max-w-[1320px] items-center justify-between px-4 md:px-6">
             <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">í´ë¼ì´ì–¸íŠ¸ ì‘ì—…ê³µê°„</p>
-              <h2 className="text-sm font-semibold text-foreground">í”„ë¡œì íŠ¸ í˜‘ì—… ê³µê°„</h2>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Å¬¶óÀÌ¾ğÆ® ÀÛ¾÷°ø°£</p>
+              <h2 className="text-sm font-semibold text-foreground">ÇÁ·ÎÁ§Æ® Çù¾÷ °ø°£</h2>
             </div>
             <div className="flex items-center gap-3">
               <NotificationCenter />
               <div className="h-6 w-px bg-border" />
               <ClientLogoutButton />
               <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-foreground">Client ì‚¬ìš©ì</p>
+                <p className="text-sm font-medium text-foreground">Client »ç¿ëÀÚ</p>
                 <p className="text-xs text-muted-foreground">CLIENT_OWNER</p>
               </div>
             </div>
@@ -84,4 +84,5 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
     </div>
   );
 }
+
 

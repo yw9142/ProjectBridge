@@ -1,4 +1,4 @@
-ï»¿import { StatusBadge } from "../ui/StatusBadge";
+import { StatusBadge } from "../ui/StatusBadge";
 
 type Props = {
   title: string;
@@ -17,8 +17,9 @@ export function GenericSection({ title, description, status = "ACTIVE" }: Props)
         <StatusBadge status={status} />
       </div>
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-600">ì´ ì˜ì—­ì€ API ì—°ë™ ë°ì´í„°ê°€ ì—°ê²°ë  í…Œì´ë¸”ê³¼ ì¹´ë“œ ì„¹ì…˜ì…ë‹ˆë‹¤.</p>
+        <p className="text-sm text-slate-600">ÀÌ ¿µ¿ªÀº API ¿¬µ¿ µ¥ÀÌÅÍ°¡ ¿¬°áµÉ Å×ÀÌºí°ú Ä«µå ¼½¼ÇÀÔ´Ï´Ù.</p>
       </div>
     </section>
   );
 }
+
