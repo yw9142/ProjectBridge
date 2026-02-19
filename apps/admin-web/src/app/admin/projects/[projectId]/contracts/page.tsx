@@ -766,19 +766,19 @@ export default function ProjectContractsPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
+      <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <table className="min-w-[1360px] divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">계약명</th>
-              <th className="px-4 py-3">등록자</th>
-              <th className="px-4 py-3">계약서</th>
-              <th className="px-4 py-3">상태</th>
-              <th className="px-4 py-3">서명자</th>
-              <th className="px-4 py-3">서명 요청</th>
-              <th className="px-4 py-3">수신 상태</th>
-              <th className="px-4 py-3">마지막 수정</th>
-              <th className="px-4 py-3">작업</th>
+              <th className="px-4 py-3 whitespace-nowrap">계약명</th>
+              <th className="px-4 py-3 whitespace-nowrap">등록자</th>
+              <th className="px-4 py-3 whitespace-nowrap">계약서</th>
+              <th className="px-4 py-3 whitespace-nowrap">상태</th>
+              <th className="px-4 py-3 whitespace-nowrap">서명자</th>
+              <th className="px-4 py-3 whitespace-nowrap">서명 요청</th>
+              <th className="px-4 py-3 whitespace-nowrap">수신 상태</th>
+              <th className="px-4 py-3 whitespace-nowrap">마지막 수정</th>
+              <th className="px-4 py-3 whitespace-nowrap">작업</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
@@ -790,8 +790,8 @@ export default function ProjectContractsPage() {
               return (
                 <tr key={contract.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{contract.name}</td>
-                  <td className="px-4 py-3 text-slate-700">{contract.createdByName ?? contract.createdBy ?? "-"}</td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 whitespace-nowrap text-slate-700">{contract.createdByName ?? contract.createdBy ?? "-"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-slate-700">
                     {contract.fileVersionId ? (
                       <button
                         type="button"
@@ -804,25 +804,25 @@ export default function ProjectContractsPage() {
                       <span className="text-xs text-slate-500">PDF 없음</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeStyles[displayStatus]}`}>
                       {statusLabels[displayStatus]}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-700">
                     {signer?.assigned ? (
-                      <span>
+                      <span className="whitespace-nowrap">
                         {signer.recipientName ?? "-"} ({signer.recipientEmail ?? "-"})
                       </span>
                     ) : (
                       <span className="text-xs text-slate-500">서명자가 지정되지 않았습니다.</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{signer?.assigned ? formatEnvelopeStatus(signer.envelopeStatus) : "-"}</td>
-                  <td className="px-4 py-3 text-slate-700">{signer?.assigned ? formatRecipientStatus(signer.recipientStatus) : "-"}</td>
-                  <td className="px-4 py-3 text-slate-700">{formatDateTime(contract.updatedAt ?? contract.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
+                  <td className="px-4 py-3 whitespace-nowrap text-slate-700">{signer?.assigned ? formatEnvelopeStatus(signer.envelopeStatus) : "-"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-slate-700">{signer?.assigned ? formatRecipientStatus(signer.recipientStatus) : "-"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-slate-700">{formatDateTime(contract.updatedAt ?? contract.createdAt)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex flex-nowrap gap-2">
                       <button
                         type="button"
                         onClick={() => openSigningStatus(contract.id)}
