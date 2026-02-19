@@ -16,6 +16,30 @@ Bridge는 PM(벤더)와 클라이언트를 위한 B2B 멀티테넌트 프로젝�
 - `packages/shared-types`: 공통 타입
 - `packages/ui`: 공통 UI 패키지
 
+## Git Workflow (Branch + PR)
+직접 `main`에 push하지 않고, 항상 작업 브랜치에서 PR로 병합합니다.
+
+1. 브랜치 생성
+```bash
+git checkout main
+git pull origin main
+git checkout -b feat/<task-name>
+# 또는 fix/<task-name>, chore/<task-name>, refactor/<task-name>
+```
+
+2. 작업 후 푸시
+```bash
+git push -u origin <branch-name>
+```
+
+3. PR 생성 (템플릿 선택)
+- 프론트엔드 PR: `.github/PULL_REQUEST_TEMPLATE/frontend.md`
+- 백엔드 PR: `.github/PULL_REQUEST_TEMPLATE/backend.md`
+- 프론트/백 통합 변경 PR: `docs/pull_request_template.md` 기준으로 작성
+
+PR 제목은 Conventional Commit 형식을 사용합니다.
+예: `feat(pm-web): 프로젝트 대시보드 필터 추가`
+
 ## Service Intro Docs
 - 통합 소개: [docs/Product/SERVICE_INTRO.md](docs/Product/SERVICE_INTRO.md)
 - Admin 소개: [docs/Product/admin/SERVICE_INTRO.md](docs/Product/admin/SERVICE_INTRO.md)
@@ -128,4 +152,3 @@ docker build -f backend/Dockerfile -t bridge-backend:local ./backend
 ## Notes
 - Next.js 앱은 기본 포트가 동일하므로 동시에 여러 앱을 띄우려면 포트를 분리해 실행하세요.
 - 알림 스트림(SSE)은 로그인 세션 기반으로 동작합니다.
-
