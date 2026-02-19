@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -88,10 +89,16 @@ public class VaultController {
     }
 
     @GetMapping("/api/projects/{projectId}/vault/account-requests")
-    public ApiSuccess<List<VaultSecretEntity>> accountRequests(@PathVariable UUID projectId) {
+    public ApiSuccess<List<Map<String, Object>>> accountRequests(@PathVariable UUID projectId) {
         var principal = SecurityUtils.requirePrincipal();
-        guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
-        return ApiSuccess.of(secretRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId()));
+        var member = guardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
+        boolean revealAllowed = member.getRole() == MemberRole.PM_OWNER;
+
+        List<Map<String, Object>> rows = secretRepository.findByProjectIdAndTenantIdAndDeletedAtIsNull(projectId, principal.getTenantId())
+                .stream()
+                .map(secret -> toAccountRequestRow(secret, principal.getTenantId(), revealAllowed))
+                .toList();
+        return ApiSuccess.of(rows);
     }
 
     @PostMapping("/api/projects/{projectId}/vault/secrets")
@@ -207,6 +214,10 @@ public class VaultController {
         var member = guardService.requireProjectMember(secret.getProjectId(), principal.getUserId(), principal.getTenantId());
         VaultRules rules = resolveVaultRules(secret.getProjectId(), principal.getTenantId());
 
+        if (member.getRole() != MemberRole.PM_OWNER) {
+            throw new AppException(HttpStatus.FORBIDDEN, "VAULT_REVEAL_ROLE_FORBIDDEN", "Vault reveal is allowed only for ADMIN or PM_OWNER.");
+        }
+
         if (!rules.clientAllowed() && isClientRole(member.getRole())) {
             throw new AppException(HttpStatus.FORBIDDEN, "VAULT_ROLE_FORBIDDEN", "Vault reveal is not allowed for this role.");
         }
@@ -290,7 +301,7 @@ public class VaultController {
         }
         try {
             JsonNode node = objectMapper.readTree(raw);
-            boolean requireApproval = node.path("requireApproval").asBoolean(true);
+            boolean requireApproval = node.path("requireApproval").asBoolean(false);
             boolean oneTimeView = node.path("oneTimeView").asBoolean(false);
             int viewTtlMinutes = Math.max(1, node.path("viewTtlMinutes").asInt(DEFAULT_VIEW_TTL_MINUTES));
             Integer maxViews = node.hasNonNull("maxViews") ? Math.max(1, node.path("maxViews").asInt(1)) : null;
@@ -321,6 +332,27 @@ public class VaultController {
 
     private boolean isClientRole(MemberRole role) {
         return role == MemberRole.CLIENT_OWNER || role == MemberRole.CLIENT_MEMBER;
+    }
+
+    private Map<String, Object> toAccountRequestRow(VaultSecretEntity secret, UUID tenantId, boolean revealAllowed) {
+        String revealedSecret = null;
+        boolean alreadyRevealed = accessEventRepository.existsBySecretIdAndTenantIdAndDeletedAtIsNull(secret.getId(), tenantId);
+        if (secret.isCredentialReady() && (revealAllowed || alreadyRevealed)) {
+            revealedSecret = vaultCryptoService.decrypt(secret.getSecretCiphertext(), secret.getNonce());
+        }
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", secret.getId());
+        row.put("name", secret.getName());
+        row.put("siteUrl", secret.getSiteUrl());
+        row.put("requestReason", secret.getRequestReason());
+        row.put("credentialReady", secret.isCredentialReady());
+        row.put("providedAt", secret.getProvidedAt());
+        row.put("createdBy", secret.getCreatedBy());
+        row.put("createdByName", null);
+        row.put("revealAllowed", revealAllowed);
+        row.put("revealedSecret", revealedSecret);
+        return row;
     }
 
     private VaultSecretEntity buildSecretEntity(UUID tenantId,
@@ -388,7 +420,7 @@ public class VaultController {
                               boolean clientAllowed,
                               Set<String> allowedRoles) {
         private static VaultRules defaultRules() {
-            return new VaultRules(true, false, DEFAULT_VIEW_TTL_MINUTES, null, true, Set.of());
+            return new VaultRules(false, false, DEFAULT_VIEW_TTL_MINUTES, null, true, Set.of());
         }
     }
 }

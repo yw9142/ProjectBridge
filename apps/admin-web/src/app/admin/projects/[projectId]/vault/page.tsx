@@ -14,6 +14,8 @@ type VaultRequest = {
   providedAt?: string | null;
   createdBy?: string;
   createdByName?: string;
+  revealAllowed?: boolean;
+  revealedSecret?: string | null;
 };
 
 type CredentialPair = {
@@ -142,11 +144,11 @@ export default function ProjectVaultPage() {
       });
       setProvisionOpen(false);
       setProvisionTargetId(null);
-      setNotice("Credential provisioned.");
+      setNotice("자격 제공되었습니다.");
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "Failed to provision credential.");
+        setError(e instanceof Error ? e.message : "자격 제공에 실패했습니다.");
       }
     }
   }
@@ -156,10 +158,10 @@ export default function ProjectVaultPage() {
     setNotice(null);
     try {
       await apiFetch(`/api/vault/secrets/${secretId}/access-requests`, { method: "POST" });
-      setNotice("Access request submitted.");
+      setNotice("접근 요청이 제출되었습니다.");
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "Failed to submit access request.");
+        setError(e instanceof Error ? e.message : "접근 요청 제출에 실패했습니다.");
       }
     }
   }
@@ -171,10 +173,11 @@ export default function ProjectVaultPage() {
     try {
       const revealed = await apiFetch<{ secret: string }>(`/api/vault/secrets/${secretId}/reveal`, { method: "POST" });
       setCredentialsMap((prev) => ({ ...prev, [secretId]: parseCredential(revealed.secret) }));
-      setNotice("Credential revealed for this session.");
+      setNotice("자격 공개되었습니다.");
+      await load();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "Failed to reveal credential.");
+        setError(e instanceof Error ? e.message : "자격 공개에 실패했습니다.");
       }
     } finally {
       setRevealingId(null);
@@ -185,15 +188,15 @@ export default function ProjectVaultPage() {
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Vault Account Requests</h1>
-          <p className="text-sm text-slate-500">Request, provision, and reveal credentials only when needed.</p>
+          <h1 className="text-xl font-bold text-slate-900">계정 요청</h1>
+          <p className="text-sm text-slate-500">필요할 때만 계정 요청, 제공, 공개를 할 수 있습니다.</p>
         </div>
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
         >
-          New Request
+          새 요청
         </button>
       </div>
 
@@ -201,27 +204,26 @@ export default function ProjectVaultPage() {
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Platform</th>
+              <th className="px-4 py-3">플랫폼</th>
               <th className="px-4 py-3">URL</th>
-              <th className="px-4 py-3">Reason</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">이유</th>
+              <th className="px-4 py-3">요청자</th>
+              <th className="px-4 py-3">상태</th>
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">PW</th>
-              <th className="px-4 py-3">Provided At</th>
-              <th className="px-4 py-3">Actions</th>
+              <th className="px-4 py-3">제공 시각</th>
+              <th className="px-4 py-3">작업</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
             {items.map((item) => {
-              const credential = credentialsMap[item.id];
+              const credential = item.revealedSecret ? parseCredential(item.revealedSecret) : credentialsMap[item.id];
               return (
                 <tr key={item.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                   <td className="px-4 py-3 text-slate-700">{item.siteUrl || "-"}</td>
-                  <td className="px-4 py-3 text-slate-700">
-                    <p>{item.requestReason || "-"}</p>
-                    <p className="mt-1 text-xs text-slate-500">Created by: {item.createdByName ?? item.createdBy ?? "-"}</p>
-                  </td>
+                  <td className="px-4 py-3 text-slate-700">{item.requestReason || "-"}</td>
+                  <td className="px-4 py-3 text-slate-700">{item.createdByName ?? item.createdBy ?? "-"}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
@@ -241,25 +243,29 @@ export default function ProjectVaultPage() {
                         onClick={() => openProvisionModal(item.id)}
                         className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                       >
-                        Provision
+                        제공
                       </button>
                       {item.credentialReady ? (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => void requestAccess(item.id)}
-                            className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                          >
-                            Request Access
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void revealSecret(item.id)}
-                            disabled={revealingId === item.id}
-                            className="rounded border border-indigo-300 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
-                          >
-                            {revealingId === item.id ? "Revealing..." : "Reveal"}
-                          </button>
+                          {!item.revealAllowed ? (
+                            <button
+                              type="button"
+                              onClick={() => void requestAccess(item.id)}
+                              className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                            >
+                              접근 요청
+                            </button>
+                          ) : null}
+                          {item.revealAllowed ? (
+                            <button
+                              type="button"
+                              onClick={() => void revealSecret(item.id)}
+                              disabled={revealingId === item.id}
+                              className="rounded border border-indigo-300 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+                            >
+                              {revealingId === item.id ? "공개 중..." : "공개"}
+                            </button>
+                          ) : null}
                         </>
                       ) : null}
                     </div>
@@ -269,8 +275,8 @@ export default function ProjectVaultPage() {
             })}
             {!loading && items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
-                  No requests yet.
+                <td colSpan={9} className="px-4 py-6 text-center text-sm text-slate-500">
+                    요청이 없습니다.
                 </td>
               </tr>
             ) : null}
@@ -278,46 +284,46 @@ export default function ProjectVaultPage() {
         </table>
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Account Request" description="Request a platform account.">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="계정 요청" description="플랫폼 계정을 요청합니다.">
         <form onSubmit={createAccountRequest} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Platform" value={platformName} onChange={(e) => setPlatformName(e.target.value)} required />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Site URL" value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="플랫폼" value={platformName} onChange={(e) => setPlatformName(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="URL" value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} required />
           <textarea
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             rows={4}
-            placeholder="Request reason"
+            placeholder="이유"
             value={requestReason}
             onChange={(e) => setRequestReason(e.target.value)}
             required
           />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              Cancel
+              취소
             </button>
             <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
-              Create
+              생성
             </button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={provisionOpen} onClose={() => setProvisionOpen(false)} title="Provision Credential" description="Store the credential in encrypted vault.">
+        <Modal open={provisionOpen} onClose={() => setProvisionOpen(false)} title="자격 제공" description="자격을 암호화된 저장소에 저장합니다.">
         <form onSubmit={provisionSecret} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Login ID" value={provisionLoginId} onChange={(e) => setProvisionLoginId(e.target.value)} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="로그인 ID" value={provisionLoginId} onChange={(e) => setProvisionLoginId(e.target.value)} required />
           <input
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             type="text"
-            placeholder="Password"
+            placeholder="비밀번호"
             value={provisionPassword}
             onChange={(e) => setProvisionPassword(e.target.value)}
             required
           />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setProvisionOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              Cancel
+              취소
             </button>
             <button type="submit" className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold !text-white hover:bg-slate-800">
-              Save
+              저장
             </button>
           </div>
         </form>

@@ -6,4 +6,6 @@ import java.util.UUID;
 
 public interface VaultAccessEventRepository extends JpaRepository<VaultAccessEventEntity, UUID> {
     long countBySecretIdAndViewerUserIdAndTenantIdAndDeletedAtIsNull(UUID secretId, UUID viewerUserId, UUID tenantId);
+
+    boolean existsBySecretIdAndTenantIdAndDeletedAtIsNull(UUID secretId, UUID tenantId);
 }
