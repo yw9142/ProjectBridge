@@ -1,75 +1,76 @@
-<!--
-PR 제목은 Conventional Commit 형식으로 작성해주세요.
-예: feat(user): 회원가입 기능 추가
-    fix(post): 게시글 조회 시 발생하는 오류 수정
+﻿<!--
+PR 제목은 Conventional Commit 형식으로 작성합니다.
+예) feat(pm-web): 프로젝트 대시보드 필터 추가
+    fix(backend): 서명 토큰 검증 누락 수정
 -->
 
-## 📝 변경 내용 (Description)
+> GitHub에서 PR 생성 시 상황에 맞게 아래 템플릿을 사용하세요.
+> - 프론트엔드 전용: `.github/PULL_REQUEST_TEMPLATE/frontend.md`
+> - 백엔드 전용: `.github/PULL_REQUEST_TEMPLATE/backend.md`
+> - 프론트/백 동시 변경: 이 문서(`docs/pull_request_template.md`) 내용을 사용
 
-- 변경 내용 작성
-<!-- 이 PR에서 어떤 변경 사항이 있었는지 명확하게 설명해주세요. -->
-<!-- 구현한 기능, 수정한 버그, 개선된 부분 등을 자세히 작성합니다. -->
-<!-- 예: -->
-<!-- - 로그인 페이지 UI 구현 및 API 연동 -->
-<!-- - 댓글 작성 시 간헐적으로 발생하던 500 에러 수정 -->
+## 변경 요약 (Summary)
+- 
 
-## 🔗 관련 이슈 (Related Issues)
+## 관련 이슈 (Related Issues)
+- Closes #
+- Related #
 
-<!-- 이 PR과 관련된 이슈 번호가 있다면 작성해주세요. (예: #123) -->
-<!-- 없다면 '없음'으로 표시합니다. -->
-- 관련 이슈: #???
+## 변경 범위 (Scope)
+### Frontend
+- [ ] `apps/pm-web`
+- [ ] `apps/client-web`
+- [ ] `apps/admin-web`
+- [ ] `packages/ui`
+- [ ] `packages/shared-types`
 
-## ✨ 주요 변경 사항 (Key Changes)
+### Backend
+- [ ] `backend` API/도메인 로직
+- [ ] `backend` DB/Flyway
+- [ ] `backend` 보안/인증/인가
+- [ ] `backend` 이벤트/SSE/알림
 
-<!-- 주요 변경 사항을 선택하고, 필요한 경우 간략히 설명해주세요. -->
-- [x] 새로운 기능 추가 (feat)
-- [ ] 버그 수정 (fix)
-- [ ] 코드 스타일 변경 (style)
-- [ ] 문서 내용 변경 (docs)
-- [ ] 코드 리팩토링 (refactor)
-- [ ] 테스트 코드 추가/수정 (test)
-- [ ] 빌드 관련 파일 수정 (build)
-- [ ] CI 설정 변경 (ci)
-- [ ] 성능 개선 (perf)
-- [ ] 기타 (chore)
+## 주요 변경 사항 (Key Changes)
+1. 
+2. 
+3. 
 
-<!-- 각 항목에 대한 간략한 설명 (선택 사항): -->
-<!-- 예: -->
-<!-- - feat: 사용자 인증을 위한 JWT 토큰 발급 로직 추가 -->
-<!-- - fix: 모바일 환경에서 레이아웃 깨짐 현상 수정 -->
+## API/스키마 영향 (API & Schema Impact)
+- [ ] API 요청/응답 스펙 변경 없음
+- [ ] API 요청/응답 스펙 변경 있음 (아래 기재)
+- [ ] DB 스키마 변경 없음
+- [ ] DB 스키마 변경 있음 (Flyway 파일 기재)
 
-## 🖼️ 스크린샷 / 비디오 (Screenshots / Videos)
+- API 변경:
+- DB 변경:
 
-- 이미지 영역
-<!-- UI 변경 사항이 있는 경우, 변경 전후를 비교할 수 있는 스크린샷이나 작동 비디오를 첨부해주세요. -->
-<!-- 변경 사항이 없다면 이 섹션은 생략해도 됩니다. -->
+## 테스트 및 검증 (Validation)
+### Frontend
+- [ ] `pnpm -C apps/pm-web lint`
+- [ ] `pnpm -C apps/client-web lint`
+- [ ] `pnpm -C apps/admin-web lint`
+- [ ] 주요 화면 수동 확인 (Desktop/Mobile)
 
-## ✅ PR 생성자 체크리스트 (PR Author Checklist)
+### Backend
+- [ ] `cd backend && gradlew.bat test`
+- [ ] `cd backend && gradlew.bat build`
+- [ ] 멀티테넌트/권한 경계 케이스 확인
 
-<!-- PR 생성 시 아래 항목들을 확인하고 체크해주세요. -->
-- [ ] PR 제목은 Conventional Commit 형식에 맞게 작성했습니다.
-- [ ] `main` 브랜치로부터 최신 변경사항을 통합했습니다 (rebase/merge).
-- [ ] 코드 스타일 및 컨벤션을 따랐습니다. (ESLint, Prettier 실행 확인)
-- [ ] Git pre-commit hook을 통해 코드가 검사되었고, 오류 없이 통과했습니다.
-- [ ] 불필요한 주석이나 디버깅 코드를 제거했습니다.
-- [ ] 복잡한 로직이나 다른 개발자가 이해하기 어려운 부분에 주석을 추가했습니다.
-- [ ] API 응답 타입 등 필요한 타입 정의를 명확하게 했습니다. (`lib/types/` 또는 피처 내 `types/`)
-- [ ] 환경 변수를 사용했다면 `env.local` 파일에 입력해야하는 변수에 대한 내용을 `README.md`에 작성 했습니다.
-- [ ] `use client` 지시어 사용을 최소화하고, 서버 컴포넌트 활용을 우선적으로 고려했습니다.
-- [ ] UI 변경 시, 시맨틱 HTML을 사용하고 기본적인 웹 접근성을 준수했습니다.
-- [ ] 필요한 경우, README.md 또는 관련 문서를 업데이트했습니다.
-- [ ] 로컬에서 빌드 (`npm run build` 또는 `yarn build`) 및 테스트를 성공적으로 완료했습니다.
+## 스크린샷/영상 (UI Changes)
+- 변경 전:
+- 변경 후:
 
-## 🙏 리뷰어에게 전달할 내용 (Notes for Reviewers)
+## 배포 및 롤백 메모 (Deploy/Rollback Notes)
+- 배포 시 유의사항:
+- 롤백 방법:
 
-<!-- 리뷰어가 특별히 신경 써서 봐주었으면 하는 부분이나, PR에 대한 추가적인 설명이 필요한 경우 작성해주세요. -->
-<!-- 예: -->
-<!-- - OOO 컴포넌트의 상태 관리 로직이 복잡한데, 더 좋은 방법이 있을지 검토 부탁드립니다. -->
-<!-- - 이번 변경으로 인해 기존 XXX 기능에 영향을 줄 수 있으니 해당 부분도 함께 확인해주세요. -->
+## 리뷰어 참고사항 (Notes for Reviewers)
+- 중점 리뷰 포인트:
+- 우려되는 리스크:
 
----
-
-<!--
-PR이 머지될 때 Squash and Merge를 사용할 예정입니다.
-커밋 메시지는 PR 제목을 기반으로 하지만, 필요시 수정될 수 있습니다.
--->
+## 작성자 체크리스트 (Author Checklist)
+- [ ] 브랜치 네이밍 규칙 준수 (`feat/*`, `fix/*`, `chore/*`, `refactor/*`)
+- [ ] `main` 최신 이력 반영 후 PR 생성
+- [ ] 디버그 코드/불필요 주석 제거
+- [ ] 환경 변수/문서(README 포함) 변경 시 함께 업데이트
+- [ ] Breaking change 여부 및 영향 범위 명시
