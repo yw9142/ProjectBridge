@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Project = { id: string; name: string; description?: string | null; status: string };
 type RequestStatus = "DRAFT" | "SENT" | "ACKED" | "IN_PROGRESS" | "DONE" | "REJECTED" | "CANCELLED";
@@ -341,7 +342,7 @@ export default function ClientHomePage() {
                   <p className="text-sm font-medium text-slate-500">{item.title}</p>
                   <Icon className={`h-4 w-4 ${item.accent}`} />
                 </div>
-                <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{loading ? "-" : item.value}</p>
+                {loading ? <Skeleton className="mt-3 h-9 w-20" /> : <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{item.value}</p>}
               </CardContent>
             </Card>
           );
@@ -410,7 +411,7 @@ export default function ClientHomePage() {
               </article>
             ))}
             {!loading && recentActions.length === 0 ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">표시할 액션이 없습니다.</p> : null}
-            {loading ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">불러오는 중...</p> : null}
+            {loading ? <Skeleton className="h-16 w-full rounded-lg" /> : null}
           </CardContent>
         </Card>
       </section>

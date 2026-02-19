@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Download, FileText, Folder } from "lucide-react";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type VisibilityScope = "SHARED" | "INTERNAL";
@@ -249,6 +250,16 @@ export default function ClientFilesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
+            {loading ? (
+              <tr>
+                <td colSpan={99} className="px-4 py-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </td>
+              </tr>
+            ) : null}
               {treeRows.map((row) => {
                 if (row.kind === "folder") {
                   return (

@@ -4,6 +4,7 @@ import { CalendarClock, CheckCheck, ClipboardList, HandCoins, History } from "lu
 import { useEffect, useMemo, useState } from "react";
 import { useProjectId } from "@/lib/use-project-id";
 import { apiFetch, handleAuthError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Project = { id: string; name: string; description?: string | null; status: string };
 type RequestType = "APPROVAL" | "INFO_REQUEST" | "FEEDBACK" | "SIGNATURE" | "PAYMENT_CONFIRMATION" | "VAULT_ACCESS" | "MEETING_CONFIRMATION";
@@ -245,7 +246,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-slate-500">{card.title}</p>
                 <Icon className={`h-4 w-4 ${card.accent}`} />
               </div>
-              <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{loading ? "-" : card.value}</p>
+              {loading ? <Skeleton className="mt-3 h-9 w-20" /> : <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{card.value}</p>}
             </article>
           );
         })}
@@ -309,7 +310,7 @@ export default function DashboardPage() {
               </article>
             ))}
             {!loading && recentActions.length === 0 ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">표시할 최근 액션이 없습니다.</p> : null}
-            {loading ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">불러오는 중...</p> : null}
+            {loading ? <Skeleton className="h-16 w-full rounded-lg" /> : null}
           </div>
         </article>
       </section>

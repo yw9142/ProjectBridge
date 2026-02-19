@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-action";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
 type VisibilityScope = "SHARED" | "INTERNAL";
@@ -74,7 +75,21 @@ export default function PostEditPage() {
     }
   }
 
-  if (loading || !post) {
+  if (loading) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <Link href={`/admin/projects/${projectId}/posts/${postId}`} className="text-sm text-indigo-600 hover:underline">
+          게시글 상세
+        </Link>
+        <div className="mt-3 space-y-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </section>
+    );
+  }
+
+  if (!post) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <Link href={`/admin/projects/${projectId}/posts/${postId}`} className="text-sm text-indigo-600 hover:underline">

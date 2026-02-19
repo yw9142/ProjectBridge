@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { MessageSquare, Pin, UserCircle2 } from "lucide-react";
@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
 type VisibilityScope = "SHARED" | "INTERNAL";
@@ -155,7 +156,7 @@ export default function ProjectPostsPage() {
         </Link>
       </div>
 
-      {loading ? <p className="text-sm text-slate-500">불러오는 중...</p> : null}
+      {loading ? (<div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-24 w-full" /></div>) : null}
 
       <div className="space-y-4">
         {renderPostSection("공유용", "클라이언트와 함께 보는 게시글", sharedPosts)}

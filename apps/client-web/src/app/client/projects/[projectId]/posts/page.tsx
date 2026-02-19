@@ -6,6 +6,7 @@ import { MessageSquare, Pin, UserCircle2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
 type VisibilityScope = "SHARED" | "INTERNAL";
@@ -101,7 +102,7 @@ export default function ClientPostsPage() {
         </Link>
       </div>
 
-      {loading ? <p className="text-sm text-slate-500">불러오는 중...</p> : null}
+      {loading ? (<div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-24 w-full" /></div>) : null}
 
       <div className="space-y-3">
         {sortedPosts.map((post) => (

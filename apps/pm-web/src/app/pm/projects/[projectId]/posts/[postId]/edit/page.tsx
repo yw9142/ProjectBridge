@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-action";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type PostType = "ANNOUNCEMENT" | "GENERAL" | "QA" | "ISSUE" | "MEETING_MINUTES" | "RISK";
 type VisibilityScope = "SHARED" | "INTERNAL";
@@ -80,7 +81,7 @@ export default function PostEditPage() {
         <Link href={`/pm/projects/${projectId}/posts/${postId}`} className="text-sm text-indigo-600 hover:underline">
           상세로
         </Link>
-        <p className="mt-3 text-sm text-slate-500">게시글을 불러오는 중입니다.</p>
+        {loading ? (<div className="mt-3 space-y-2"><Skeleton className="h-5 w-32" /><Skeleton className="h-24 w-full" /></div>) : <p className="mt-3 text-sm text-slate-500">게시글을 찾을 수 없습니다.</p>}
         {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       </section>
     );

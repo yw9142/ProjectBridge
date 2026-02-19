@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Contract = {
   id: string;
@@ -130,7 +131,15 @@ export default function PmContractSigningStatusPage() {
   }, [projectId, contractId]);
 
   if (loading) {
-    return <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">서명 상태를 불러오는 중...</div>;
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6">
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-4 w-56" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      </div>
+    );
   }
 
   if (error) {

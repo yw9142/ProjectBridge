@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import SignaturePad from "signature_pad";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type SignatureFieldType = "SIGNATURE" | "INITIAL" | "DATE" | "TEXT" | "CHECKBOX";
 
@@ -223,7 +224,22 @@ export function SigningPageClient({ contractId }: { contractId: string }) {
   }
 
   if (loading) {
-    return <main className="min-h-screen bg-slate-50 p-6">서명 정보를 불러오는 중입니다...</main>;
+    return (
+      <main className="min-h-screen bg-slate-50 p-6">
+        <div className="mx-auto max-w-4xl space-y-4">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="mt-2 h-4 w-64" />
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </div>
+          </section>
+        </div>
+      </main>
+    );
   }
 
   if (error && !data) {
