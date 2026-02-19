@@ -1,37 +1,36 @@
 # Bridge 서비스 소개
 
-Bridge는 관리자(Admin), PM(Vendor), 클라이언트(Client) 3개 포털로 구성된 B2B 프로젝트 협업 서비스입니다.
-프로젝트 생성부터 커뮤니케이션, 파일 검토, 회의, 계약/전자서명, 정산, Vault까지 하나의 흐름으로 운영합니다.
+Bridge는 Admin, PM, Client 3개 포털을 통해 프로젝트 운영과 실행을 분리한 협업 플랫폼입니다.
+현재 버전은 프로젝트 단위 작업공간 중심으로 대시보드, 커뮤니케이션, 요청, 파일, 회의, 계약/전자서명, 정산, 금고(Vault)를 연결해 운영합니다.
 
 ## 포털별 역할
 
-- Admin: 테넌트/사용자/프로젝트 운영 관리
-- PM: 프로젝트 생성 및 실행, 실무 협업 주도
-- Client: 요청 응답, 파일/계약/정산 검토 및 승인
+- Admin: 테넌트/프로젝트 운영, 프로젝트 탭 모니터링, 운영 설정 관리
+- PM: 프로젝트 실행 주도, 협업 데이터 생성/관리, 계약 및 정산 운영
+- Client: 요청 응답, 공유 자료 검토, 계약 서명/상태 확인, 정산 확인
 
-## 공통 제공 기능
+## 현재 버전 공통 흐름
 
-1. 테넌트/사용자 관리
-2. 프로젝트 생성 및 멤버 초대
-3. 게시글 기반 커뮤니케이션
-4. 요청 상태 관리
-5. 파일 버전 및 리뷰 협업
-6. 회의 일정/참석 관리
-7. 계약 및 전자서명(eSign)
-8. 정산(Billing) 상태 관리
-9. Vault 보안 정보 관리
+1. 로그인 후 프로젝트 목록에서 프로젝트 작업공간 진입
+2. 대시보드에서 요청/회의/계약/정산 지표 확인
+3. 커뮤니케이션/요청/파일/회의/계약 탭에서 실무 협업 수행
+4. 정산 탭에서 항목 상태 관리
+5. 금고(Vault) 탭에서 계정 정보 요청/제공/입력 흐름 관리
+6. 계약 서명 단계에서 `/sign/{contractId}` 전자서명 페이지 사용
 
 ## 스크린샷 캡처 기준
 
-- 캡처 일시: 2026-02-17 (KST)
+- 캡처 일시: 2026-02-19 (KST)
 - 캡처 방식: Chrome MCP
 - 로컬 실행 URL:
   - Admin: `http://localhost:3002`
   - PM: `http://localhost:3000`
   - Client: `http://localhost:3001`
 - 데모 데이터 기준:
-  - tenant slug: `dod-20260217192452`
-  - projectId: `0d63ec02-93d3-48f6-af2e-171bbe2f3e05`
+  - Admin tenantId: `d69e1dab-288b-43ee-a9fa-d183fc221255`
+  - Admin projectId: `0d63ec02-93d3-48f6-af2e-171bbe2f3e05`
+  - PM/Client projectId: `22222222-2222-2222-2222-222222222222`
+  - 전자서명 contractId: `7fee58e2-a2eb-4b48-84c6-7c0aef0bb749`
 
 ## 화면 미리보기
 
@@ -61,7 +60,7 @@ Bridge는 관리자(Admin), PM(Vendor), 클라이언트(Client) 3개 포털로 �
 ![PM 대시보드](./screenshots/pm-dashboard.png)
 
 #### 커뮤니케이션
-![PM 게시글](./screenshots/pm-posts.png)
+![PM 커뮤니케이션](./screenshots/pm-posts.png)
 
 #### 요청
 ![PM 요청](./screenshots/pm-requests.png)
@@ -78,8 +77,8 @@ Bridge는 관리자(Admin), PM(Vendor), 클라이언트(Client) 3개 포털로 �
 #### 정산
 ![PM 정산](./screenshots/pm-billing.png)
 
-#### Vault
-![PM Vault](./screenshots/pm-vault.png)
+#### 금고(Vault)
+![PM 금고](./screenshots/pm-vault.png)
 
 ### Client
 
@@ -107,8 +106,8 @@ Bridge는 관리자(Admin), PM(Vendor), 클라이언트(Client) 3개 포털로 �
 #### 정산
 ![Client 정산](./screenshots/client-billing.png)
 
-#### Vault
-![Client Vault](./screenshots/client-vault.png)
+#### 금고(Vault)
+![Client 금고](./screenshots/client-vault.png)
 
 #### 전자서명
 ![Client 전자서명](./screenshots/client-signing.png)
