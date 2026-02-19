@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Modal } from "@bridge/ui";
 
 type InvoiceStatus = "DRAFT" | "ISSUED" | "CONFIRMED" | "CLOSED" | "OVERDUE" | "CANCELLED";
@@ -295,30 +296,36 @@ export default function ProjectBillingPage() {
         </table>
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="정산 생성" description="구분, 금액, 첨부파일을 입력해 생성합니다.">
-        <form onSubmit={createInvoice} className="space-y-3">
-          <select className="w-full rounded-lg border border-slate-300 px-3 py-2" value={createPhase} onChange={(e) => setCreatePhase(e.target.value as InvoicePhase)}>
-            {phases.map((phase) => (
-              <option key={phase.value} value={phase.value}>
-                {phase.label}
-              </option>
-            ))}
-          </select>
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" type="number" value={createAmount} onChange={(e) => setCreateAmount(e.target.value)} required />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="통화" value={createCurrency} onChange={(e) => setCreateCurrency(e.target.value)} />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" type="date" value={createDueAt} onChange={(e) => setCreateDueAt(e.target.value)} />
-          <input type="file" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" onChange={onPickCreateAttachment} />
-          {createAttachment ? <p className="text-xs text-slate-500">첨부 파일: {createAttachment.name}</p> : null}
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              취소
-            </button>
-            <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
-              생성
-            </button>
-          </div>
-        </form>
-      </Modal>
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>정산 생성</DialogTitle>
+            <DialogDescription>구분, 금액, 첨부 파일을 입력해 생성합니다.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={createInvoice} className="space-y-3">
+            <select className="w-full rounded-lg border border-slate-300 px-3 py-2" value={createPhase} onChange={(e) => setCreatePhase(e.target.value as InvoicePhase)}>
+              {phases.map((phase) => (
+                <option key={phase.value} value={phase.value}>
+                  {phase.label}
+                </option>
+              ))}
+            </select>
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2" type="number" value={createAmount} onChange={(e) => setCreateAmount(e.target.value)} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="통화" value={createCurrency} onChange={(e) => setCreateCurrency(e.target.value)} />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2" type="date" value={createDueAt} onChange={(e) => setCreateDueAt(e.target.value)} />
+            <input type="file" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" onChange={onPickCreateAttachment} />
+            {createAttachment ? <p className="text-xs text-slate-500">첨부 파일: {createAttachment.name}</p> : null}
+            <DialogFooter>
+              <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+                취소
+              </button>
+              <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
+                생성
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Modal open={Boolean(editingId)} onClose={() => setEditingId(null)} title="정산 수정" description="정산 정보를 수정합니다.">
         <form onSubmit={saveEdit} className="space-y-3">

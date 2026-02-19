@@ -34,7 +34,7 @@ export default function ProjectEventsPage() {
         }
       } catch (e) {
         if (!handleAuthError(e, "/login") && active) {
-          setError(e instanceof Error ? e.message : "蹂寃??대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+          setError(e instanceof Error ? e.message : "변경 이력을 불러오지 못했습니다.");
         }
       } finally {
         if (active) {
@@ -50,11 +50,11 @@ export default function ProjectEventsPage() {
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">PM 蹂寃??대젰</h1>
-        <p className="text-sm text-slate-500">PM ?ъ슜?먭? ?섑뻾??蹂寃??대깽?몃? ?쒓컙?쒖쑝濡??뺤씤?⑸땲??</p>
+        <h1 className="text-xl font-bold text-slate-900">PM 변경 이력</h1>
+        <p className="text-sm text-slate-500">PM 사용자가 수행한 변경 이벤트를 시간순으로 확인합니다.</p>
       </div>
 
-      {loading ? <p className="text-sm text-slate-500">遺덈윭?ㅻ뒗 以?..</p> : null}
+      {loading ? <p className="text-sm text-slate-500">불러오는 중...</p> : null}
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
       <div className="space-y-2">
@@ -67,7 +67,7 @@ export default function ProjectEventsPage() {
             </p>
           </article>
         ))}
-        {!loading && !error && items.length === 0 ? <p className="text-sm text-slate-500">?쒖떆??蹂寃??대젰???놁뒿?덈떎.</p> : null}
+        {!loading && !error && items.length === 0 ? <p className="text-sm text-slate-500">표시할 변경 이력이 없습니다.</p> : null}
       </div>
     </section>
   );

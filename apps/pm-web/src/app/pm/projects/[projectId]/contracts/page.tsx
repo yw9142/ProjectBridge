@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Modal } from "@bridge/ui";
 
 type ContractStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
@@ -443,21 +444,33 @@ export default function ProjectContractsPage() {
         </table>
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="계약 생성" description="계약명과 계약서 PDF를 입력합니다.">
-        <form onSubmit={createContract} className="space-y-3">
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="계약명" value={createName} onChange={(e) => setCreateName(e.target.value)} required />
-          <input type="file" accept="application/pdf" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" onChange={onPickCreatePdf} required />
-          {createPdf ? <p className="text-xs text-slate-500">선택 파일: {createPdf.name}</p> : null}
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              취소
-            </button>
-            <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
-              생성
-            </button>
-          </div>
-        </form>
-      </Modal>
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>계약 생성</DialogTitle>
+            <DialogDescription>계약명과 계약서 PDF를 입력합니다.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={createContract} className="space-y-3">
+            <input
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              placeholder="계약명"
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              required
+            />
+            <input type="file" accept="application/pdf" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" onChange={onPickCreatePdf} required />
+            {createPdf ? <p className="text-xs text-slate-500">선택 파일: {createPdf.name}</p> : null}
+            <DialogFooter>
+              <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+                취소
+              </button>
+              <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
+                생성
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Modal
         open={Boolean(editingId)}
@@ -507,7 +520,7 @@ export default function ProjectContractsPage() {
               취소
             </button>
             <button type="submit" disabled={signSubmitting} className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60">
-              {signSubmitting ? "생성 중" : "링크 생성"}
+              {signSubmitting ? "생성 중..." : "링크 생성"}
             </button>
           </div>
         </form>
