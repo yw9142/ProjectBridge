@@ -16,7 +16,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-between px-4 md:px-6">
+        <div className="mx-auto flex h-14 w-full max-w-[1680px] items-center justify-between px-4 md:px-6">
           <Link href="/admin/tenants" className="flex items-center gap-3">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
             <div className="leading-tight">
@@ -34,7 +34,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <div className="mx-auto grid w-full max-w-[1400px] gap-5 px-4 py-5 md:px-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <div className="mx-auto grid w-full max-w-[1680px] gap-5 px-4 py-5 md:px-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="h-fit rounded-xl border border-border bg-card p-2 shadow-sm">
           <p className="px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">내비게이션</p>
           <nav className="space-y-0.5" aria-label="관리자 메뉴">

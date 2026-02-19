@@ -38,7 +38,7 @@ export default function PostEditPage() {
         setPost(data);
       } catch (e) {
         if (!handleAuthError(e, "/admin/login")) {
-          setError(e instanceof Error ? e.message : "寃뚯떆湲??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+          setError(e instanceof Error ? e.message : "게시글을 찾을 수 없습니다.");
         }
       } finally {
         setLoading(false);
@@ -67,7 +67,7 @@ export default function PostEditPage() {
       router.replace(`/admin/projects/${projectId}/posts/${postId}`);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "寃뚯떆湲 ?섏젙???ㅽ뙣?덉뒿?덈떎.");
+        setError(e instanceof Error ? e.message : "게시글 수정에 실패했습니다.");
       }
     } finally {
       setSubmitting(false);
@@ -78,8 +78,8 @@ export default function PostEditPage() {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <Link href={`/admin/projects/${projectId}/posts/${postId}`} className="text-sm text-indigo-600 hover:underline">
-          ?곸꽭濡?        </Link>
-        <p className="mt-3 text-sm text-slate-500">寃뚯떆湲??遺덈윭?ㅻ뒗 以묒엯?덈떎.</p>
+          게시글 상세        </Link>
+        <p className="mt-3 text-sm text-slate-500">게시글을 찾을 수 없습니다.</p>
         {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       </section>
     );
@@ -88,9 +88,9 @@ export default function PostEditPage() {
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">寃뚯떆湲 ?섏젙</h1>
+        <h1 className="text-xl font-bold text-slate-900">게시글 수정</h1>
         <Link href={`/admin/projects/${projectId}/posts/${postId}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
-          ?곸꽭濡?        </Link>
+          게시글 상세        </Link>
       </div>
 
       <form onSubmit={updatePost} className="space-y-3 rounded-lg border border-slate-200 p-4">
@@ -99,20 +99,20 @@ export default function PostEditPage() {
         <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2" rows={8} value={post.body} onChange={(e) => setPost({ ...post, body: e.target.value })} required />
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={post.pinned} onChange={(e) => setPost({ ...post, pinned: e.target.checked })} />
-          ?곷떒 怨좎젙
+          상단 고정
         </label>
         <select
           className="w-full rounded-lg border border-slate-300 px-3 py-2"
           value={post.visibilityScope}
           onChange={(e) => setPost({ ...post, visibilityScope: e.target.value as VisibilityScope })}
         >
-          <option value="SHARED">怨듭쑀??(?대씪?댁뼵??怨듦컻)</option>
-          <option value="INTERNAL">?대???(PM ?꾩슜)</option>
+          <option value="SHARED">공유용 (클라이언트 공개)</option>
+          <option value="INTERNAL">내부용 (PM 전용)</option>
         </select>
         <ConfirmSubmitButton
-          label={submitting ? "???以?.." : "寃뚯떆湲 ?섏젙"}
-          title="寃뚯떆湲???섏젙?좉퉴??"
-          description="?섏젙???쒕ぉ/蹂몃Ц/怨좎젙/怨듦컻 踰붿쐞媛 ??λ맗?덈떎."
+          label={submitting ? "저장 중..." : "게시글 수정"}
+          title="게시글을 수정할까요?"
+          description="수정된 제목/본문/고정/공개 범위가 저장됩니다."
           disabled={submitting}
           triggerVariant="outline"
           triggerClassName="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"

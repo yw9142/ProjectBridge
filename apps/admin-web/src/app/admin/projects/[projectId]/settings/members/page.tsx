@@ -36,13 +36,12 @@ export default function ProjectMemberSettingsPage() {
   const [accountDrafts, setAccountDrafts] = useState<Record<string, AccountDraft>>({});
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
   const [loginId, setLoginId] = useState("");
   const [initialPassword, setInitialPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [inviteRole, setInviteRole] = useState<MemberRole>("CLIENT_MEMBER");
 
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [createNotice, setCreateNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
@@ -77,22 +76,20 @@ export default function ProjectMemberSettingsPage() {
   async function createMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setInviteToken(null);
+    setCreateNotice(null);
 
     try {
-      const result = await apiFetch<{ invitationToken: string }>(`/api/projects/${projectId}/members/invite`, {
+      const created = await apiFetch<ProjectMember>(`/api/projects/${projectId}/members/invite`, {
         method: "POST",
         body: JSON.stringify({
-          email: inviteEmail,
           role: inviteRole,
           loginId,
           password: initialPassword,
           name: displayName,
         }),
       });
-      setInviteToken(result.invitationToken);
+      setCreateNotice(`계정이 생성되었습니다. 로그인 ID: ${created.loginId}`);
       setCreateOpen(false);
-      setInviteEmail("");
       setLoginId("");
       setInitialPassword("");
       setDisplayName("");
@@ -179,7 +176,7 @@ export default function ProjectMemberSettingsPage() {
         </button>
       </div>
 
-      {inviteToken ? <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">초대 토큰: {inviteToken}</p> : null}
+      {createNotice ? <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{createNotice}</p> : null}
 
       <div className="overflow-hidden rounded-lg border border-slate-200">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -297,13 +294,6 @@ export default function ProjectMemberSettingsPage() {
         description="로그인 ID/비밀번호를 포함해 계정을 생성하고 프로젝트에 추가합니다."
       >
         <form onSubmit={createMember} className="space-y-3">
-          <input
-            className="w-full rounded-lg border border-slate-300 px-3 py-2"
-            placeholder="초대 이메일"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            required
-          />
           <input
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             placeholder="로그인 ID(이메일)"

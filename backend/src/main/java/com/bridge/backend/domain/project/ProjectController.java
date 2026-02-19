@@ -49,19 +49,14 @@ public class ProjectController {
     }
 
     @PostMapping("/api/projects/{projectId}/members/invite")
-    public ApiSuccess<Map<String, Object>> invite(@PathVariable UUID projectId, @RequestBody @Valid InviteRequest request) {
-        var invitation = projectService.invite(
+    public ApiSuccess<ProjectService.ProjectMemberAccount> invite(@PathVariable UUID projectId, @RequestBody @Valid InviteRequest request) {
+        return ApiSuccess.of(projectService.invite(
                 SecurityUtils.requirePrincipal(),
                 projectId,
-                request.email(),
-                request.role(),
                 request.loginId(),
                 request.password(),
-                request.name()
-        );
-        return ApiSuccess.of(Map.of(
-                "invitationToken", invitation.getInvitationToken(),
-                "expiresAt", invitation.getExpiresAt()
+                request.name(),
+                request.role()
         ));
     }
 
@@ -90,18 +85,13 @@ public class ProjectController {
         return ApiSuccess.of(projectService.removeMember(SecurityUtils.requirePrincipal(), projectId, memberId));
     }
 
-    @PostMapping("/api/invitations/{invitationToken}/accept")
-    public ApiSuccess<Map<String, Object>> accept(@PathVariable String invitationToken) {
-        return ApiSuccess.of(projectService.acceptInvitation(invitationToken));
-    }
-
     public record CreateProjectRequest(@NotBlank String name, String description) {
     }
 
     public record UpdateProjectRequest(String name, String description, ProjectStatus status) {
     }
 
-    public record InviteRequest(@Email @NotBlank String email, MemberRole role, String loginId, String password, String name) {
+    public record InviteRequest(@Email @NotBlank String loginId, @NotBlank String password, String name, MemberRole role) {
     }
 
     public record UpdateMemberRequest(MemberRole role) {

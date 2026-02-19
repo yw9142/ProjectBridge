@@ -207,7 +207,7 @@ export default function ProjectVaultPage() {
               <th className="px-4 py-3">플랫폼</th>
               <th className="px-4 py-3">URL</th>
               <th className="px-4 py-3">이유</th>
-              <th className="px-4 py-3">요청자</th>
+              <th className="px-4 py-3">등록자</th>
               <th className="px-4 py-3">상태</th>
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">PW</th>

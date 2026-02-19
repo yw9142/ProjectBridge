@@ -35,7 +35,7 @@ export default function NewPostPage() {
       router.replace(`/admin/projects/${projectId}/posts`);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "寃뚯떆湲 ?앹꽦???ㅽ뙣?덉뒿?덈떎.");
+        setError(e instanceof Error ? e.message : "게시글 생성에 실패했습니다.");
       }
     } finally {
       setSubmitting(false);
@@ -45,9 +45,9 @@ export default function NewPostPage() {
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">寃뚯떆湲 ?묒꽦</h1>
+        <h1 className="text-xl font-bold text-slate-900">게시글 생성</h1>
         <Link href={`/admin/projects/${projectId}/posts`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
-          紐⑸줉?쇰줈
+          목록으로
         </Link>
       </div>
 
@@ -59,24 +59,24 @@ export default function NewPostPage() {
             </option>
           ))}
         </select>
-        <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="?쒕ぉ" value={title} onChange={(e) => setTitle(e.target.value)} required />
-        <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2" rows={10} placeholder="蹂몃Ц" value={body} onChange={(e) => setBody(e.target.value)} required />
+        <input className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2" rows={10} placeholder="본문" value={body} onChange={(e) => setBody(e.target.value)} required />
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
-          ?곷떒 怨좎젙
+          상단 고정
         </label>
         <select
           className="w-full rounded-lg border border-slate-300 px-3 py-2"
           value={visibilityScope}
           onChange={(e) => setVisibilityScope(e.target.value as VisibilityScope)}
         >
-          <option value="SHARED">怨듭쑀??(?대씪?댁뼵??怨듦컻)</option>
-          <option value="INTERNAL">?대???(PM ?꾩슜)</option>
+          <option value="SHARED">공유용 (클라이언트 공개)</option>
+          <option value="INTERNAL">내부용 (PM 전용)</option>
         </select>
         <ConfirmSubmitButton
-          label={submitting ? "?묒꽦 以?.." : "?깅줉"}
-          title="寃뚯떆湲???깅줉?좉퉴??"
-          description="?낅젰???댁슜?쇰줈 寃뚯떆湲???앹꽦?⑸땲??"
+          label={submitting ? "저장 중..." : "게시글 생성"}
+          title="게시글을 생성할까요?"
+          description="입력한 내용으로 게시글이 생성됩니다."
           disabled={submitting}
           triggerClassName="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-60"
         />

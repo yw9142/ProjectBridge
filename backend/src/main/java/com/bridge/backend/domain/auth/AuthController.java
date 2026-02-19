@@ -43,18 +43,6 @@ public class AuthController {
         return ApiSuccess.of(authService.me(SecurityUtils.currentUserId()));
     }
 
-    @PostMapping("/set-password")
-    public ApiSuccess<Map<String, Object>> setPassword(@RequestBody @Valid SetPasswordRequest request) {
-        authService.setPassword(SecurityUtils.currentUserId(), request.password());
-        return ApiSuccess.of(Map.of("updated", true));
-    }
-
-    @PostMapping("/invitations/{invitationToken}/set-password")
-    public ApiSuccess<Map<String, Object>> setPasswordByInvitation(@PathVariable String invitationToken,
-                                                                   @RequestBody @Valid InvitationSetPasswordRequest request) {
-        return ApiSuccess.of(authService.activateInvitation(invitationToken, request.password(), request.name()));
-    }
-
     @PostMapping("/switch-tenant")
     public ApiSuccess<Map<String, Object>> switchTenant(@RequestBody @Valid SwitchTenantRequest request) {
         return ApiSuccess.of(authService.switchTenant(SecurityUtils.currentUserId(), request.tenantId()));
@@ -67,12 +55,6 @@ public class AuthController {
     }
 
     public record LogoutRequest(@NotBlank String refreshToken) {
-    }
-
-    public record SetPasswordRequest(@NotBlank String password) {
-    }
-
-    public record InvitationSetPasswordRequest(@NotBlank String password, String name) {
     }
 
     public record SwitchTenantRequest(@NotNull UUID tenantId) {
