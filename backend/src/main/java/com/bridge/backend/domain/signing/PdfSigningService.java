@@ -15,8 +15,10 @@ import org.springframework.stereotype.Service;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -37,44 +39,71 @@ public class PdfSigningService {
     private static final int MAX_BASE64_CHARS = 2_400_000;
     private static final int MAX_IMAGE_BYTES = 1_800_000;
     private static final int MAX_IMAGE_DIMENSION = 4096;
+    private static final long MAX_RENDERED_PDF_BYTES = 25L * 1024L * 1024L;
 
-    public byte[] applyRecipientFields(byte[] sourcePdfBytes,
-                                       List<SignatureFieldEntity> recipientFields,
-                                       Map<UUID, String> fieldValues,
-                                       String signatureDataUrl,
-                                       String signerName) {
-        if (recipientFields.isEmpty()) {
-            return sourcePdfBytes;
-        }
-
-        try (PDDocument document = Loader.loadPDF(sourcePdfBytes);
-             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            for (SignatureFieldEntity field : recipientFields) {
-                int pageIndex = Math.max(0, field.getPage() - 1);
-                if (pageIndex >= document.getNumberOfPages()) {
-                    continue;
-                }
-
-                PDPage page = document.getPage(pageIndex);
-                Rect rect = resolveRect(page, field);
-                if (rect.width() <= 0 || rect.height() <= 0) {
-                    continue;
-                }
-
-                String value = fieldValues.getOrDefault(field.getId(), "");
-                if (field.getType() == SignatureFieldType.DATE && value.isBlank()) {
-                    value = DATE_FORMATTER.format(LocalDate.now());
-                }
-
-                try (PDPageContentStream stream = new PDPageContentStream(document, page, AppendMode.APPEND, true, true)) {
-                    renderField(stream, document, field.getType(), rect, value, signatureDataUrl, signerName);
-                }
+    public Path applyRecipientFields(Path sourcePdfPath,
+                                     List<SignatureFieldEntity> recipientFields,
+                                     Map<UUID, String> fieldValues,
+                                     String signatureDataUrl,
+                                     String signerName) {
+        Path outputPdfPath = null;
+        try {
+            outputPdfPath = Files.createTempFile("signed-contract-", ".pdf");
+            if (recipientFields.isEmpty()) {
+                Files.copy(sourcePdfPath, outputPdfPath, StandardCopyOption.REPLACE_EXISTING);
+                return outputPdfPath;
             }
 
-            document.save(output);
-            return output.toByteArray();
+            try (PDDocument document = Loader.loadPDF(sourcePdfPath.toFile())) {
+                for (SignatureFieldEntity field : recipientFields) {
+                    int pageIndex = Math.max(0, field.getPage() - 1);
+                    if (pageIndex >= document.getNumberOfPages()) {
+                        continue;
+                    }
+
+                    PDPage page = document.getPage(pageIndex);
+                    Rect rect = resolveRect(page, field);
+                    if (rect.width() <= 0 || rect.height() <= 0) {
+                        continue;
+                    }
+
+                    String value = fieldValues.getOrDefault(field.getId(), "");
+                    if (field.getType() == SignatureFieldType.DATE && value.isBlank()) {
+                        value = DATE_FORMATTER.format(LocalDate.now());
+                    }
+
+                    try (PDPageContentStream stream = new PDPageContentStream(document, page, AppendMode.APPEND, true, true)) {
+                        renderField(stream, document, field.getType(), rect, value, signatureDataUrl, signerName);
+                    }
+                }
+
+                document.save(outputPdfPath.toFile());
+            }
+
+            long renderedSize = Files.size(outputPdfPath);
+            if (renderedSize > MAX_RENDERED_PDF_BYTES) {
+                deleteQuietly(outputPdfPath);
+                throw new IllegalStateException("Signed PDF is too large to process.");
+            }
+            return outputPdfPath;
         } catch (IOException ex) {
-            throw new IllegalStateException("Failed to render signature fields into PDF.", ex);
+            if (outputPdfPath != null) {
+                deleteQuietly(outputPdfPath);
+            }
+            throw new IllegalStateException("Failed to render signature fields into PDF: " + ex.getMessage(), ex);
+        } catch (RuntimeException ex) {
+            if (outputPdfPath != null) {
+                deleteQuietly(outputPdfPath);
+            }
+            throw ex;
+        }
+    }
+
+    private void deleteQuietly(Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ignored) {
+            // best effort only
         }
     }
 

@@ -37,7 +37,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.MessageDigest;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
@@ -248,75 +253,86 @@ public class SigningController {
                     "Contract PDF is too large to sign in-app."
             );
         }
-        byte[] sourcePdf = storageService.downloadObject(baseVersion.getObjectKey());
-        byte[] signedPdf = pdfSigningService.applyRecipientFields(
-                sourcePdf,
-                recipientFields,
-                fieldValues,
-                request == null ? null : request.signatureDataUrl(),
-                recipient.getRecipientName()
-        );
+        Path sourcePdfPath = null;
+        Path signedPdfPath = null;
+        try (InputStream sourceStream = storageService.downloadObjectStream(baseVersion.getObjectKey())) {
+            sourcePdfPath = Files.createTempFile("signing-source-", ".pdf");
+            Files.copy(sourceStream, sourcePdfPath, StandardCopyOption.REPLACE_EXISTING);
+            signedPdfPath = pdfSigningService.applyRecipientFields(
+                    sourcePdfPath,
+                    recipientFields,
+                    fieldValues,
+                    request == null ? null : request.signatureDataUrl(),
+                    recipient.getRecipientName()
+            );
 
-        String checksum = sha256Hex(signedPdf);
-        List<FileVersionEntity> versions = fileVersionRepository.findByFileIdAndTenantIdAndDeletedAtIsNullOrderByVersionDesc(
-                baseVersion.getFileId(),
-                contract.getTenantId()
-        );
-        int nextVersion = versions.stream()
-                .findFirst()
-                .map(v -> v.getVersion() + 1)
-                .orElse(1);
+            long signedPdfSize = Files.size(signedPdfPath);
+            String checksum = sha256Hex(signedPdfPath);
+            List<FileVersionEntity> versions = fileVersionRepository.findByFileIdAndTenantIdAndDeletedAtIsNullOrderByVersionDesc(
+                    baseVersion.getFileId(),
+                    contract.getTenantId()
+            );
+            int nextVersion = versions.stream()
+                    .findFirst()
+                    .map(v -> v.getVersion() + 1)
+                    .orElse(1);
 
-        StorageService.UploadTarget uploadTarget = storageService.createUploadTarget(
-                baseVersion.getFileId(),
-                nextVersion,
-                "application/pdf",
-                signedPdf.length,
-                checksum
-        );
-        storageService.uploadToPresignedUrl(uploadTarget.uploadUrl(), uploadTarget.contentType(), signedPdf);
+            StorageService.UploadTarget uploadTarget = storageService.createUploadTarget(
+                    baseVersion.getFileId(),
+                    nextVersion,
+                    "application/pdf",
+                    signedPdfSize,
+                    checksum
+            );
+            storageService.uploadToPresignedUrl(uploadTarget.uploadUrl(), uploadTarget.contentType(), signedPdfPath);
 
-        boolean validTicket = storageService.verifyUploadTicket(
-                uploadTarget.uploadTicket(),
-                baseVersion.getFileId(),
-                uploadTarget.version(),
-                uploadTarget.objectKey(),
-                uploadTarget.contentType(),
-                uploadTarget.size(),
-                uploadTarget.checksum()
-        );
-        if (!validTicket) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TICKET_INVALID", "Upload ticket is invalid or expired.");
-        }
+            boolean validTicket = storageService.verifyUploadTicket(
+                    uploadTarget.uploadTicket(),
+                    baseVersion.getFileId(),
+                    uploadTarget.version(),
+                    uploadTarget.objectKey(),
+                    uploadTarget.contentType(),
+                    uploadTarget.size(),
+                    uploadTarget.checksum()
+            );
+            if (!validTicket) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "UPLOAD_TICKET_INVALID", "Upload ticket is invalid or expired.");
+            }
 
-        try {
-            versions.stream()
-                    .filter(FileVersionEntity::isLatest)
-                    .forEach(v -> {
-                        v.setLatest(false);
-                        fileVersionRepository.save(v);
-                    });
+            try {
+                versions.stream()
+                        .filter(FileVersionEntity::isLatest)
+                        .forEach(v -> {
+                            v.setLatest(false);
+                            fileVersionRepository.save(v);
+                        });
 
-            FileVersionEntity signedVersion = new FileVersionEntity();
-            signedVersion.setTenantId(contract.getTenantId());
-            signedVersion.setFileId(baseVersion.getFileId());
-            signedVersion.setVersion(uploadTarget.version());
-            signedVersion.setObjectKey(uploadTarget.objectKey());
-            signedVersion.setContentType(uploadTarget.contentType());
-            signedVersion.setSize(uploadTarget.size());
-            signedVersion.setChecksum(uploadTarget.checksum());
-            signedVersion.setLatest(true);
-            signedVersion.setCreatedBy(actorUserId);
-            signedVersion.setUpdatedBy(actorUserId);
-            FileVersionEntity savedVersion = fileVersionRepository.save(signedVersion);
+                FileVersionEntity signedVersion = new FileVersionEntity();
+                signedVersion.setTenantId(contract.getTenantId());
+                signedVersion.setFileId(baseVersion.getFileId());
+                signedVersion.setVersion(uploadTarget.version());
+                signedVersion.setObjectKey(uploadTarget.objectKey());
+                signedVersion.setContentType(uploadTarget.contentType());
+                signedVersion.setSize(uploadTarget.size());
+                signedVersion.setChecksum(uploadTarget.checksum());
+                signedVersion.setLatest(true);
+                signedVersion.setCreatedBy(actorUserId);
+                signedVersion.setUpdatedBy(actorUserId);
+                FileVersionEntity savedVersion = fileVersionRepository.save(signedVersion);
 
-            contract.setFileVersionId(savedVersion.getId());
-            contract.setUpdatedBy(actorUserId);
-            contractRepository.save(contract);
-            return savedVersion;
-        } catch (RuntimeException ex) {
-            storageService.deleteByUploadUrl(uploadTarget.uploadUrl());
-            throw ex;
+                contract.setFileVersionId(savedVersion.getId());
+                contract.setUpdatedBy(actorUserId);
+                contractRepository.save(contract);
+                return savedVersion;
+            } catch (RuntimeException ex) {
+                storageService.deleteByUploadUrl(uploadTarget.uploadUrl());
+                throw ex;
+            }
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to prepare signed PDF.", ex);
+        } finally {
+            deleteTempFileQuietly(signedPdfPath);
+            deleteTempFileQuietly(sourcePdfPath);
         }
     }
 
@@ -396,12 +412,30 @@ public class SigningController {
         return value != null && !value.trim().isEmpty();
     }
 
-    private String sha256Hex(byte[] bytes) {
+    private String sha256Hex(Path filePath) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(bytes));
+            byte[] buffer = new byte[8192];
+            try (InputStream inputStream = Files.newInputStream(filePath)) {
+                int read;
+                while ((read = inputStream.read(buffer)) != -1) {
+                    digest.update(buffer, 0, read);
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest());
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to compute PDF checksum.", ex);
+        }
+    }
+
+    private void deleteTempFileQuietly(Path path) {
+        if (path == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ignored) {
+            // best effort only
         }
     }
 

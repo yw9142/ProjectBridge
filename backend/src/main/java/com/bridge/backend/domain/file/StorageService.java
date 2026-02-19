@@ -13,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
@@ -172,6 +173,41 @@ public class StorageService {
                     .timeout(REQUEST_TIMEOUT)
                     .PUT(HttpRequest.BodyPublishers.ofByteArray(bytes))
                     .build();
+            try {
+                HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    return;
+                }
+                if (shouldRetry(attempt, response.statusCode())) {
+                    sleepBeforeRetry(attempt);
+                    continue;
+                }
+                throw new IllegalStateException("Storage upload failed with status " + response.statusCode());
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Storage upload failed", ex);
+            } catch (IOException ex) {
+                if (attempt < MAX_RETRY_ATTEMPTS) {
+                    sleepBeforeRetry(attempt);
+                    continue;
+                }
+                throw new IllegalStateException("Storage upload failed", ex);
+            }
+        }
+    }
+
+    public void uploadToPresignedUrl(String uploadUrl, String contentType, Path filePath) {
+        for (int attempt = 0; ; attempt++) {
+            HttpRequest request;
+            try {
+                request = HttpRequest.newBuilder(URI.create(uploadUrl))
+                        .header("Content-Type", contentType)
+                        .timeout(REQUEST_TIMEOUT)
+                        .PUT(HttpRequest.BodyPublishers.ofFile(filePath))
+                        .build();
+            } catch (IOException ex) {
+                throw new IllegalStateException("Storage upload failed", ex);
+            }
             try {
                 HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {

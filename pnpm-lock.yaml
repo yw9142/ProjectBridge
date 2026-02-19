@@ -39,7 +39,7 @@ importers:
         specifier: 16.1.6
         version: 16.1.6(@babel/core@7.29.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       pdfjs-dist:
-        specifier: ^4.10.38
+        specifier: 4.10.38
         version: 4.10.38
       react:
         specifier: 19.2.3
@@ -161,7 +161,7 @@ importers:
         specifier: 16.1.6
         version: 16.1.6(@babel/core@7.29.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       pdfjs-dist:
-        specifier: ^4.10.38
+        specifier: 4.10.38
         version: 4.10.38
       react:
         specifier: 19.2.3
