@@ -81,9 +81,9 @@ public class NotificationController {
         if (!isPlatformAdmin) {
             var currentMember = tenantMemberRepository
                     .findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), principal.getUserId())
-                    .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "沅뚰븳???놁뒿?덈떎."));
+                    .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "권한이 없습니다."));
             if (!isPmRole(currentMember.getRole())) {
-                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "沅뚰븳???놁뒿?덈떎.");
+                throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "권한이 없습니다.");
             }
         }
         List<Map<String, Object>> events = outboxEventRepository
