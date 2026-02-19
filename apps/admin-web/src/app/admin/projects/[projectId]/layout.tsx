@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { AdminProjectTabs } from "@/components/layout/AdminProjectTabs";
+import { RouteTransition } from "@/components/motion/RouteTransition";
 
 export default async function ProjectLayout({
   children,
@@ -26,7 +27,7 @@ export default async function ProjectLayout({
           </div>
           <AdminProjectTabs projectId={projectId} />
         </div>
-        {children}
+        <RouteTransition>{children}</RouteTransition>
       </section>
     </AdminShell>
   );

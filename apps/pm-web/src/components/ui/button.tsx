@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { motion, type HTMLMotionProps, type Transition } from "motion/react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
@@ -29,11 +30,38 @@ const buttonVariants = cva(
   },
 );
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {}
+type MotionButtonProps = Omit<HTMLMotionProps<"button">, "children">;
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, type = "button", ...props }, ref) => {
-  return <button type={type} className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
-});
+export interface ButtonProps extends MotionButtonProps, VariantProps<typeof buttonVariants> {
+  children?: React.ReactNode;
+}
+
+const defaultTransition: Transition = {
+  type: "spring",
+  stiffness: 420,
+  damping: 26,
+  mass: 0.8,
+};
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, type = "button", whileHover, whileTap, transition, children, ...props }, ref) => {
+    const disabled = props.disabled ?? false;
+
+    return (
+      <motion.button
+        type={type}
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        whileHover={disabled ? undefined : whileHover ?? { y: -1, scale: 1.01 }}
+        whileTap={disabled ? undefined : whileTap ?? { scale: 0.98 }}
+        transition={transition ?? defaultTransition}
+        {...props}
+      >
+        {children}
+      </motion.button>
+    );
+  },
+);
 Button.displayName = "Button";
 
 export { Button, buttonVariants };

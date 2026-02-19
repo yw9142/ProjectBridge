@@ -7,6 +7,7 @@ import { ClientLogoutButton } from "./ClientLogoutButton";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
 import FadeContent from "@/components/react-bits/FadeContent";
 import Magnet from "@/components/react-bits/Magnet";
+import { RouteTransition } from "@/components/motion/RouteTransition";
 
 const menu = [
   { key: "home", label: "대시보드", icon: LayoutDashboard },
@@ -85,7 +86,9 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
 
         <main className="px-4 py-5 md:px-6">
           <FadeContent blur duration={700} delay={120} threshold={0}>
-            <div className="mx-auto w-full max-w-[1320px]">{children}</div>
+            <RouteTransition>
+              <div className="mx-auto w-full max-w-[1320px]">{children}</div>
+            </RouteTransition>
           </FadeContent>
         </main>
       </div>
