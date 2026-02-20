@@ -74,6 +74,8 @@
 5. Frontend 3앱 Production 배포
 6. DoD 시나리오 확인 (`docs/Test/DOD_DEMO_CHECKLIST.md`)
 7. 운영 헬스체크 확인 (`GET /actuator/health`)
+   - LB/모니터링 프로브는 반드시 `/actuator/health`를 사용한다.
+   - `/actuator/health/liveness`, `/actuator/health/readiness`는 앱 스코프 헤더가 없으면 400이므로 프로브 경로로 사용하지 않는다.
 
 ## 6) 롤백 규칙
 - Frontend: Vercel 이전 배포로 즉시 롤백

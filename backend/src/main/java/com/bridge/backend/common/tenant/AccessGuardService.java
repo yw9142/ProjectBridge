@@ -3,6 +3,8 @@ package com.bridge.backend.common.tenant;
 import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.MemberRole;
 import com.bridge.backend.common.security.AuthPrincipal;
+import com.bridge.backend.domain.admin.TenantMemberEntity;
+import com.bridge.backend.domain.admin.TenantMemberRepository;
 import com.bridge.backend.domain.auth.UserEntity;
 import com.bridge.backend.domain.auth.UserRepository;
 import com.bridge.backend.domain.project.ProjectEntity;
@@ -19,13 +21,16 @@ import java.util.UUID;
 public class AccessGuardService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final TenantMemberRepository tenantMemberRepository;
     private final UserRepository userRepository;
 
     public AccessGuardService(ProjectRepository projectRepository,
                               ProjectMemberRepository projectMemberRepository,
+                              TenantMemberRepository tenantMemberRepository,
                               UserRepository userRepository) {
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
+        this.tenantMemberRepository = tenantMemberRepository;
         this.userRepository = userRepository;
     }
 
@@ -79,11 +84,32 @@ public class AccessGuardService {
         return member;
     }
 
+    public TenantMemberEntity requireTenantMemberRole(UUID tenantId, UUID userId, Set<MemberRole> allowedRoles) {
+        UserEntity user = requireUser(userId);
+        if (user.isPlatformAdmin()) {
+            return virtualTenantMembership(tenantId, userId, MemberRole.PM_OWNER);
+        }
+        TenantMemberEntity tenantMember = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId)
+                .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "TENANT_MEMBER_REQUIRED", "테넌트 멤버가 아닙니다."));
+        if (!allowedRoles.contains(tenantMember.getRole())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "ROLE_FORBIDDEN", "권한이 부족합니다.");
+        }
+        return tenantMember;
+    }
+
     private ProjectMemberEntity virtualMembership(UUID projectId, UUID userId, UUID tenantId, MemberRole role) {
         ProjectMemberEntity member = new ProjectMemberEntity();
         member.setProjectId(projectId);
         member.setUserId(userId);
         member.setTenantId(tenantId);
+        member.setRole(role);
+        return member;
+    }
+
+    private TenantMemberEntity virtualTenantMembership(UUID tenantId, UUID userId, MemberRole role) {
+        TenantMemberEntity member = new TenantMemberEntity();
+        member.setTenantId(tenantId);
+        member.setUserId(userId);
         member.setRole(role);
         return member;
     }

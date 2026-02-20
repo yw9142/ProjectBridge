@@ -7,6 +7,7 @@ import com.bridge.backend.common.security.SecurityUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -104,7 +105,7 @@ public class ProjectController {
     public record InviteRequest(@Email @NotBlank String loginId, String name, MemberRole role) {
     }
 
-    public record UpdateMemberRequest(MemberRole role) {
+    public record UpdateMemberRequest(@NotNull MemberRole role) {
     }
 
     public record UpdateMemberAccountRequest(String loginId, String password) {

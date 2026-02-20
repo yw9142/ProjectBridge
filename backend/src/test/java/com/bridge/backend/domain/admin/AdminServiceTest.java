@@ -1,6 +1,7 @@
 package com.bridge.backend.domain.admin;
 
 import com.bridge.backend.common.api.AppException;
+import com.bridge.backend.common.model.enums.MemberRole;
 import com.bridge.backend.common.model.enums.UserStatus;
 import com.bridge.backend.domain.auth.UserEntity;
 import com.bridge.backend.domain.auth.UserRepository;
@@ -22,6 +23,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -70,7 +72,7 @@ class AdminServiceTest {
                 .thenReturn(Optional.empty());
         when(projectRepository.findByTenantIdAndDeletedAtIsNull(tenantId)).thenReturn(List.of());
 
-        AdminService.SetupCodeIssueResult result = adminService.createTenantUser(tenantId, email, "New PM", actorId);
+        AdminService.SetupCodeIssueResult result = adminService.createTenantUser(tenantId, email, "New PM", null, actorId);
 
         assertThat(result.email()).isEqualTo(email);
         assertThat(result.status()).isEqualTo(UserStatus.INVITED);
@@ -78,7 +80,7 @@ class AdminServiceTest {
         assertThat(result.setupCode()).isNotBlank();
         assertThat(result.setupCode()).hasSize(8);
         assertThat(result.setupCodeExpiresAt()).isNotNull();
-        verify(tenantMemberRepository).save(any(TenantMemberEntity.class));
+        verify(tenantMemberRepository).save(argThat(member -> member.getRole() == MemberRole.PM_MEMBER));
     }
 
     @Test
@@ -101,7 +103,7 @@ class AdminServiceTest {
                 .thenReturn(Optional.of(new TenantMemberEntity()));
         when(projectRepository.findByTenantIdAndDeletedAtIsNull(tenantId)).thenReturn(List.of());
 
-        AdminService.SetupCodeIssueResult result = adminService.createTenantUser(tenantId, email, "Existing PM", actorId);
+        AdminService.SetupCodeIssueResult result = adminService.createTenantUser(tenantId, email, "Existing PM", null, actorId);
 
         assertThat(result.passwordInitialized()).isTrue();
         assertThat(result.setupCode()).isNull();
@@ -137,9 +139,9 @@ class AdminServiceTest {
         when(projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, userId)).thenReturn(Optional.empty());
         when(projectMemberRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        adminService.createTenantUser(tenantId, email, "Single Project User", actorId);
+        adminService.createTenantUser(tenantId, email, "Single Project User", MemberRole.CLIENT_OWNER, actorId);
 
-        verify(projectMemberRepository, times(1)).save(any());
+        verify(projectMemberRepository, times(1)).save(argThat(member -> member.getRole() == MemberRole.CLIENT_OWNER));
     }
 
     @Test

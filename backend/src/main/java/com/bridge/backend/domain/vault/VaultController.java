@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -179,9 +180,6 @@ public class VaultController {
     @PatchMapping("/api/vault/access-requests/{requestId}")
     public ApiSuccess<VaultAccessRequestEntity> patchRequest(@PathVariable UUID requestId, @RequestBody @Valid PatchRequest request) {
         var principal = SecurityUtils.requirePrincipal();
-        if (request.status() == null) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "ACCESS_REQUEST_STATUS_REQUIRED", "Status is required.");
-        }
         VaultAccessRequestEntity accessRequest = accessRequestRepository.findById(requestId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "ACCESS_REQUEST_NOT_FOUND", "Access request not found."));
         VaultSecretEntity secret = requireActiveSecret(accessRequest.getSecretId());
@@ -410,7 +408,7 @@ public class VaultController {
     public record ProvisionSecretRequest(@NotBlank String plainSecret) {
     }
 
-    public record PatchRequest(VaultAccessRequestStatus status) {
+    public record PatchRequest(@NotNull VaultAccessRequestStatus status) {
     }
 
     private record VaultRules(boolean requireApproval,

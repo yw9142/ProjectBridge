@@ -70,6 +70,24 @@ class ProjectServiceTest {
     }
 
     @Test
+    void createRejectsTenantPmMemberWhenOwnerRequired() {
+        UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        AuthPrincipal principal = new AuthPrincipal(userId, tenantId, Set.of("TENANT_PM_MEMBER"));
+
+        doThrow(new AppException(HttpStatus.FORBIDDEN, "ROLE_FORBIDDEN", "권한이 부족합니다."))
+                .when(accessGuardService)
+                .requireTenantMemberRole(tenantId, userId, Set.of(MemberRole.PM_OWNER));
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> projectService.create(principal, "Project A", "desc")
+        );
+
+        assertThat(ex.getCode()).isEqualTo("ROLE_FORBIDDEN");
+    }
+
+    @Test
     void resetSetupCodeRejectsPmMemberByRole() {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
@@ -167,5 +185,44 @@ class ProjectServiceTest {
         assertThat(members.get(0).id()).isEqualTo(memberId);
         assertThat(members.get(0).loginId()).isEqualTo("owner@bridge.local");
         verify(projectMemberRepository, never()).save(any(ProjectMemberEntity.class));
+    }
+
+    @Test
+    void listReturnsOnlyMembershipProjectsForNonAdmin() {
+        UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID projectIdA = UUID.randomUUID();
+        UUID projectIdB = UUID.randomUUID();
+        AuthPrincipal principal = new AuthPrincipal(userId, tenantId, Set.of("TENANT_PM_MEMBER"));
+
+        UserEntity user = new UserEntity();
+        user.setId(userId);
+        user.setPlatformAdmin(false);
+
+        ProjectMemberEntity memberA = new ProjectMemberEntity();
+        memberA.setProjectId(projectIdA);
+        memberA.setUserId(userId);
+        memberA.setTenantId(tenantId);
+
+        ProjectMemberEntity memberB = new ProjectMemberEntity();
+        memberB.setProjectId(projectIdB);
+        memberB.setUserId(userId);
+        memberB.setTenantId(tenantId);
+
+        ProjectEntity projectA = new ProjectEntity();
+        projectA.setId(projectIdA);
+        projectA.setTenantId(tenantId);
+        ProjectEntity projectB = new ProjectEntity();
+        projectB.setId(projectIdB);
+        projectB.setTenantId(tenantId);
+
+        when(accessGuardService.requireUser(userId)).thenReturn(user);
+        when(projectMemberRepository.findByUserIdAndTenantIdAndDeletedAtIsNull(userId, tenantId)).thenReturn(List.of(memberA, memberB));
+        when(projectRepository.findByIdInAndTenantIdAndDeletedAtIsNull(List.of(projectIdA, projectIdB), tenantId))
+                .thenReturn(List.of(projectA, projectB));
+
+        List<ProjectEntity> projects = projectService.list(principal);
+
+        assertThat(projects).extracting(ProjectEntity::getId).containsExactly(projectIdA, projectIdB);
     }
 }

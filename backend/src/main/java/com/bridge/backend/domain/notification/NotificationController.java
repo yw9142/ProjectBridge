@@ -3,11 +3,16 @@ package com.bridge.backend.domain.notification;
 import com.bridge.backend.common.api.ApiSuccess;
 import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.MemberRole;
+import com.bridge.backend.common.security.AuthCookieService;
 import com.bridge.backend.common.security.SecurityUtils;
+import com.bridge.backend.common.tenant.AccessGuardService;
 import com.bridge.backend.domain.admin.TenantMemberRepository;
 import com.bridge.backend.domain.auth.UserRepository;
+import com.bridge.backend.domain.project.ProjectMemberEntity;
+import com.bridge.backend.domain.project.ProjectMemberRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -15,6 +20,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -24,22 +30,31 @@ public class NotificationController {
     private final NotificationRepository notificationRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final TenantMemberRepository tenantMemberRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final NotificationStreamService streamService;
+    private final AccessGuardService accessGuardService;
+    private final AuthCookieService authCookieService;
 
     public NotificationController(NotificationRepository notificationRepository,
                                   OutboxEventRepository outboxEventRepository,
                                   TenantMemberRepository tenantMemberRepository,
+                                  ProjectMemberRepository projectMemberRepository,
                                   UserRepository userRepository,
                                   ObjectMapper objectMapper,
-                                  NotificationStreamService streamService) {
+                                  NotificationStreamService streamService,
+                                  AccessGuardService accessGuardService,
+                                  AuthCookieService authCookieService) {
         this.notificationRepository = notificationRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.tenantMemberRepository = tenantMemberRepository;
+        this.projectMemberRepository = projectMemberRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.streamService = streamService;
+        this.accessGuardService = accessGuardService;
+        this.authCookieService = authCookieService;
     }
 
     @GetMapping
@@ -54,7 +69,7 @@ public class NotificationController {
     }
 
     @PostMapping("/{id}/read")
-    public ApiSuccess<Map<String, Object>> read(@PathVariable UUID id) {
+    public ApiSuccess<Map<String, Object>> read(@PathVariable UUID id, HttpServletRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         NotificationEntity notification = notificationRepository
                 .findByIdAndTenantIdAndDeletedAtIsNull(id, principal.getTenantId())
@@ -65,40 +80,61 @@ public class NotificationController {
         notification.setReadAt(OffsetDateTime.now());
         notification.setUpdatedBy(principal.getUserId());
         notificationRepository.save(notification);
-        streamService.send(principal.getUserId(), "notification.read", Map.of("id", notification.getId()));
+        String appScope = resolveAppScope(request);
+        streamService.sendToScope(principal.getTenantId(), principal.getUserId(), appScope, "notification.read", Map.of("id", notification.getId()));
         return ApiSuccess.of(Map.of("read", true));
     }
 
     @GetMapping("/stream")
-    public SseEmitter stream() {
-        return streamService.connect(SecurityUtils.currentUserId());
+    public SseEmitter stream(HttpServletRequest request) {
+        var principal = SecurityUtils.requirePrincipal();
+        String appScope = resolveAppScope(request);
+        return streamService.connect(principal.getTenantId(), principal.getUserId(), appScope);
     }
 
     @GetMapping("/pm-events")
     public ApiSuccess<List<Map<String, Object>>> pmEvents(@RequestParam(required = false) UUID projectId) {
         var principal = SecurityUtils.requirePrincipal();
         boolean isPlatformAdmin = principal.getRoles().contains("PLATFORM_ADMIN");
-        if (!isPlatformAdmin) {
+        Set<UUID> accessibleProjectIds;
+        if (isPlatformAdmin) {
+            accessibleProjectIds = Set.of();
+        } else {
             var currentMember = tenantMemberRepository
                     .findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), principal.getUserId())
                     .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "권한이 없습니다."));
             if (!isPmRole(currentMember.getRole())) {
                 throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "권한이 없습니다.");
             }
+            if (projectId != null) {
+                accessGuardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
+                accessibleProjectIds = Set.of();
+            } else {
+                accessibleProjectIds = projectMemberRepository.findByUserIdAndTenantIdAndDeletedAtIsNull(principal.getUserId(), principal.getTenantId())
+                        .stream()
+                        .map(ProjectMemberEntity::getProjectId)
+                        .collect(Collectors.toSet());
+            }
         }
         List<Map<String, Object>> events = outboxEventRepository
                 .findTop200ByTenantIdAndDeletedAtIsNullOrderByCreatedAtDesc(principal.getTenantId())
                 .stream()
-                .map(event -> toPmEvent(event, projectId))
+                .map(event -> toPmEvent(event, projectId, accessibleProjectIds, isPlatformAdmin))
                 .filter(event -> event != null)
                 .collect(Collectors.toList());
         return ApiSuccess.of(events);
     }
 
-    private Map<String, Object> toPmEvent(OutboxEventEntity event, UUID projectIdFilter) {
+    private Map<String, Object> toPmEvent(OutboxEventEntity event, UUID projectIdFilter, Set<UUID> accessibleProjectIds, boolean isPlatformAdmin) {
         Map<String, Object> payload = parsePayload(event.getEventPayload());
         UUID eventProjectId = extractProjectId(payload.get("payload"));
+        if (eventProjectId == null) {
+            return null;
+        }
         if (projectIdFilter != null && !projectIdFilter.equals(eventProjectId)) {
+            return null;
+        }
+        if (!isPlatformAdmin && projectIdFilter == null && !accessibleProjectIds.contains(eventProjectId)) {
             return null;
         }
         Object actorRaw = payload.get("userId");
@@ -170,6 +206,11 @@ public class NotificationController {
         } catch (IllegalArgumentException ex) {
             return null;
         }
+    }
+
+    private String resolveAppScope(HttpServletRequest request) {
+        return authCookieService.resolveAppScope(request)
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "APP_SCOPE_REQUIRED", "요청 앱 스코프가 필요합니다."));
     }
 }
 

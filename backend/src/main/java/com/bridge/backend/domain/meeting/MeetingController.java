@@ -12,6 +12,7 @@ import com.bridge.backend.domain.auth.UserRepository;
 import com.bridge.backend.domain.notification.OutboxService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -258,7 +259,7 @@ public class MeetingController {
     public record PatchMeetingRequest(String title, OffsetDateTime startAt, OffsetDateTime endAt, String meetUrl, MeetingStatus status) {
     }
 
-    public record RespondRequest(AttendeeResponse response) {
+    public record RespondRequest(@NotNull AttendeeResponse response) {
     }
 
     public record MeetingAttendeeView(UUID userId, String userName, AttendeeResponse response) {

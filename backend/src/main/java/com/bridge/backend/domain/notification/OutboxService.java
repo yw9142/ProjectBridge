@@ -59,7 +59,11 @@ public class OutboxService {
     @Scheduled(fixedDelay = 1000L)
     @Transactional
     public void consume() {
-        outboxEventRepository.findTop100ByProcessedAtIsNullOrderByCreatedAtAsc().forEach(event -> {
+        List<UUID> claimedIds = outboxEventRepository.claimUnprocessedBatchForUpdate(100);
+        if (claimedIds.isEmpty()) {
+            return;
+        }
+        outboxEventRepository.findByIdInOrderByCreatedAtAsc(claimedIds).forEach(event -> {
             Map<String, Object> payload = parseJson(event.getEventPayload());
             UUID actorUserId = UUID.fromString(String.valueOf(payload.get("userId")));
             TenantMemberEntity actorMember = tenantMemberRepository
@@ -67,9 +71,9 @@ public class OutboxService {
                     .orElse(null);
             UUID projectId = extractProjectId(payload.get("payload"));
 
-            List<UUID> recipientIds = resolveRecipientIds(event.getTenantId(), actorUserId, actorMember, projectId);
-            for (UUID recipientId : recipientIds) {
-                createNotification(event, recipientId, payload);
+            List<RecipientTarget> recipients = resolveRecipientTargets(event.getTenantId(), actorUserId, actorMember, projectId);
+            for (RecipientTarget recipient : recipients) {
+                createNotification(event, recipient, payload);
             }
 
             event.setProcessedAt(OffsetDateTime.now());
@@ -77,10 +81,10 @@ public class OutboxService {
         });
     }
 
-    private List<UUID> resolveRecipientIds(UUID tenantId,
-                                           UUID actorUserId,
-                                           TenantMemberEntity actorMember,
-                                           UUID projectId) {
+    private List<RecipientTarget> resolveRecipientTargets(UUID tenantId,
+                                                          UUID actorUserId,
+                                                          TenantMemberEntity actorMember,
+                                                          UUID projectId) {
         if (projectId != null) {
             List<ProjectMemberEntity> members = projectMemberRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                     .stream()
@@ -94,20 +98,20 @@ public class OutboxService {
             if (actorMember != null && isPmRole(actorMember.getRole())) {
                 return members.stream()
                         .filter(member -> isClientRole(member.getRole()))
-                        .map(ProjectMemberEntity::getUserId)
+                        .map(member -> new RecipientTarget(member.getUserId(), toAppScope(member.getRole())))
                         .distinct()
                         .collect(Collectors.toList());
             }
             if (actorMember != null && isClientRole(actorMember.getRole())) {
                 return members.stream()
                         .filter(member -> isPmRole(member.getRole()))
-                        .map(ProjectMemberEntity::getUserId)
+                        .map(member -> new RecipientTarget(member.getUserId(), toAppScope(member.getRole())))
                         .distinct()
                         .collect(Collectors.toList());
             }
 
             return members.stream()
-                    .map(ProjectMemberEntity::getUserId)
+                    .map(member -> new RecipientTarget(member.getUserId(), toAppScope(member.getRole())))
                     .distinct()
                     .collect(Collectors.toList());
         }
@@ -123,25 +127,25 @@ public class OutboxService {
         if (actorMember != null && isPmRole(actorMember.getRole())) {
             return tenantMembers.stream()
                     .filter(member -> isClientRole(member.getRole()))
-                    .map(TenantMemberEntity::getUserId)
+                    .map(member -> new RecipientTarget(member.getUserId(), toAppScope(member.getRole())))
                     .distinct()
                     .collect(Collectors.toList());
         }
         if (actorMember != null && isClientRole(actorMember.getRole())) {
             return tenantMembers.stream()
                     .filter(member -> isPmRole(member.getRole()))
-                    .map(TenantMemberEntity::getUserId)
+                    .map(member -> new RecipientTarget(member.getUserId(), toAppScope(member.getRole())))
                     .distinct()
                     .collect(Collectors.toList());
         }
 
         return tenantMembers.stream()
-                .map(TenantMemberEntity::getUserId)
+                .map(member -> new RecipientTarget(member.getUserId(), toAppScope(member.getRole())))
                 .distinct()
                 .collect(Collectors.toList());
     }
 
-    private void createNotification(OutboxEventEntity event, UUID recipientId, Map<String, Object> payload) {
+    private void createNotification(OutboxEventEntity event, RecipientTarget recipient, Map<String, Object> payload) {
         String rawEventType = event.getEventType();
         String localizedTitle = NotificationTextLocalizer.localizeTitle(rawEventType, String.valueOf(payload.get("title")));
         String localizedMessage = NotificationTextLocalizer.localizeMessage(rawEventType, String.valueOf(payload.get("message")));
@@ -149,13 +153,13 @@ public class OutboxService {
 
         NotificationEntity notification = new NotificationEntity();
         notification.setTenantId(event.getTenantId());
-        notification.setUserId(recipientId);
+        notification.setUserId(recipient.userId());
         notification.setEventType(rawEventType);
         notification.setTitle(localizedTitle);
         notification.setMessage(localizedMessage);
         notificationRepository.save(notification);
 
-        notificationStreamService.send(recipientId, "notification.created", Map.of(
+        notificationStreamService.sendToScope(event.getTenantId(), recipient.userId(), recipient.appScope(), "notification.created", Map.of(
                 "id", notification.getId(),
                 "title", notification.getTitle(),
                 "message", notification.getMessage(),
@@ -170,6 +174,13 @@ public class OutboxService {
 
     private boolean isPmRole(MemberRole role) {
         return role == MemberRole.PM_OWNER || role == MemberRole.PM_MEMBER;
+    }
+
+    private String toAppScope(MemberRole role) {
+        if (role == MemberRole.CLIENT_OWNER || role == MemberRole.CLIENT_MEMBER) {
+            return "client";
+        }
+        return "pm";
     }
 
     @SuppressWarnings("unchecked")
@@ -203,5 +214,8 @@ public class OutboxService {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private record RecipientTarget(UUID userId, String appScope) {
     }
 }

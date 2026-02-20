@@ -36,6 +36,20 @@ class HealthEndpointSecurityTest {
     }
 
     @Test
+    void livenessStillRequiresAppScopeHeader() throws Exception {
+        mockMvc.perform(get("/actuator/health/liveness"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("APP_SCOPE_REQUIRED"));
+    }
+
+    @Test
+    void readinessStillRequiresAppScopeHeader() throws Exception {
+        mockMvc.perform(get("/actuator/health/readiness"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("APP_SCOPE_REQUIRED"));
+    }
+
+    @Test
     void apiRequestWithoutScopeHeaderStillFails() throws Exception {
         mockMvc.perform(get("/api/projects"))
                 .andExpect(status().isBadRequest())

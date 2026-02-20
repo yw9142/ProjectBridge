@@ -2,6 +2,8 @@ package com.bridge.backend.common.tenant;
 
 import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.MemberRole;
+import com.bridge.backend.domain.admin.TenantMemberEntity;
+import com.bridge.backend.domain.admin.TenantMemberRepository;
 import com.bridge.backend.domain.auth.UserEntity;
 import com.bridge.backend.domain.auth.UserRepository;
 import com.bridge.backend.domain.project.ProjectEntity;
@@ -29,6 +31,8 @@ class AccessGuardServiceTest {
     private ProjectRepository projectRepository;
     @Mock
     private ProjectMemberRepository projectMemberRepository;
+    @Mock
+    private TenantMemberRepository tenantMemberRepository;
     @Mock
     private UserRepository userRepository;
 
@@ -109,6 +113,44 @@ class AccessGuardServiceTest {
         );
 
         assertThat(ex.getCode()).isEqualTo("ROLE_FORBIDDEN");
+    }
+
+    @Test
+    void requireTenantMemberRoleRejectsTenantPmMemberWhenOwnerRequired() {
+        UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        TenantMemberEntity membership = new TenantMemberEntity();
+        membership.setTenantId(tenantId);
+        membership.setUserId(userId);
+        membership.setRole(MemberRole.PM_MEMBER);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user(userId, false)));
+        when(tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId)).thenReturn(Optional.of(membership));
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> accessGuardService.requireTenantMemberRole(tenantId, userId, Set.of(MemberRole.PM_OWNER))
+        );
+
+        assertThat(ex.getCode()).isEqualTo("ROLE_FORBIDDEN");
+    }
+
+    @Test
+    void requireTenantMemberRoleAllowsPlatformAdminWithoutTenantMembership() {
+        UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user(userId, true)));
+
+        TenantMemberEntity membership = accessGuardService.requireTenantMemberRole(
+                tenantId,
+                userId,
+                Set.of(MemberRole.PM_OWNER)
+        );
+
+        assertThat(membership.getTenantId()).isEqualTo(tenantId);
+        assertThat(membership.getUserId()).isEqualTo(userId);
+        assertThat(membership.getRole()).isEqualTo(MemberRole.PM_OWNER);
     }
 
     private static ProjectEntity project(UUID projectId, UUID tenantId) {
