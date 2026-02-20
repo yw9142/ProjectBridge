@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.Net.Http
 $script:RequestLog = @()
 $script:SensitiveKeys = @(
     "password",
@@ -135,6 +136,83 @@ function Invoke-BridgeApi {
     }
 }
 
+function New-BridgeDemoPdfBytes {
+    $content = "BT`n/F1 18 Tf`n72 720 Td`n(Bridge DoD Demo) Tj`nET"
+    $contentLength = [System.Text.Encoding]::ASCII.GetByteCount($content)
+    $objects = @(
+        "1 0 obj`n<< /Type /Catalog /Pages 2 0 R >>`nendobj`n",
+        "2 0 obj`n<< /Type /Pages /Kids [3 0 R] /Count 1 >>`nendobj`n",
+        "3 0 obj`n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>`nendobj`n",
+        "4 0 obj`n<< /Length $contentLength >>`nstream`n$content`nendstream`nendobj`n",
+        "5 0 obj`n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`nendobj`n"
+    )
+
+    $builder = New-Object System.Text.StringBuilder
+    $null = $builder.Append("%PDF-1.4`n")
+    $offsets = New-Object System.Collections.Generic.List[int]
+
+    foreach ($obj in $objects) {
+        $offsets.Add([System.Text.Encoding]::ASCII.GetByteCount($builder.ToString()))
+        $null = $builder.Append($obj)
+    }
+
+    $xrefOffset = [System.Text.Encoding]::ASCII.GetByteCount($builder.ToString())
+    $null = $builder.Append("xref`n0 $($objects.Count + 1)`n")
+    $null = $builder.Append("0000000000 65535 f `n")
+    foreach ($offset in $offsets) {
+        $null = $builder.Append(("{0:D10} 00000 n `n" -f $offset))
+    }
+    $null = $builder.Append("trailer`n<< /Size $($objects.Count + 1) /Root 1 0 R >>`n")
+    $null = $builder.Append("startxref`n$xrefOffset`n%%EOF")
+
+    return [System.Text.Encoding]::ASCII.GetBytes($builder.ToString())
+}
+
+function Get-BridgeSha256Hex {
+    param([byte[]]$Bytes)
+
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hash = $sha.ComputeHash($Bytes)
+        return [System.BitConverter]::ToString($hash).Replace("-", "").ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+    }
+}
+
+function Upload-BridgePresignedObject {
+    param(
+        [string]$UploadUrl,
+        [string]$ContentType,
+        [byte[]]$Bytes
+    )
+
+    if ([string]::IsNullOrWhiteSpace($UploadUrl)) {
+        throw "[UPLOAD] Presigned uploadUrl is empty."
+    }
+
+    $handler = $null
+    $client = $null
+    $content = $null
+    try {
+        $handler = New-Object System.Net.Http.HttpClientHandler
+        $client = [System.Net.Http.HttpClient]::new($handler)
+        $content = [System.Net.Http.ByteArrayContent]::new($Bytes)
+        $content.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse($ContentType)
+        $response = $client.PutAsync($UploadUrl, $content).GetAwaiter().GetResult()
+        if (-not $response.IsSuccessStatusCode) {
+            $body = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+            throw "status=$([int]$response.StatusCode), body=$body"
+        }
+    } catch {
+        throw "[UPLOAD] PUT failed: $($_.Exception.Message) (url=$UploadUrl)"
+    } finally {
+        if ($null -ne $content) { $content.Dispose() }
+        if ($null -ne $client) { $client.Dispose() }
+        if ($null -ne $handler) { $handler.Dispose() }
+    }
+}
+
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $slugSuffix = Get-Date -Format "yyyyMMddHHmmss"
 
@@ -221,7 +299,7 @@ $request = Invoke-BridgeApi -Step "S4-create-request" -Method "POST" -Path "/api
 $requestId = $request.data.id
 
 $requestStatus = Invoke-BridgeApi -Step "S4-update-request-status" -Method "PATCH" -Path "/api/requests/$requestId/status" -Session $pmSession -Body @{
-    status = "IN_PROGRESS"
+    status = "SENT"
 }
 
 $decision = Invoke-BridgeApi -Step "S4-create-decision" -Method "POST" -Path "/api/projects/$projectId/decisions" -Session $pmSession -Body @{
@@ -231,7 +309,7 @@ $decision = Invoke-BridgeApi -Step "S4-create-decision" -Method "POST" -Path "/a
 $decisionId = $decision.data.id
 
 $decisionStatus = Invoke-BridgeApi -Step "S4-update-decision-status" -Method "PATCH" -Path "/api/decisions/$decisionId/status" -Session $pmSession -Body @{
-    status = "APPROVED"
+    status = "REJECTED"
 }
 
 # Scenario 5: file/version/comment
@@ -242,11 +320,17 @@ $file = Invoke-BridgeApi -Step "S5-create-file" -Method "POST" -Path "/api/proje
 }
 $fileId = $file.data.id
 
+$pdfBytes = New-BridgeDemoPdfBytes
+$pdfSize = [long]$pdfBytes.Length
+$pdfChecksum = Get-BridgeSha256Hex -Bytes $pdfBytes
+
 $presign = Invoke-BridgeApi -Step "S5-presign-version" -Method "POST" -Path "/api/files/$fileId/versions/presign" -Session $pmSession -Body @{
     contentType = "application/pdf"
-    size        = 1024
-    checksum    = "sha256-$slugSuffix"
+    size        = $pdfSize
+    checksum    = $pdfChecksum
 }
+
+$null = Upload-BridgePresignedObject -UploadUrl $presign.data.uploadUrl -ContentType $presign.data.contentType -Bytes $pdfBytes
 
 $fileVersion = Invoke-BridgeApi -Step "S5-complete-version" -Method "POST" -Path "/api/files/$fileId/versions/complete" -Session $pmSession -Body @{
     version     = $presign.data.version
@@ -316,7 +400,11 @@ $signatureField = Invoke-BridgeApi -Step "S7-add-signature-field" -Method "POST"
 
 $null = Invoke-BridgeApi -Step "S7-send-envelope" -Method "POST" -Path "/api/envelopes/$envelopeId/send" -Session $pmSession
 $null = Invoke-BridgeApi -Step "S7-view-signing" -Method "POST" -Path "/api/signing/contracts/$contractId/viewed" -Session $clientSession
-$submitSigning = Invoke-BridgeApi -Step "S7-submit-signing" -Method "POST" -Path "/api/signing/contracts/$contractId/submit" -Session $clientSession -Body @{}
+$submitSigning = Invoke-BridgeApi -Step "S7-submit-signing" -Method "POST" -Path "/api/signing/contracts/$contractId/submit" -Session $clientSession -Body @{
+    fieldValues = @{
+        "$($signatureField.data.id)" = "Signed by DoD"
+    }
+}
 $signatureEvents = Invoke-BridgeApi -Step "S7-signature-events" -Method "GET" -Path "/api/envelopes/$envelopeId/events" -Session $pmSession
 
 # Scenario 8: billing
@@ -362,7 +450,7 @@ $approveRequest = Invoke-BridgeApi -Step "S9-approve-access" -Method "PATCH" -Pa
     status = "APPROVED"
 }
 
-$revealSecret = Invoke-BridgeApi -Step "S9-reveal-secret" -Method "POST" -Path "/api/vault/secrets/$secretId/reveal" -Session $clientSession
+$revealSecret = Invoke-BridgeApi -Step "S9-reveal-secret" -Method "POST" -Path "/api/vault/secrets/$secretId/reveal" -Session $pmSession
 
 $scenarios = [ordered]@{
     "1" = [ordered]@{ status = "DONE"; tenantId = $tenantId; pmUserId = $pmUserId }
