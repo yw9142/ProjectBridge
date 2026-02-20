@@ -113,9 +113,11 @@ pnpm -C apps/admin-web dev
 - PM/Admin에서 신규 계정을 생성하면 초기 비밀번호 대신 `setupCode`가 발급됩니다.
   - PM 계정: PM 앱 `/first-password`
   - Client 계정: Client 앱 `/first-password`
+- Admin API의 `GET/POST /api/admin/tenants/{tenantId}/pm-users` 경로는 호환성 유지용 이름이며, 실제 의미는 "테넌트 사용자 목록/생성"입니다.
+  - 생성 기본 역할은 `PM_MEMBER`입니다.
 - 로그인 실패 5회 이상이면 `LOGIN_BLOCKED`가 반환되며, 잠금 해제는 관리자 API/UI에서 수행합니다.
 - 비밀번호 미초기화 계정은 로그인 시 `PASSWORD_SETUP_REQUIRED`가 반환됩니다.
-- 서명 페이지 `/sign/[contractId]`는 로그인 필수입니다.
+- 서명 페이지 `/sign/[contractId]` 자체는 진입 가능하며, 실제 계약 조회/서명 API에서 인증 + 서명자 소유권을 강제합니다.
 
 ## Validation Commands
 ### Backend

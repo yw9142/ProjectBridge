@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -93,7 +94,7 @@ public class AdminService {
     }
 
     @Transactional
-    public SetupCodeIssueResult createTenantUser(UUID tenantId, String email, String name, UUID actorId) {
+    public SetupCodeIssueResult createTenantUser(UUID tenantId, String email, String name, MemberRole role, UUID actorId) {
         getTenant(tenantId);
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
 
@@ -120,21 +121,31 @@ public class AdminService {
             user.setUpdatedBy(actorId);
             user = userRepository.save(user);
         }
+        UUID userId = user.getId();
 
-        boolean exists = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, user.getId()).isPresent();
-        if (!exists) {
-            TenantMemberEntity member = new TenantMemberEntity();
-            member.setTenantId(tenantId);
-            member.setUserId(user.getId());
-            member.setRole(MemberRole.PM_OWNER);
-            member.setCreatedBy(actorId);
-            member.setUpdatedBy(actorId);
-            tenantMemberRepository.save(member);
+        Optional<TenantMemberEntity> existingMember = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId);
+        TenantMemberEntity member = existingMember
+                .orElseGet(() -> {
+                    TenantMemberEntity created = new TenantMemberEntity();
+                    created.setTenantId(tenantId);
+                    created.setUserId(userId);
+                    created.setCreatedBy(actorId);
+                    return created;
+                });
+        MemberRole resolvedRole = existingMember
+                .map(TenantMemberEntity::getRole)
+                .orElse(MemberRole.PM_MEMBER);
+        if (role != null) {
+            resolvedRole = role;
         }
-        syncProjectMembershipForSingleProjectTenant(tenantId, user.getId(), MemberRole.PM_OWNER, actorId);
+        member.setRole(resolvedRole);
+        member.setUpdatedBy(actorId);
+        tenantMemberRepository.save(member);
+
+        syncProjectMembershipForSingleProjectTenant(tenantId, userId, resolvedRole, actorId);
 
         return new SetupCodeIssueResult(
-                user.getId(),
+                userId,
                 user.getEmail(),
                 user.getStatus(),
                 user.isPasswordInitialized(),

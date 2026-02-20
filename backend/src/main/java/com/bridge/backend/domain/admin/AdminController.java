@@ -1,6 +1,7 @@
 package com.bridge.backend.domain.admin;
 
 import com.bridge.backend.common.api.ApiSuccess;
+import com.bridge.backend.common.model.enums.MemberRole;
 import com.bridge.backend.common.model.enums.UserStatus;
 import com.bridge.backend.common.security.SecurityUtils;
 import com.bridge.backend.common.tenant.AccessGuardService;
@@ -51,7 +52,7 @@ public class AdminController {
     public ApiSuccess<Map<String, Object>> createTenantUser(@PathVariable UUID tenantId, @RequestBody @Valid CreateTenantUserRequest request) {
         UUID actorId = SecurityUtils.currentUserId();
         accessGuardService.requirePlatformAdmin(actorId);
-        var issued = adminService.createTenantUser(tenantId, request.email(), request.name(), actorId);
+        var issued = adminService.createTenantUser(tenantId, request.email(), request.name(), request.role(), actorId);
         Map<String, Object> response = new HashMap<>();
         response.put("userId", issued.userId());
         response.put("email", issued.email());
@@ -120,7 +121,7 @@ public class AdminController {
     public record CreateTenantRequest(@NotBlank String name, @NotBlank String slug) {
     }
 
-    public record CreateTenantUserRequest(@Email @NotBlank String email, @NotBlank String name) {
+    public record CreateTenantUserRequest(@Email @NotBlank String email, @NotBlank String name, MemberRole role) {
     }
 
     public record UpdateStatusRequest(@NotNull UserStatus status) {

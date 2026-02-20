@@ -67,6 +67,14 @@ public class AuthCookieService {
         return readCookie(request, cookieNames.refreshCookieName());
     }
 
+    public Optional<String> resolveAppScope(HttpServletRequest request) {
+        Optional<String> appScope = normalizeScope(request.getHeader(APP_HEADER_NAME));
+        if (appScope.isEmpty() && isSseScopeFallbackAllowed(request)) {
+            appScope = normalizeScope(request.getParameter(APP_QUERY_PARAM));
+        }
+        return appScope.flatMap(scope -> toCookieNames(scope).map(ignored -> scope));
+    }
+
     private Optional<String> readCookie(HttpServletRequest request, String name) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
@@ -103,11 +111,7 @@ public class AuthCookieService {
     }
 
     private Optional<CookieNames> resolveCookieNames(HttpServletRequest request) {
-        Optional<String> appScope = normalizeScope(request.getHeader(APP_HEADER_NAME));
-        if (appScope.isEmpty() && isSseScopeFallbackAllowed(request)) {
-            appScope = normalizeScope(request.getParameter(APP_QUERY_PARAM));
-        }
-        return appScope.flatMap(this::toCookieNames);
+        return resolveAppScope(request).flatMap(this::toCookieNames);
     }
 
     private CookieNames requireCookieNames(HttpServletRequest request) {

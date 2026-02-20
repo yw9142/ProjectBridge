@@ -12,6 +12,7 @@ import com.bridge.backend.domain.file.StorageService;
 import com.bridge.backend.domain.notification.OutboxService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -118,7 +119,7 @@ public class BillingController {
     }
 
     @PatchMapping("/api/invoices/{invoiceId}/status")
-    public ApiSuccess<InvoiceEntity> patchStatus(@PathVariable UUID invoiceId, @RequestBody UpdateStatusRequest request) {
+    public ApiSuccess<InvoiceEntity> patchStatus(@PathVariable UUID invoiceId, @RequestBody @Valid UpdateStatusRequest request) {
         var principal = SecurityUtils.requirePrincipal();
         InvoiceEntity invoice = requireActiveInvoice(invoiceId);
         guardService.requireProjectMember(invoice.getProjectId(), principal.getUserId(), principal.getTenantId());
@@ -183,7 +184,7 @@ public class BillingController {
     public record PatchInvoiceRequest(String invoiceNumber, Long amount, String currency, OffsetDateTime dueAt, InvoiceStatus status, InvoicePhase phase) {
     }
 
-    public record UpdateStatusRequest(InvoiceStatus status) {
+    public record UpdateStatusRequest(@NotNull InvoiceStatus status) {
     }
 
     public record PresignAttachmentRequest(@NotBlank String contentType, Long size, String checksum) {

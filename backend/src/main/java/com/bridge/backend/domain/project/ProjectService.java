@@ -66,11 +66,29 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectEntity> list(AuthPrincipal principal) {
-        return projectRepository.findByTenantIdAndDeletedAtIsNull(principal.getTenantId());
+        UserEntity user = accessGuardService.requireUser(principal.getUserId());
+        if (user.isPlatformAdmin()) {
+            return projectRepository.findByTenantIdAndDeletedAtIsNull(principal.getTenantId());
+        }
+
+        List<UUID> projectIds = projectMemberRepository.findByUserIdAndTenantIdAndDeletedAtIsNull(principal.getUserId(), principal.getTenantId())
+                .stream()
+                .map(ProjectMemberEntity::getProjectId)
+                .distinct()
+                .toList();
+        if (projectIds.isEmpty()) {
+            return List.of();
+        }
+        return projectRepository.findByIdInAndTenantIdAndDeletedAtIsNull(projectIds, principal.getTenantId());
     }
 
     @Transactional
     public ProjectEntity create(AuthPrincipal principal, String name, String description) {
+        accessGuardService.requireTenantMemberRole(
+                principal.getTenantId(),
+                principal.getUserId(),
+                Set.of(MemberRole.PM_OWNER)
+        );
         ProjectEntity project = new ProjectEntity();
         project.setTenantId(principal.getTenantId());
         project.setName(name);

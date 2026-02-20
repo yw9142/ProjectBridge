@@ -16,7 +16,11 @@ import com.bridge.backend.domain.notification.OutboxService;
 import com.bridge.backend.domain.project.ProjectMemberEntity;
 import com.bridge.backend.domain.project.ProjectMemberRepository;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -349,7 +353,8 @@ public class ContractController {
         var principal = SecurityUtils.requirePrincipal();
         EnvelopeEntity envelope = requireActiveEnvelope(envelopeId);
         ContractEntity contract = requireActiveContract(envelope.getContractId());
-        guardService.requireProjectMember(contract.getProjectId(), principal.getUserId(), principal.getTenantId());
+        guardService.requireProjectMemberRole(contract.getProjectId(), principal.getUserId(), principal.getTenantId(),
+                Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
         SignatureRecipientEntity recipient = new SignatureRecipientEntity();
         recipient.setTenantId(principal.getTenantId());
         recipient.setEnvelopeId(envelopeId);
@@ -367,7 +372,8 @@ public class ContractController {
         var principal = SecurityUtils.requirePrincipal();
         EnvelopeEntity envelope = requireActiveEnvelope(envelopeId);
         ContractEntity contract = requireActiveContract(envelope.getContractId());
-        guardService.requireProjectMember(contract.getProjectId(), principal.getUserId(), principal.getTenantId());
+        guardService.requireProjectMemberRole(contract.getProjectId(), principal.getUserId(), principal.getTenantId(),
+                Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
         SignatureFieldEntity field = new SignatureFieldEntity();
         field.setTenantId(principal.getTenantId());
         field.setEnvelopeId(envelopeId);
@@ -584,9 +590,13 @@ public class ContractController {
     public record AddRecipientRequest(@NotBlank String name, @NotBlank String email, Integer signingOrder) {
     }
 
-    public record AddFieldRequest(UUID recipientId,
-                                  SignatureFieldType type,
-                                  int page, double coordX, double coordY, double coordW, double coordH) {
+    public record AddFieldRequest(@NotNull UUID recipientId,
+                                  @NotNull SignatureFieldType type,
+                                  @Min(1) int page,
+                                  @DecimalMin("0.0") @DecimalMax("1.0") double coordX,
+                                  @DecimalMin("0.0") @DecimalMax("1.0") double coordY,
+                                  @DecimalMin("0.0") @DecimalMax("1.0") double coordW,
+                                  @DecimalMin("0.0") @DecimalMax("1.0") double coordH) {
     }
 
     public record AssignSignerRequest(UUID signerUserId,
@@ -603,6 +613,6 @@ public class ContractController {
                                       Double dateCoordH) {
     }
 
-    public record ReviewContractRequest(Boolean approved) {
+    public record ReviewContractRequest(@NotNull Boolean approved) {
     }
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { PmLogoutButton } from "@/components/layout/PmLogoutButton";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCurrentUserRole } from "@/lib/use-current-user-role";
 
 type Project = {
   id: string;
@@ -17,6 +18,8 @@ export default function ProjectsPage() {
   const [items, setItems] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { tenantRole, isPlatformAdmin } = useCurrentUserRole();
+  const canCreateProject = isPlatformAdmin || tenantRole === "PM_OWNER";
 
   useEffect(() => {
     let active = true;
@@ -53,9 +56,11 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-bold text-slate-900">프로젝트 목록</h1>
           <div className="flex items-center gap-2">
             <PmLogoutButton />
-            <Link href="/pm/projects/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
-              새 프로젝트
-            </Link>
+            {canCreateProject ? (
+              <Link href="/pm/projects/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">
+                새 프로젝트
+              </Link>
+            ) : null}
           </div>
         </div>
 

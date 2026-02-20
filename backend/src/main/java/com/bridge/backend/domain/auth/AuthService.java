@@ -2,6 +2,7 @@ package com.bridge.backend.domain.auth;
 
 import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.UserStatus;
+import com.bridge.backend.common.security.JwtProperties;
 import com.bridge.backend.common.security.JwtService;
 import com.bridge.backend.domain.admin.TenantEntity;
 import com.bridge.backend.domain.admin.TenantMemberEntity;
@@ -40,6 +41,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final JwtProperties jwtProperties;
 
     public AuthService(UserRepository userRepository,
                        TenantRepository tenantRepository,
@@ -47,7 +49,8 @@ public class AuthService {
                        ProjectMemberRepository projectMemberRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtService jwtService) {
+                       JwtService jwtService,
+                       JwtProperties jwtProperties) {
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
         this.tenantMemberRepository = tenantMemberRepository;
@@ -55,6 +58,7 @@ public class AuthService {
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.jwtProperties = jwtProperties;
     }
 
     public Map<String, Object> login(String email, String password, String tenantSlug) {
@@ -214,7 +218,7 @@ public class AuthService {
         entity.setTenantId(tenantId);
         entity.setUserId(user.getId());
         entity.setTokenHash(sha256(refreshToken));
-        entity.setExpiresAt(OffsetDateTime.now().plusDays(30));
+        entity.setExpiresAt(refreshExpiresAt());
         refreshTokenRepository.save(entity);
 
         user.setLastLoginAt(OffsetDateTime.now());
@@ -273,7 +277,7 @@ public class AuthService {
         next.setTenantId(tenantId);
         next.setUserId(userId);
         next.setTokenHash(sha256(newRefresh));
-        next.setExpiresAt(OffsetDateTime.now().plusDays(30));
+        next.setExpiresAt(refreshExpiresAt());
         refreshTokenRepository.save(next);
 
         return Map.of("accessToken", accessToken, "refreshToken", newRefresh);
@@ -390,5 +394,9 @@ public class AuthService {
         } catch (Exception ex) {
             throw new IllegalStateException(ex);
         }
+    }
+
+    private OffsetDateTime refreshExpiresAt() {
+        return OffsetDateTime.now().plusDays(jwtProperties.getRefreshExpirationDays());
     }
 }

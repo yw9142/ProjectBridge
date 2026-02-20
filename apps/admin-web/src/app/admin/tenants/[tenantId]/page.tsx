@@ -44,6 +44,16 @@ type Project = {
   createdAt?: string;
 };
 
+type MemberRole = "PM_OWNER" | "PM_MEMBER" | "CLIENT_OWNER" | "CLIENT_MEMBER" | "READONLY";
+
+const tenantRoleOptions: Array<{ value: MemberRole; label: string }> = [
+  { value: "PM_MEMBER", label: "PM 멤버" },
+  { value: "PM_OWNER", label: "PM 관리자" },
+  { value: "CLIENT_OWNER", label: "클라이언트 관리자" },
+  { value: "CLIENT_MEMBER", label: "클라이언트 멤버" },
+  { value: "READONLY", label: "읽기 전용" },
+];
+
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
   const date = new Date(value);
@@ -69,6 +79,7 @@ export default function TenantDetailPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [newUserRole, setNewUserRole] = useState<MemberRole>("PM_MEMBER");
   const [submitting, setSubmitting] = useState(false);
   const [createNotice, setCreateNotice] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -133,7 +144,7 @@ export default function TenantDetailPage() {
     try {
       const created = await apiFetch<SetupCodeIssue>(`/api/admin/tenants/${tenantId}/pm-users`, {
         method: "POST",
-        body: JSON.stringify({ email, name }),
+        body: JSON.stringify({ email, name, role: newUserRole }),
       });
       if (created.setupCode) {
         setCreateNotice(`테넌트 사용자 계정을 생성했습니다. 최초 비밀번호 설정 코드를 전달하세요. 이메일: ${created.email ?? email}`);
@@ -151,6 +162,7 @@ export default function TenantDetailPage() {
       }
       setEmail("");
       setName("");
+      setNewUserRole("PM_MEMBER");
       setCreateOpen(false);
       setCreateError(null);
       await load();
@@ -259,6 +271,7 @@ export default function TenantDetailPage() {
             type="button"
             onClick={() => {
               setCreateError(null);
+              setNewUserRole("PM_MEMBER");
               setCreateOpen(true);
             }}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
@@ -475,6 +488,20 @@ export default function TenantDetailPage() {
                 }}
                 required
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">기본 역할</label>
+              <select
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                value={newUserRole}
+                onChange={(e) => setNewUserRole(e.target.value as MemberRole)}
+              >
+                {tenantRoleOptions.map((roleOption) => (
+                  <option key={roleOption.value} value={roleOption.value}>
+                    {roleOption.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex justify-end gap-2">
               <button
