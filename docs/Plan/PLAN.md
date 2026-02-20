@@ -85,6 +85,7 @@
 ## 6. 공용 API/인터페이스/타입 계약 (변경/추가 포함)
 
 1. 응답 계약: `ApiSuccess<T>`, `ApiError`.
+   - `ApiError` 형식: `{ success: false, error: { code, message, details } }`
 2. 인증 계약: `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/first-password`.
 3. 인증 컨텍스트: `AuthContext { userId, tenantId, projectRoles }`.
 4. 상태 enum 단일 소스: 백엔드 enum + DB 제약 + OpenAPI + 프론트 공유타입 일치.

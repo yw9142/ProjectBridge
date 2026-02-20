@@ -5,9 +5,11 @@ export type ApiSuccess<T> = {
 
 export type ApiError = {
   success: false;
-  code: string;
-  message: string;
-  details?: unknown;
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
 };
 
 export type EnvelopeStatus =
