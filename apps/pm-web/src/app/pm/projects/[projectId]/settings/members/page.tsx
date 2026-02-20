@@ -14,6 +14,9 @@ type ProjectMember = {
   role: MemberRole;
   loginId: string;
   passwordMask: string;
+  passwordInitialized: boolean;
+  setupCode?: string | null;
+  setupCodeExpiresAt?: string | null;
 };
 
 type AccountDraft = {
@@ -37,11 +40,11 @@ export default function ProjectMemberSettingsPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [loginId, setLoginId] = useState("");
-  const [initialPassword, setInitialPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [inviteRole, setInviteRole] = useState<MemberRole>("CLIENT_MEMBER");
 
   const [createNotice, setCreateNotice] = useState<string | null>(null);
+  const [setupCodeInfo, setSetupCodeInfo] = useState<{ loginId: string; setupCode: string; expiresAt?: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
@@ -84,20 +87,53 @@ export default function ProjectMemberSettingsPage() {
         body: JSON.stringify({
           role: inviteRole,
           loginId,
-          password: initialPassword,
           name: displayName,
         }),
       });
-      setCreateNotice(`계정이 생성되었습니다. 로그인 ID: ${created.loginId}`);
+      if (created.setupCode) {
+        setCreateNotice(`계정이 생성되었습니다. 클라이언트 앱의 /first-password 에서 최초 비밀번호를 설정하세요. 로그인 ID: ${created.loginId}`);
+        setSetupCodeInfo({
+          loginId: created.loginId,
+          setupCode: created.setupCode,
+          expiresAt: created.setupCodeExpiresAt,
+        });
+      } else if (created.passwordInitialized) {
+        setCreateNotice(`이미 비밀번호가 설정된 기존 계정입니다. 클라이언트 로그인 페이지에서 기존 비밀번호로 로그인하세요. 로그인 ID: ${created.loginId}`);
+      } else {
+        setCreateNotice(`계정이 생성되었습니다. 설정 코드를 확인하지 못했습니다. 멤버 행의 '설정코드 재발급'으로 코드를 발급한 뒤 /first-password 에서 설정하세요. 로그인 ID: ${created.loginId}`);
+        setSetupCodeInfo(null);
+      }
       setCreateOpen(false);
       setLoginId("");
-      setInitialPassword("");
       setDisplayName("");
       setInviteRole("CLIENT_MEMBER");
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "계정 생성에 실패했습니다.");
+      }
+    }
+  }
+
+  async function resetSetupCode(memberId: string, memberLoginId: string) {
+    setError(null);
+    try {
+      const reset = await apiFetch<ProjectMember>(`/api/projects/${projectId}/members/${memberId}/setup-code/reset`, {
+        method: "POST",
+      });
+      if (!reset.setupCode) {
+        throw new Error("설정 코드 발급에 실패했습니다.");
+      }
+      setSetupCodeInfo({
+        loginId: memberLoginId,
+        setupCode: reset.setupCode,
+        expiresAt: reset.setupCodeExpiresAt,
+      });
+      setCreateNotice(`설정 코드를 재발급했습니다. 클라이언트 앱 /first-password 에서 사용하세요. 로그인 ID: ${memberLoginId}`);
+      await load();
+    } catch (e) {
+      if (!handleAuthError(e, "/login")) {
+        setError(e instanceof Error ? e.message : "설정 코드 재발급에 실패했습니다.");
       }
     }
   }
@@ -160,6 +196,54 @@ export default function ProjectMemberSettingsPage() {
     }
   }
 
+  const formatExpiry = (value?: string | null) => {
+    if (!value) {
+      return "-";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+    return new Intl.DateTimeFormat("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  };
+
+  const copySetupCode = async () => {
+    if (!setupCodeInfo?.setupCode || typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(setupCodeInfo.setupCode);
+      setCreateNotice("설정 코드를 클립보드에 복사했습니다.");
+    } catch {
+      setCreateNotice("클립보드 복사에 실패했습니다.");
+    }
+  };
+
+  const copySetupGuide = async () => {
+    if (!setupCodeInfo?.setupCode || typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+    const guide = [
+      "[Bridge 최초 비밀번호 설정 안내]",
+      `로그인 ID: ${setupCodeInfo.loginId}`,
+      `설정 코드: ${setupCodeInfo.setupCode}`,
+      `만료시각: ${formatExpiry(setupCodeInfo.expiresAt)}`,
+      "접속 경로: 클라이언트 앱 /first-password",
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(guide);
+      setCreateNotice("설정 안내문을 클립보드에 복사했습니다.");
+    } catch {
+      setCreateNotice("설정 안내문 복사에 실패했습니다.");
+    }
+  };
+
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
@@ -177,6 +261,33 @@ export default function ProjectMemberSettingsPage() {
       </div>
 
       {createNotice ? <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{createNotice}</p> : null}
+      {setupCodeInfo ? (
+        <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-semibold">최초 비밀번호 설정 코드</p>
+          <p>로그인 ID: {setupCodeInfo.loginId}</p>
+          <p>설정 코드: <span className="font-mono font-semibold">{setupCodeInfo.setupCode}</span></p>
+          <p>만료시각: {formatExpiry(setupCodeInfo.expiresAt)}</p>
+          <p className="text-xs text-amber-800">
+            사용 방법: 클라이언트 앱의 <span className="font-mono">/first-password</span> 페이지에서 로그인 ID, 설정 코드, 새 비밀번호를 입력합니다.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void copySetupCode()}
+              className="rounded border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+            >
+              코드 복사
+            </button>
+            <button
+              type="button"
+              onClick={() => void copySetupGuide()}
+              className="rounded border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+            >
+              안내문 복사
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-lg border border-slate-200">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -207,6 +318,7 @@ export default function ProjectMemberSettingsPage() {
                       }))
                     }
                   />
+                  <p className="mt-1 text-xs text-slate-500">{member.passwordInitialized ? "비밀번호 설정 완료" : "최초 비밀번호 설정 필요"}</p>
                 </td>
                 <td className="px-4 py-3">
                   <input
@@ -262,6 +374,15 @@ export default function ProjectMemberSettingsPage() {
                     >
                       역할 저장
                     </button>
+                    {!member.passwordInitialized ? (
+                      <button
+                        type="button"
+                        onClick={() => void resetSetupCode(member.id, member.loginId)}
+                        className="rounded border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+                      >
+                        설정코드 재발급
+                      </button>
+                    ) : null}
                     <ConfirmActionButton
                       label="멤버 삭제"
                       title="멤버를 삭제할까요?"
@@ -291,7 +412,7 @@ export default function ProjectMemberSettingsPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="계정 생성"
-        description="로그인 ID/비밀번호를 포함해 계정을 생성하고 프로젝트에 추가합니다."
+        description="로그인 ID를 생성하고 최초 비밀번호 설정 코드를 발급합니다."
       >
         <form onSubmit={createMember} className="space-y-3">
           <input
@@ -299,14 +420,6 @@ export default function ProjectMemberSettingsPage() {
             placeholder="로그인 ID(이메일)"
             value={loginId}
             onChange={(e) => setLoginId(e.target.value)}
-            required
-          />
-          <input
-            className="w-full rounded-lg border border-slate-300 px-3 py-2"
-            type="text"
-            placeholder="초기 비밀번호"
-            value={initialPassword}
-            onChange={(e) => setInitialPassword(e.target.value)}
             required
           />
           <input

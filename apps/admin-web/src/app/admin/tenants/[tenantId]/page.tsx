@@ -236,6 +236,9 @@ export default function TenantDetailPage() {
         </div>
 
         <div className="overflow-hidden rounded-lg border border-slate-200">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+            <h2 className="text-sm font-semibold text-slate-700">테넌트 사용자</h2>
+          </div>
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
@@ -280,7 +283,7 @@ export default function TenantDetailPage() {
               {!loading && pmUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                    등록된 PM 사용자가 없습니다.
+                    등록된 테넌트 사용자가 없습니다.
                   </td>
                 </tr>
               ) : null}

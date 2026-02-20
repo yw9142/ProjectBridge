@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
+import Link from "next/link";
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { API_BASE } from "@/lib/api";
-import { sanitizeNextPath, setAuthCookies } from "@/lib/auth";
+import { sanitizeNextPath } from "@/lib/auth";
 
 type TenantOption = {
   tenantId: string;
@@ -30,6 +31,14 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  function resolveLoginErrorMessage(payload: unknown): string {
+    const code = (payload as { error?: { code?: string } })?.error?.code;
+    if (code === "LOGIN_BLOCKED") {
+      return "로그인 시도 횟수를 초과해 계정이 잠겼습니다. 관리자에게 잠금 해제를 요청하세요.";
+    }
+    return "로그인에 실패했습니다.";
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
@@ -38,7 +47,11 @@ function LoginForm() {
     try {
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Bridge-App": "client",
+        },
+        credentials: "include",
         body: JSON.stringify({
           email,
           password,
@@ -47,7 +60,12 @@ function LoginForm() {
       });
       const json = await response.json();
       if (!response.ok) {
-        throw new Error(json?.error?.message ?? "로그인에 실패했습니다.");
+        if (json?.error?.code === "PASSWORD_SETUP_REQUIRED") {
+          const encodedEmail = encodeURIComponent(email.trim().toLowerCase());
+          router.replace(`/first-password?email=${encodedEmail}`);
+          return;
+        }
+        throw new Error(resolveLoginErrorMessage(json));
       }
 
       const data = json?.data;
@@ -61,11 +79,10 @@ function LoginForm() {
         return;
       }
 
-      if (!data?.accessToken || !data?.refreshToken) {
+      if (!data || !data.userId) {
         throw new Error("로그인 응답이 올바르지 않습니다.");
       }
 
-      setAuthCookies(data.accessToken, data.refreshToken);
       router.replace(sanitizeNextPath(params.get("next"), "/client/projects"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "요청 처리 중 오류가 발생했습니다.");
@@ -131,6 +148,14 @@ function LoginForm() {
             disabled={Boolean(tenantOptions)}
             required
           />
+          <div className="mt-2 flex justify-end">
+            <Link
+              href={`/first-password?email=${encodeURIComponent(email.trim().toLowerCase())}`}
+              className="text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              설정 코드로 최초 비밀번호 설정
+            </Link>
+          </div>
 
           {tenantOptions ? (
             <div className="mt-4 space-y-2">
@@ -183,4 +208,7 @@ function LoginForm() {
 function LoginPageFallback() {
   return <main className="min-h-screen bg-background" />;
 }
+
+
+
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -114,7 +114,7 @@ export default function PmContractSigningStatusPage() {
         setPdfUrl(downloadUrl);
       } catch (e) {
         if (!active) return;
-        if (!handleAuthError(e, "/pm/login")) {
+        if (!handleAuthError(e, "/login")) {
           setError(e instanceof Error ? e.message : "서명 상태를 불러오지 못했습니다.");
         }
       } finally {
@@ -219,3 +219,4 @@ export default function PmContractSigningStatusPage() {
     </section>
   );
 }
+

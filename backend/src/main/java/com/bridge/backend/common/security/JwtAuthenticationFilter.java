@@ -3,7 +3,6 @@ package com.bridge.backend.common.security;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
@@ -17,17 +16,12 @@ import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    private static final String NOTIFICATION_STREAM_PATH = "/api/notifications/stream";
-    private static final Set<String> ACCESS_COOKIE_NAMES = Set.of(
-            "bridge_access_token",
-            "bridge_pm_access_token",
-            "bridge_client_access_token",
-            "bridge_admin_access_token"
-    );
     private final JwtService jwtService;
+    private final AuthCookieService authCookieService;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, AuthCookieService authCookieService) {
         this.jwtService = jwtService;
+        this.authCookieService = authCookieService;
     }
 
     @Override
@@ -35,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = normalizePath(request);
         return path.startsWith("/api/auth/login")
                 || path.startsWith("/api/auth/refresh")
+                || path.startsWith("/api/auth/first-password")
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/swagger-ui");
     }
@@ -66,27 +61,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return authHeader.substring(7);
         }
 
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (ACCESS_COOKIE_NAMES.contains(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
-                    return cookie.getValue();
-                }
-            }
-        }
-
-        if (isNotificationStreamRequest(request)) {
-            String queryToken = request.getParameter("accessToken");
-            if (queryToken != null && !queryToken.isBlank()) {
-                return queryToken;
-            }
-        }
-
-        return null;
-    }
-
-    private boolean isNotificationStreamRequest(HttpServletRequest request) {
-        return NOTIFICATION_STREAM_PATH.equals(normalizePath(request));
+        return authCookieService.readAccessToken(request).orElse(null);
     }
 
     private String normalizePath(HttpServletRequest request) {

@@ -25,13 +25,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
     private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final int MIN_PASSWORD_LENGTH = 10;
+    private static final int MAX_PASSWORD_LENGTH = 72;
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final TenantMemberRepository tenantMemberRepository;
@@ -39,7 +40,6 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final Map<String, Integer> failedLoginAttempts = new ConcurrentHashMap<>();
 
     public AuthService(UserRepository userRepository,
                        TenantRepository tenantRepository,
@@ -57,25 +57,37 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
-    @Transactional
     public Map<String, Object> login(String email, String password, String tenantSlug) {
-        String key = email.toLowerCase(Locale.ROOT);
-        int failCount = failedLoginAttempts.getOrDefault(key, 0);
-        if (failCount >= MAX_FAILED_ATTEMPTS) {
+        String normalizedEmail = normalizeEmail(email);
+
+        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(normalizedEmail)
+                .orElseThrow(this::invalidCredentials);
+
+        if (user.getFailedLoginAttempts() >= MAX_FAILED_ATTEMPTS) {
             throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "LOGIN_BLOCKED", "Too many login attempts.");
-        }
-
-        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(email)
-                .orElseThrow(() -> invalidCredentials(key));
-
-        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw invalidCredentials(key);
         }
         if (user.getStatus() == UserStatus.SUSPENDED || user.getStatus() == UserStatus.DEACTIVATED) {
             throw new AppException(HttpStatus.FORBIDDEN, "USER_BLOCKED", "User is blocked.");
         }
+        if (!user.isPasswordInitialized()) {
+            throw new AppException(
+                    HttpStatus.FORBIDDEN,
+                    "PASSWORD_SETUP_REQUIRED",
+                    "First password setup is required.",
+                    Map.of("email", user.getEmail())
+            );
+        }
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            int nextAttempts = user.getFailedLoginAttempts() + 1;
+            user.setFailedLoginAttempts(nextAttempts);
+            userRepository.save(user);
+            if (nextAttempts >= MAX_FAILED_ATTEMPTS) {
+                throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "LOGIN_BLOCKED", "Too many login attempts.");
+            }
+            throw invalidCredentials();
+        }
 
-        failedLoginAttempts.remove(key);
+        user.setFailedLoginAttempts(0);
 
         if (user.isPlatformAdmin()) {
             return loginAsPlatformAdmin(user, tenantSlug);
@@ -207,6 +219,7 @@ public class AuthService {
 
         user.setLastLoginAt(OffsetDateTime.now());
         user.setStatus(UserStatus.ACTIVE);
+        user.setFailedLoginAttempts(0);
         userRepository.save(user);
 
         return Map.of(
@@ -220,6 +233,9 @@ public class AuthService {
 
     @Transactional
     public Map<String, Object> refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "REFRESH_MISSING", "Refresh token missing.");
+        }
         Claims claims = jwtService.parse(refreshToken);
         if (!jwtService.isRefreshToken(claims)) {
             throw new AppException(HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "Invalid refresh token.");
@@ -239,6 +255,9 @@ public class AuthService {
                 .collect(Collectors.toSet());
         UserEntity user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "USER_NOT_FOUND", "User not found."));
+        if (user.getStatus() == UserStatus.SUSPENDED || user.getStatus() == UserStatus.DEACTIVATED) {
+            throw new AppException(HttpStatus.FORBIDDEN, "USER_BLOCKED", "User is blocked.");
+        }
         tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId)
                 .ifPresent(member -> roles.add("TENANT_" + member.getRole().name()));
         if (user.isPlatformAdmin()) {
@@ -299,9 +318,69 @@ public class AuthService {
         );
     }
 
-    private AppException invalidCredentials(String key) {
-        failedLoginAttempts.put(key, failedLoginAttempts.getOrDefault(key, 0) + 1);
+    @Transactional
+    public Map<String, Object> setupFirstPassword(String email, String setupCode, String newPassword) {
+        String normalizedEmail = normalizeEmail(email);
+        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(normalizedEmail)
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "PASSWORD_SETUP_CODE_INVALID", "Invalid password setup code."));
+        if (user.isPasswordInitialized()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PASSWORD_ALREADY_INITIALIZED", "Password already initialized.");
+        }
+        if (setupCode == null || setupCode.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PASSWORD_SETUP_CODE_INVALID", "Invalid password setup code.");
+        }
+        if (!isSetupCodeValid(user, setupCode)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PASSWORD_SETUP_CODE_INVALID", "Invalid password setup code.");
+        }
+        validatePasswordPolicy(newPassword);
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setPasswordInitialized(true);
+        user.setPasswordSetupCodeHash(null);
+        user.setPasswordSetupCodeExpiresAt(null);
+        user.setFailedLoginAttempts(0);
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        return Map.of("passwordInitialized", true);
+    }
+
+    private boolean isSetupCodeValid(UserEntity user, String setupCode) {
+        if (user.getPasswordSetupCodeHash() == null || user.getPasswordSetupCodeExpiresAt() == null) {
+            return false;
+        }
+        if (user.getPasswordSetupCodeExpiresAt().isBefore(OffsetDateTime.now())) {
+            return false;
+        }
+        return sha256(setupCode).equals(user.getPasswordSetupCodeHash());
+    }
+
+    private void validatePasswordPolicy(String password) {
+        if (password == null || password.length() < MIN_PASSWORD_LENGTH || password.length() > MAX_PASSWORD_LENGTH) {
+            throw new AppException(
+                    HttpStatus.BAD_REQUEST,
+                    "PASSWORD_POLICY_VIOLATION",
+                    "Password must be 10-72 characters and include upper/lowercase letters and a number."
+            );
+        }
+        boolean hasUpper = password.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = password.chars().anyMatch(Character::isLowerCase);
+        boolean hasDigit = password.chars().anyMatch(Character::isDigit);
+        if (!hasUpper || !hasLower || !hasDigit) {
+            throw new AppException(
+                    HttpStatus.BAD_REQUEST,
+                    "PASSWORD_POLICY_VIOLATION",
+                    "Password must be 10-72 characters and include upper/lowercase letters and a number."
+            );
+        }
+    }
+
+    private AppException invalidCredentials() {
         return new AppException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Invalid email or password.");
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
     }
 
     private String sha256(String value) {

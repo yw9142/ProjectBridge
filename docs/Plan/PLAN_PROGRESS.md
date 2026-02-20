@@ -10,7 +10,7 @@
 - 모노레포: `pnpm + Turborepo`
 - Docker 필수: `postgres`, `minio`, `mailhog`
 - 인증 전면 강제: 최초 진입 로그인, 미인증 차단, 세션 만료 리다이렉트
-- `/sign/[recipientToken]` 로그인 필수 + 토큰 소유권 검증 필수
+- `/sign/[contractId]` 로그인 필수 + 토큰 소유권 검증 필수
 - 백엔드 영속성: `Spring Data JPA(Hibernate)` 강제
 - 무한루프/메모리 폭주 방지: 보수형 메모리 프로파일 고정
 - 프레임워크 생성: 수동 뼈대 금지, 공식 설치/스캐폴드 명령만 사용
@@ -43,7 +43,7 @@
 ### 1.5 프론트 요구(요약)
 - admin/pm/client 라우트 전량 구현
 - 로그인 선행, `next` 복귀
-- `/sign/[recipientToken]` 로그인 후 소유권 검증
+- `/sign/[contractId]` 로그인 후 소유권 검증
 - 디자인 기준: `frontend-design + ui-ux-pro-max`, `ref`는 디자인만 참고
 
 ### 1.6 테스트/완료 기준(요약)
@@ -121,10 +121,10 @@
   - `admin-web` 운영 라우트 전량 생성  
     (`/admin/login`, `/admin/tenants`, `/admin/tenants/new`, `/admin/tenants/[tenantId]`, `/admin/tenants/[tenantId]/pm-users`, `/admin/users/[userId]`)
   - `client-web` 라우트 전량 생성  
-    (`/login`, `/client/projects`, `/client/projects/[projectId]/home/requests/posts/files/meetings/contracts/billing/vault`, `/sign/[recipientToken]`)
+    (`/login`, `/client/projects`, `/client/projects/[projectId]/home/requests/posts/files/meetings/contracts/billing/vault`, `/sign/[contractId]`)
   - 앱별 로그인 가드(`middleware.ts`) + `next` 복귀 흐름 추가
   - 앱별 인증 유틸(`lib/auth.ts`) + Bearer 헤더 기반 API 유틸(`lib/api.ts`) 추가
-  - `/sign/[recipientToken]` 페이지에서 `GET /api/signing/{recipientToken}` 호출로 소유권 검증 결과를 표시하고, `viewed/submit` 액션 버튼 연결
+  - `/sign/[contractId]` 페이지에서 `GET /api/signing/contracts/{contractId}` 호출로 소유권 검증 결과를 표시하고, `viewed/submit` 액션 버튼 연결
   - `pm-web`, `admin-web`, `client-web` lint 통과
 - 미완료/잔여
   - 없음 (DoD 1~9 실증 완료, 배포 파이프라인 구현 완료)
@@ -148,7 +148,7 @@
 - [x] admin-web 라우트 전량
 - [x] pm-web 라우트 전량
 - [x] client-web 라우트 전량
-- [x] `/sign/[recipientToken]` 로그인 강제 + 소유권 검증 UI 흐름
+- [x] `/sign/[contractId]` 로그인 강제 + 소유권 검증 UI 흐름
 - [x] Playwright MCP E2E
 - [x] UI/UX Quality Gate(Phase 6/7)
 - [x] 최종 DoD 데모 시나리오 1~9
@@ -364,7 +364,7 @@
 
 ### 11.2 Playwright MCP E2E 수행
 - PM/Client/Admin 보호 라우트 로그인 강제 + 로그인 후 복귀 확인
-- `/sign/[recipientToken]` 토큰 검증 동작 확인
+- `/sign/[contractId]` 토큰 검증 동작 확인
 - 근거 문서:
   - `docs/Test/PLAYWRIGHT_MCP_E2E.md`
 
@@ -409,3 +409,4 @@
 ### 12.3 현재 잔여
 - 기능 구현 잔여 없음
 - 운영 시크릿 주입 및 실배포 검증만 남음
+

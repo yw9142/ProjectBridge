@@ -31,4 +31,16 @@ public class UserEntity extends BaseEntity {
 
     @Column(name = "last_login_at")
     private OffsetDateTime lastLoginAt;
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts;
+
+    @Column(name = "password_initialized", nullable = false)
+    private boolean passwordInitialized = true;
+
+    @Column(name = "password_setup_code_hash", length = 255)
+    private String passwordSetupCodeHash;
+
+    @Column(name = "password_setup_code_expires_at")
+    private OffsetDateTime passwordSetupCodeExpiresAt;
 }

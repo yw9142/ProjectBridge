@@ -90,6 +90,12 @@ public class AdminController {
         return ApiSuccess.of(adminService.getUserDetail(userId));
     }
 
+    @PostMapping("/users/{userId}/unlock-login")
+    public ApiSuccess<Map<String, Object>> unlockLogin(@PathVariable UUID userId) {
+        accessGuardService.requirePlatformAdmin(SecurityUtils.currentUserId());
+        return ApiSuccess.of(adminService.unlockLogin(userId));
+    }
+
     public record CreateTenantRequest(@NotBlank String name, @NotBlank String slug) {
     }
 

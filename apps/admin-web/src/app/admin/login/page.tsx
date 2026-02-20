@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { API_BASE } from "@/lib/api";
-import { sanitizeNextPath, setAuthCookies } from "@/lib/auth";
+import { sanitizeNextPath } from "@/lib/auth";
 
 type TenantOption = {
   tenantId: string;
@@ -30,6 +30,14 @@ function AdminLoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  function resolveLoginErrorMessage(payload: unknown): string {
+    const code = (payload as { error?: { code?: string } })?.error?.code;
+    if (code === "LOGIN_BLOCKED") {
+      return "로그인 시도 횟수를 초과해 계정이 잠겼습니다. 로그인 잠금 해제를 진행하세요.";
+    }
+    return "로그인에 실패했습니다.";
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
@@ -38,7 +46,11 @@ function AdminLoginForm() {
     try {
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Bridge-App": "admin",
+        },
+        credentials: "include",
         body: JSON.stringify({
           email,
           password,
@@ -47,7 +59,7 @@ function AdminLoginForm() {
       });
       const json = await response.json();
       if (!response.ok) {
-        throw new Error(json?.error?.message ?? "로그인에 실패했습니다.");
+        throw new Error(resolveLoginErrorMessage(json));
       }
 
       const data = json?.data;
@@ -61,11 +73,10 @@ function AdminLoginForm() {
         return;
       }
 
-      if (!data?.accessToken || !data?.refreshToken) {
+      if (!data || !data.userId) {
         throw new Error("로그인 응답이 올바르지 않습니다.");
       }
 
-      setAuthCookies(data.accessToken, data.refreshToken);
       router.replace(sanitizeNextPath(params.get("next"), "/admin/tenants"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "요청 처리 중 오류가 발생했습니다.");
@@ -183,4 +194,7 @@ function AdminLoginForm() {
 function LoginPageFallback() {
   return <main className="min-h-screen bg-background" />;
 }
+
+
+
 

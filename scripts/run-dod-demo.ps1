@@ -6,9 +6,10 @@ param(
 $ErrorActionPreference = "Stop"
 $script:RequestLog = @()
 $script:SensitiveKeys = @(
-    "accessToken",
-    "refreshToken",
     "password",
+    "newPassword",
+    "setupCode",
+    "uploadTicket",
     "plainSecret",
     "secret",
     "secretCiphertext",
@@ -27,11 +28,7 @@ function Sanitize-BridgeLogValue {
         foreach ($key in $Value.Keys) {
             $textKey = [string]$key
             if ($textKey -in $script:SensitiveKeys) {
-                if ($textKey -in @("accessToken", "refreshToken")) {
-                    $safe[$textKey] = "__REDACTED_TOKEN__"
-                } else {
-                    $safe[$textKey] = "__REDACTED_SECRET__"
-                }
+                $safe[$textKey] = "__REDACTED__"
                 continue
             }
             $safe[$textKey] = Sanitize-BridgeLogValue -Value $Value[$key]
@@ -44,11 +41,7 @@ function Sanitize-BridgeLogValue {
         foreach ($property in $Value.PSObject.Properties) {
             $textKey = [string]$property.Name
             if ($textKey -in $script:SensitiveKeys) {
-                if ($textKey -in @("accessToken", "refreshToken")) {
-                    $safe[$textKey] = "__REDACTED_TOKEN__"
-                } else {
-                    $safe[$textKey] = "__REDACTED_SECRET__"
-                }
+                $safe[$textKey] = "__REDACTED__"
                 continue
             }
             $safe[$textKey] = Sanitize-BridgeLogValue -Value $property.Value
@@ -69,15 +62,12 @@ function Invoke-BridgeApi {
         [string]$Method,
         [string]$Path,
         [object]$Body = $null,
-        [string]$AccessToken = $null
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session
     )
 
     $uri = "$BaseUrl$Path"
     $headers = @{
         "Accept" = "application/json"
-    }
-    if ($AccessToken) {
-        $headers["Authorization"] = "Bearer $AccessToken"
     }
 
     $bodyJson = $null
@@ -88,9 +78,17 @@ function Invoke-BridgeApi {
 
     try {
         if ($null -ne $bodyJson) {
-            $parsed = Invoke-RestMethod -Uri $uri -Method $Method -Headers $headers -Body $bodyJson
+            if ($Session) {
+                $parsed = Invoke-RestMethod -Uri $uri -Method $Method -Headers $headers -Body $bodyJson -WebSession $Session
+            } else {
+                $parsed = Invoke-RestMethod -Uri $uri -Method $Method -Headers $headers -Body $bodyJson
+            }
         } else {
-            $parsed = Invoke-RestMethod -Uri $uri -Method $Method -Headers $headers
+            if ($Session) {
+                $parsed = Invoke-RestMethod -Uri $uri -Method $Method -Headers $headers -WebSession $Session
+            } else {
+                $parsed = Invoke-RestMethod -Uri $uri -Method $Method -Headers $headers
+            }
         }
 
         $safeRequest = Sanitize-BridgeLogValue -Value $Body
@@ -147,63 +145,67 @@ $clientEmail = "client+$slugSuffix@bridge.local"
 $pmPassword = "TempPassword!123"
 $clientPassword = "Client!12345"
 
+$adminSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$pmSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$clientSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+
 Write-Host "Running DoD scenarios against $BaseUrl"
 
 # Scenario 1: admin tenant + PM user
-$adminLogin = Invoke-BridgeApi -Step "S1-admin-login" -Method "POST" -Path "/api/auth/login" -Body @{
+$null = Invoke-BridgeApi -Step "S1-admin-login" -Method "POST" -Path "/api/auth/login" -Session $adminSession -Body @{
     email      = "admin@bridge.local"
     password   = "password"
     tenantSlug = "bridge"
 }
-$adminToken = $adminLogin.data.accessToken
 
-$tenant = Invoke-BridgeApi -Step "S1-create-tenant" -Method "POST" -Path "/api/admin/tenants" -AccessToken $adminToken -Body @{
+$tenant = Invoke-BridgeApi -Step "S1-create-tenant" -Method "POST" -Path "/api/admin/tenants" -Session $adminSession -Body @{
     name = $tenantName
     slug = $tenantSlug
 }
 $tenantId = $tenant.data.id
 
-$pmUser = Invoke-BridgeApi -Step "S1-create-pm-user" -Method "POST" -Path "/api/admin/tenants/$tenantId/pm-users" -AccessToken $adminToken -Body @{
+$pmUser = Invoke-BridgeApi -Step "S1-create-pm-user" -Method "POST" -Path "/api/admin/tenants/$tenantId/pm-users" -Session $adminSession -Body @{
     email = $pmEmail
     name  = "DoD PM $timestamp"
 }
 $pmUserId = $pmUser.data.userId
 
 # Scenario 2: pm project create + invite client
-$pmLogin = Invoke-BridgeApi -Step "S2-pm-login" -Method "POST" -Path "/api/auth/login" -Body @{
+$null = Invoke-BridgeApi -Step "S2-pm-login" -Method "POST" -Path "/api/auth/login" -Session $pmSession -Body @{
     email      = $pmEmail
     password   = $pmPassword
     tenantSlug = $tenantSlug
 }
-$pmToken = $pmLogin.data.accessToken
 
-$project = Invoke-BridgeApi -Step "S2-create-project" -Method "POST" -Path "/api/projects" -AccessToken $pmToken -Body @{
+$project = Invoke-BridgeApi -Step "S2-create-project" -Method "POST" -Path "/api/projects" -Session $pmSession -Body @{
     name        = "DoD Project $timestamp"
     description = "DoD scenario execution"
 }
 $projectId = $project.data.id
 
-$invite = Invoke-BridgeApi -Step "S2-invite-client" -Method "POST" -Path "/api/projects/$projectId/members/invite" -AccessToken $pmToken -Body @{
-    email    = $clientEmail
-    role     = "CLIENT_OWNER"
-    loginId  = $clientEmail
-    password = $clientPassword
-    name     = "DoD Client $timestamp"
+$invite = Invoke-BridgeApi -Step "S2-invite-client" -Method "POST" -Path "/api/projects/$projectId/members/invite" -Session $pmSession -Body @{
+    role    = "CLIENT_OWNER"
+    loginId = $clientEmail
+    name    = "DoD Client $timestamp"
 }
-$invitationToken = $invite.data.invitationToken
+$clientMemberId = $invite.data.id
+$clientSetupCode = $invite.data.setupCode
 
-# Scenario 3: client accept invitation
-$clientLogin = Invoke-BridgeApi -Step "S3-client-login" -Method "POST" -Path "/api/auth/login" -Body @{
+# Scenario 3: client first-password + login
+$firstPassword = Invoke-BridgeApi -Step "S3-first-password" -Method "POST" -Path "/api/auth/first-password" -Body @{
+    email       = $clientEmail
+    setupCode   = $clientSetupCode
+    newPassword = $clientPassword
+}
+
+$null = Invoke-BridgeApi -Step "S3-client-login" -Method "POST" -Path "/api/auth/login" -Session $clientSession -Body @{
     email      = $clientEmail
     password   = $clientPassword
     tenantSlug = $tenantSlug
 }
-$clientToken = $clientLogin.data.accessToken
-
-$acceptInvitation = Invoke-BridgeApi -Step "S3-accept-invitation" -Method "POST" -Path "/api/invitations/$invitationToken/accept" -AccessToken $clientToken
 
 # Scenario 4: post/request/decision
-$post = Invoke-BridgeApi -Step "S4-create-post" -Method "POST" -Path "/api/projects/$projectId/posts" -AccessToken $pmToken -Body @{
+$post = Invoke-BridgeApi -Step "S4-create-post" -Method "POST" -Path "/api/projects/$projectId/posts" -Session $pmSession -Body @{
     type   = "GENERAL"
     title  = "DoD Post $timestamp"
     body   = "post body"
@@ -211,45 +213,52 @@ $post = Invoke-BridgeApi -Step "S4-create-post" -Method "POST" -Path "/api/proje
 }
 $postId = $post.data.id
 
-$request = Invoke-BridgeApi -Step "S4-create-request" -Method "POST" -Path "/api/projects/$projectId/requests" -AccessToken $clientToken -Body @{
+$request = Invoke-BridgeApi -Step "S4-create-request" -Method "POST" -Path "/api/projects/$projectId/requests" -Session $clientSession -Body @{
     type        = "FEEDBACK"
     title       = "DoD Request $timestamp"
     description = "request description"
 }
 $requestId = $request.data.id
 
-$requestStatus = Invoke-BridgeApi -Step "S4-update-request-status" -Method "PATCH" -Path "/api/requests/$requestId/status" -AccessToken $pmToken -Body @{
+$requestStatus = Invoke-BridgeApi -Step "S4-update-request-status" -Method "PATCH" -Path "/api/requests/$requestId/status" -Session $pmSession -Body @{
     status = "IN_PROGRESS"
 }
 
-$decision = Invoke-BridgeApi -Step "S4-create-decision" -Method "POST" -Path "/api/projects/$projectId/decisions" -AccessToken $pmToken -Body @{
+$decision = Invoke-BridgeApi -Step "S4-create-decision" -Method "POST" -Path "/api/projects/$projectId/decisions" -Session $pmSession -Body @{
     title     = "DoD Decision $timestamp"
     rationale = "decision rationale"
 }
 $decisionId = $decision.data.id
 
-$decisionStatus = Invoke-BridgeApi -Step "S4-update-decision-status" -Method "PATCH" -Path "/api/decisions/$decisionId/status" -AccessToken $pmToken -Body @{
+$decisionStatus = Invoke-BridgeApi -Step "S4-update-decision-status" -Method "PATCH" -Path "/api/decisions/$decisionId/status" -Session $pmSession -Body @{
     status = "APPROVED"
 }
 
 # Scenario 5: file/version/comment
-$file = Invoke-BridgeApi -Step "S5-create-file" -Method "POST" -Path "/api/projects/$projectId/files" -AccessToken $pmToken -Body @{
+$file = Invoke-BridgeApi -Step "S5-create-file" -Method "POST" -Path "/api/projects/$projectId/files" -Session $pmSession -Body @{
     name        = "dod-spec-$slugSuffix.pdf"
     description = "DoD file"
     folder      = "/docs"
 }
 $fileId = $file.data.id
 
-$fileVersion = Invoke-BridgeApi -Step "S5-complete-version" -Method "POST" -Path "/api/files/$fileId/versions/complete" -AccessToken $pmToken -Body @{
-    version     = 1
-    objectKey   = "dod/$projectId/spec-v1.pdf"
+$presign = Invoke-BridgeApi -Step "S5-presign-version" -Method "POST" -Path "/api/files/$fileId/versions/presign" -Session $pmSession -Body @{
     contentType = "application/pdf"
     size        = 1024
     checksum    = "sha256-$slugSuffix"
 }
+
+$fileVersion = Invoke-BridgeApi -Step "S5-complete-version" -Method "POST" -Path "/api/files/$fileId/versions/complete" -Session $pmSession -Body @{
+    version     = $presign.data.version
+    objectKey   = $presign.data.objectKey
+    contentType = $presign.data.contentType
+    size        = $presign.data.size
+    checksum    = $presign.data.checksum
+    uploadTicket = $presign.data.uploadTicket
+}
 $fileVersionId = $fileVersion.data.id
 
-$fileComment = Invoke-BridgeApi -Step "S5-comment-file-version" -Method "POST" -Path "/api/file-versions/$fileVersionId/comments" -AccessToken $clientToken -Body @{
+$fileComment = Invoke-BridgeApi -Step "S5-comment-file-version" -Method "POST" -Path "/api/file-versions/$fileVersionId/comments" -Session $clientSession -Body @{
     body   = "please update title block"
     coordX = 10
     coordY = 10
@@ -258,13 +267,13 @@ $fileComment = Invoke-BridgeApi -Step "S5-comment-file-version" -Method "POST" -
 }
 $fileCommentId = $fileComment.data.id
 
-$resolvedComment = Invoke-BridgeApi -Step "S5-resolve-file-comment" -Method "PATCH" -Path "/api/file-comments/$fileCommentId/resolve" -AccessToken $pmToken
+$resolvedComment = Invoke-BridgeApi -Step "S5-resolve-file-comment" -Method "PATCH" -Path "/api/file-comments/$fileCommentId/resolve" -Session $pmSession
 
 # Scenario 6: meeting + client response
 $startAt = (Get-Date).AddDays(1).ToUniversalTime().ToString("o")
 $endAt = (Get-Date).AddDays(1).AddHours(1).ToUniversalTime().ToString("o")
 
-$meeting = Invoke-BridgeApi -Step "S6-create-meeting" -Method "POST" -Path "/api/projects/$projectId/meetings" -AccessToken $pmToken -Body @{
+$meeting = Invoke-BridgeApi -Step "S6-create-meeting" -Method "POST" -Path "/api/projects/$projectId/meetings" -Session $pmSession -Body @{
     title   = "DoD Weekly Sync"
     startAt = $startAt
     endAt   = $endAt
@@ -272,31 +281,30 @@ $meeting = Invoke-BridgeApi -Step "S6-create-meeting" -Method "POST" -Path "/api
 }
 $meetingId = $meeting.data.id
 
-$meetingResponse = Invoke-BridgeApi -Step "S6-client-respond-meeting" -Method "POST" -Path "/api/meetings/$meetingId/respond" -AccessToken $clientToken -Body @{
+$meetingResponse = Invoke-BridgeApi -Step "S6-client-respond-meeting" -Method "POST" -Path "/api/meetings/$meetingId/respond" -Session $clientSession -Body @{
     response = "ACCEPTED"
 }
 
 # Scenario 7: contract + signing
-$contract = Invoke-BridgeApi -Step "S7-create-contract" -Method "POST" -Path "/api/projects/$projectId/contracts" -AccessToken $pmToken -Body @{
+$contract = Invoke-BridgeApi -Step "S7-create-contract" -Method "POST" -Path "/api/projects/$projectId/contracts" -Session $pmSession -Body @{
     name          = "DoD Contract $timestamp"
     fileVersionId = $fileVersionId
 }
 $contractId = $contract.data.id
 
-$envelope = Invoke-BridgeApi -Step "S7-create-envelope" -Method "POST" -Path "/api/contracts/$contractId/envelopes" -AccessToken $pmToken -Body @{
+$envelope = Invoke-BridgeApi -Step "S7-create-envelope" -Method "POST" -Path "/api/contracts/$contractId/envelopes" -Session $pmSession -Body @{
     title = "DoD Sign Envelope"
 }
 $envelopeId = $envelope.data.id
 
-$recipient = Invoke-BridgeApi -Step "S7-add-recipient" -Method "POST" -Path "/api/envelopes/$envelopeId/recipients" -AccessToken $pmToken -Body @{
+$recipient = Invoke-BridgeApi -Step "S7-add-recipient" -Method "POST" -Path "/api/envelopes/$envelopeId/recipients" -Session $pmSession -Body @{
     name         = "DoD Client Signer"
     email        = $clientEmail
     signingOrder = 1
 }
 $recipientId = $recipient.data.id
-$recipientToken = $recipient.data.recipientToken
 
-$signatureField = Invoke-BridgeApi -Step "S7-add-signature-field" -Method "POST" -Path "/api/envelopes/$envelopeId/fields" -AccessToken $pmToken -Body @{
+$signatureField = Invoke-BridgeApi -Step "S7-add-signature-field" -Method "POST" -Path "/api/envelopes/$envelopeId/fields" -Session $pmSession -Body @{
     recipientId = $recipientId
     type        = "SIGNATURE"
     page        = 1
@@ -306,13 +314,13 @@ $signatureField = Invoke-BridgeApi -Step "S7-add-signature-field" -Method "POST"
     coordH      = 40
 }
 
-$sentEnvelope = Invoke-BridgeApi -Step "S7-send-envelope" -Method "POST" -Path "/api/envelopes/$envelopeId/send" -AccessToken $pmToken
-$viewedEnvelope = Invoke-BridgeApi -Step "S7-view-signing" -Method "POST" -Path "/api/signing/$recipientToken/viewed" -AccessToken $clientToken
-$submitSigning = Invoke-BridgeApi -Step "S7-submit-signing" -Method "POST" -Path "/api/signing/$recipientToken/submit" -AccessToken $clientToken
-$signatureEvents = Invoke-BridgeApi -Step "S7-signature-events" -Method "GET" -Path "/api/envelopes/$envelopeId/events" -AccessToken $pmToken
+$null = Invoke-BridgeApi -Step "S7-send-envelope" -Method "POST" -Path "/api/envelopes/$envelopeId/send" -Session $pmSession
+$null = Invoke-BridgeApi -Step "S7-view-signing" -Method "POST" -Path "/api/signing/contracts/$contractId/viewed" -Session $clientSession
+$submitSigning = Invoke-BridgeApi -Step "S7-submit-signing" -Method "POST" -Path "/api/signing/contracts/$contractId/submit" -Session $clientSession -Body @{}
+$signatureEvents = Invoke-BridgeApi -Step "S7-signature-events" -Method "GET" -Path "/api/envelopes/$envelopeId/events" -Session $pmSession
 
 # Scenario 8: billing
-$invoice = Invoke-BridgeApi -Step "S8-create-invoice" -Method "POST" -Path "/api/projects/$projectId/invoices" -AccessToken $pmToken -Body @{
+$invoice = Invoke-BridgeApi -Step "S8-create-invoice" -Method "POST" -Path "/api/projects/$projectId/invoices" -Session $pmSession -Body @{
     invoiceNumber = "INV-$slugSuffix"
     amount        = 1000000
     currency      = "KRW"
@@ -321,24 +329,24 @@ $invoice = Invoke-BridgeApi -Step "S8-create-invoice" -Method "POST" -Path "/api
 }
 $invoiceId = $invoice.data.id
 
-$invoiceStatus = Invoke-BridgeApi -Step "S8-confirm-invoice" -Method "PATCH" -Path "/api/invoices/$invoiceId/status" -AccessToken $clientToken -Body @{
+$invoiceStatus = Invoke-BridgeApi -Step "S8-confirm-invoice" -Method "PATCH" -Path "/api/invoices/$invoiceId/status" -Session $clientSession -Body @{
     status = "CONFIRMED"
 }
 
-$invoiceAttachment = Invoke-BridgeApi -Step "S8-add-attachment" -Method "POST" -Path "/api/invoices/$invoiceId/attachments/complete" -AccessToken $clientToken -Body @{
+$null = Invoke-BridgeApi -Step "S8-add-attachment" -Method "POST" -Path "/api/invoices/$invoiceId/attachments/complete" -Session $clientSession -Body @{
     attachmentType = "PROOF"
     objectKey      = "dod/$projectId/invoice-proof.pdf"
 }
-$invoiceAttachments = Invoke-BridgeApi -Step "S8-list-attachments" -Method "GET" -Path "/api/invoices/$invoiceId/attachments" -AccessToken $pmToken
+$invoiceAttachments = Invoke-BridgeApi -Step "S8-list-attachments" -Method "GET" -Path "/api/invoices/$invoiceId/attachments" -Session $pmSession
 
 # Scenario 9: vault
-$policy = Invoke-BridgeApi -Step "S9-create-policy" -Method "POST" -Path "/api/projects/$projectId/vault/policies" -AccessToken $pmToken -Body @{
+$policy = Invoke-BridgeApi -Step "S9-create-policy" -Method "POST" -Path "/api/projects/$projectId/vault/policies" -Session $pmSession -Body @{
     name     = "DoD Vault Policy"
     ruleJson = '{"allow":["REQUEST","REVEAL"]}'
 }
 $policyId = $policy.data.id
 
-$secret = Invoke-BridgeApi -Step "S9-create-secret" -Method "POST" -Path "/api/projects/$projectId/vault/secrets" -AccessToken $pmToken -Body @{
+$secret = Invoke-BridgeApi -Step "S9-create-secret" -Method "POST" -Path "/api/projects/$projectId/vault/secrets" -Session $pmSession -Body @{
     name          = "DoD Production DB"
     type          = "DB"
     plainSecret   = "postgres://db-user:db-pass@db.internal:5432/bridge"
@@ -347,19 +355,19 @@ $secret = Invoke-BridgeApi -Step "S9-create-secret" -Method "POST" -Path "/api/p
 }
 $secretId = $secret.data.id
 
-$accessRequest = Invoke-BridgeApi -Step "S9-request-access" -Method "POST" -Path "/api/vault/secrets/$secretId/access-requests" -AccessToken $clientToken
+$accessRequest = Invoke-BridgeApi -Step "S9-request-access" -Method "POST" -Path "/api/vault/secrets/$secretId/access-requests" -Session $clientSession
 $accessRequestId = $accessRequest.data.id
 
-$approveRequest = Invoke-BridgeApi -Step "S9-approve-access" -Method "PATCH" -Path "/api/vault/access-requests/$accessRequestId" -AccessToken $pmToken -Body @{
+$approveRequest = Invoke-BridgeApi -Step "S9-approve-access" -Method "PATCH" -Path "/api/vault/access-requests/$accessRequestId" -Session $pmSession -Body @{
     status = "APPROVED"
 }
 
-$revealSecret = Invoke-BridgeApi -Step "S9-reveal-secret" -Method "POST" -Path "/api/vault/secrets/$secretId/reveal" -AccessToken $clientToken
+$revealSecret = Invoke-BridgeApi -Step "S9-reveal-secret" -Method "POST" -Path "/api/vault/secrets/$secretId/reveal" -Session $clientSession
 
 $scenarios = [ordered]@{
     "1" = [ordered]@{ status = "DONE"; tenantId = $tenantId; pmUserId = $pmUserId }
-    "2" = [ordered]@{ status = "DONE"; projectId = $projectId; invitationToken = $invitationToken }
-    "3" = [ordered]@{ status = "DONE"; accepted = $acceptInvitation.data.accepted }
+    "2" = [ordered]@{ status = "DONE"; projectId = $projectId; clientMemberId = $clientMemberId }
+    "3" = [ordered]@{ status = "DONE"; passwordInitialized = $firstPassword.data.passwordInitialized }
     "4" = [ordered]@{ status = "DONE"; postId = $postId; requestId = $requestId; requestStatus = $requestStatus.data.status; decisionId = $decisionId; decisionStatus = $decisionStatus.data.status }
     "5" = [ordered]@{ status = "DONE"; fileId = $fileId; fileVersionId = $fileVersionId; commentId = $fileCommentId; commentStatus = $resolvedComment.data.status }
     "6" = [ordered]@{ status = "DONE"; meetingId = $meetingId; attendeeResponse = $meetingResponse.data.response }
@@ -401,8 +409,8 @@ $mdLines = @(
     "| Scenario | Status | Evidence |",
     "|---|---|---|",
     "| 1 | DONE | tenantId=$tenantId, pmUserId=$pmUserId |",
-    "| 2 | DONE | projectId=$projectId, invitationToken=$invitationToken |",
-    "| 3 | DONE | accepted=$($acceptInvitation.data.accepted) |",
+    "| 2 | DONE | projectId=$projectId, clientMemberId=$clientMemberId |",
+    "| 3 | DONE | passwordInitialized=$($firstPassword.data.passwordInitialized) |",
     "| 4 | DONE | postId=$postId, requestId=$requestId, decisionId=$decisionId |",
     "| 5 | DONE | fileId=$fileId, fileVersionId=$fileVersionId, commentId=$fileCommentId |",
     "| 6 | DONE | meetingId=$meetingId, response=$($meetingResponse.data.response) |",

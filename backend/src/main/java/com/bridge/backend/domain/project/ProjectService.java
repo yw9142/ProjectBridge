@@ -15,6 +15,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -23,8 +26,12 @@ import java.util.regex.Pattern;
 public class ProjectService {
     private static final String PASSWORD_MASK = "********";
     private static final Pattern SIMPLE_EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    private static final String SETUP_CODE_DIGITS = "0123456789";
+    private static final int SETUP_CODE_LENGTH = 8;
+    private static final int SETUP_CODE_TTL_HOURS = 24;
     private static final int MIN_PASSWORD_LENGTH = 10;
     private static final int MAX_PASSWORD_LENGTH = 72;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
@@ -47,7 +54,14 @@ public class ProjectService {
         this.accessGuardService = accessGuardService;
     }
 
-    public record ProjectMemberAccount(UUID id, UUID userId, MemberRole role, String loginId, String passwordMask) {
+    public record ProjectMemberAccount(UUID id,
+                                       UUID userId,
+                                       MemberRole role,
+                                       String loginId,
+                                       String passwordMask,
+                                       boolean passwordInitialized,
+                                       String setupCode,
+                                       OffsetDateTime setupCodeExpiresAt) {
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +133,7 @@ public class ProjectService {
 
         List<ProjectMemberAccount> accounts = new ArrayList<>();
         for (ProjectMemberEntity member : projectMembers) {
-            accounts.add(toProjectMemberAccount(member, usersById.get(member.getUserId())));
+            accounts.add(toProjectMemberAccount(member, usersById.get(member.getUserId()), null, null));
         }
         return accounts;
     }
@@ -128,30 +142,40 @@ public class ProjectService {
     public ProjectMemberAccount invite(AuthPrincipal principal,
                                        UUID projectId,
                                        String loginId,
-                                       String password,
                                        String name,
                                        MemberRole role) {
         accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
                 Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
         MemberRole resolvedRole = role == null ? MemberRole.CLIENT_MEMBER : role;
-        if (loginId == null || loginId.isBlank() || password == null || password.isBlank()) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "MEMBER_ACCOUNT_REQUIRED", "Login id and password are required.");
+        if (loginId == null || loginId.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "MEMBER_ACCOUNT_REQUIRED", "Login id is required.");
         }
 
         String normalizedLoginId = loginId.trim().toLowerCase(Locale.ROOT);
         validateLoginId(normalizedLoginId);
+        String setupCode = null;
+        OffsetDateTime setupCodeExpiresAt = null;
         Optional<UserEntity> existingUserOpt = userRepository.findByEmailAndDeletedAtIsNull(normalizedLoginId);
         UserEntity savedUser = existingUserOpt.orElseGet(() -> {
-            validatePasswordPolicy(password);
             UserEntity entity = new UserEntity();
             entity.setEmail(normalizedLoginId);
             entity.setName((name == null || name.isBlank()) ? normalizedLoginId.split("@")[0] : name.trim());
-            entity.setPasswordHash(passwordEncoder.encode(password));
-            entity.setStatus(UserStatus.ACTIVE);
+            entity.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+            entity.setStatus(UserStatus.INVITED);
+            entity.setPasswordInitialized(false);
+            entity.setFailedLoginAttempts(0);
             entity.setCreatedBy(principal.getUserId());
             entity.setUpdatedBy(principal.getUserId());
             return userRepository.save(entity);
         });
+        if (!savedUser.isPasswordInitialized()) {
+            setupCode = generateSetupCode();
+            setupCodeExpiresAt = OffsetDateTime.now().plusHours(SETUP_CODE_TTL_HOURS);
+            savedUser.setPasswordSetupCodeHash(sha256(setupCode));
+            savedUser.setPasswordSetupCodeExpiresAt(setupCodeExpiresAt);
+            savedUser.setUpdatedBy(principal.getUserId());
+            savedUser = userRepository.save(savedUser);
+        }
 
         if (tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), savedUser.getId()).isEmpty()) {
             TenantMemberEntity tenantMember = new TenantMemberEntity();
@@ -163,12 +187,13 @@ public class ProjectService {
             tenantMemberRepository.save(tenantMember);
         }
 
-        ProjectMemberEntity member = projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, savedUser.getId())
+        UUID savedUserId = savedUser.getId();
+        ProjectMemberEntity member = projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, savedUserId)
                 .orElseGet(() -> {
                     ProjectMemberEntity created = new ProjectMemberEntity();
                     created.setTenantId(principal.getTenantId());
                     created.setProjectId(projectId);
-                    created.setUserId(savedUser.getId());
+                    created.setUserId(savedUserId);
                     created.setRole(resolvedRole);
                     created.setCreatedBy(principal.getUserId());
                     created.setUpdatedBy(principal.getUserId());
@@ -182,7 +207,32 @@ public class ProjectService {
             savedMember.setUpdatedBy(principal.getUserId());
             savedMember = projectMemberRepository.save(savedMember);
         }
-        return toProjectMemberAccount(savedMember, savedUser);
+        return toProjectMemberAccount(savedMember, savedUser, setupCode, setupCodeExpiresAt);
+    }
+
+    @Transactional
+    public ProjectMemberAccount resetSetupCode(AuthPrincipal principal, UUID projectId, UUID memberId) {
+        accessGuardService.requireProjectMemberRole(projectId, principal.getUserId(), principal.getTenantId(),
+                Set.of(MemberRole.PM_OWNER, MemberRole.PM_MEMBER));
+        ProjectMemberEntity member = projectMemberRepository.findById(memberId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "프로젝트 멤버를 찾을 수 없습니다."));
+        if (member.getDeletedAt() != null || !member.getProjectId().equals(projectId)) {
+            throw new AppException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "프로젝트 멤버를 찾을 수 없습니다.");
+        }
+
+        UserEntity user = userRepository.findByIdAndDeletedAtIsNull(member.getUserId())
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+        if (user.isPasswordInitialized()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PASSWORD_ALREADY_INITIALIZED", "Password already initialized.");
+        }
+
+        String setupCode = generateSetupCode();
+        OffsetDateTime setupCodeExpiresAt = OffsetDateTime.now().plusHours(SETUP_CODE_TTL_HOURS);
+        user.setPasswordSetupCodeHash(sha256(setupCode));
+        user.setPasswordSetupCodeExpiresAt(setupCodeExpiresAt);
+        user.setUpdatedBy(principal.getUserId());
+        UserEntity updated = userRepository.save(user);
+        return toProjectMemberAccount(member, updated, setupCode, setupCodeExpiresAt);
     }
 
     @Transactional
@@ -238,11 +288,15 @@ public class ProjectService {
             validatePasswordPolicy(password);
             user.setPasswordHash(passwordEncoder.encode(password));
             user.setStatus(UserStatus.ACTIVE);
+            user.setPasswordInitialized(true);
+            user.setPasswordSetupCodeHash(null);
+            user.setPasswordSetupCodeExpiresAt(null);
+            user.setFailedLoginAttempts(0);
         }
 
         user.setUpdatedBy(principal.getUserId());
         UserEntity updatedUser = userRepository.save(user);
-        return toProjectMemberAccount(member, updatedUser);
+        return toProjectMemberAccount(member, updatedUser, null, null);
     }
 
     @Transactional
@@ -268,6 +322,15 @@ public class ProjectService {
         }
     }
 
+    private String generateSetupCode() {
+        StringBuilder builder = new StringBuilder(SETUP_CODE_LENGTH);
+        for (int i = 0; i < SETUP_CODE_LENGTH; i++) {
+            int index = SECURE_RANDOM.nextInt(SETUP_CODE_DIGITS.length());
+            builder.append(SETUP_CODE_DIGITS.charAt(index));
+        }
+        return builder.toString();
+    }
+
     private void validatePasswordPolicy(String password) {
         if (password.length() < MIN_PASSWORD_LENGTH || password.length() > MAX_PASSWORD_LENGTH) {
             throw new AppException(
@@ -288,9 +351,31 @@ public class ProjectService {
         }
     }
 
-    private ProjectMemberAccount toProjectMemberAccount(ProjectMemberEntity member, UserEntity user) {
+    private String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return Base64.getEncoder().encodeToString(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    private ProjectMemberAccount toProjectMemberAccount(ProjectMemberEntity member,
+                                                        UserEntity user,
+                                                        String setupCode,
+                                                        OffsetDateTime setupCodeExpiresAt) {
         String loginId = user == null ? "" : user.getEmail();
-        return new ProjectMemberAccount(member.getId(), member.getUserId(), member.getRole(), loginId, PASSWORD_MASK);
+        boolean passwordInitialized = user != null && user.isPasswordInitialized();
+        return new ProjectMemberAccount(
+                member.getId(),
+                member.getUserId(),
+                member.getRole(),
+                loginId,
+                PASSWORD_MASK,
+                passwordInitialized,
+                setupCode,
+                setupCodeExpiresAt
+        );
     }
 }
 

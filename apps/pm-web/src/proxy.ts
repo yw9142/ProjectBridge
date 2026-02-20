@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { sanitizeNextPath } from "./lib/auth";
+import { ACCESS_COOKIE, sanitizeNextPath } from "./lib/auth";
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isPublic = path === "/login" || path.startsWith("/_next") || path.startsWith("/favicon");
-  const token = request.cookies.get("bridge_pm_access_token")?.value;
+  const token = request.cookies.get(ACCESS_COOKIE)?.value;
 
   if (!isPublic && !token) {
     const url = request.nextUrl.clone();
@@ -25,3 +25,4 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
+

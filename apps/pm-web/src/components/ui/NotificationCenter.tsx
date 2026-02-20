@@ -1,9 +1,8 @@
-﻿"use client";
+"use client";
 
 import { Bell } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { getAccessToken } from "@/lib/auth";
 import { API_BASE, apiFetch, handleAuthError } from "@/lib/api";
 
 type Notice = {
@@ -44,15 +43,9 @@ export function NotificationCenter() {
     };
 
     const buildStreamRequest = () => {
-      const token = getAccessToken();
-      const apiOrigin = new URL(API_BASE, window.location.origin).origin;
-      const sameOriginApi = apiOrigin === window.location.origin;
-      const useCookieAuth = sameOriginApi || !token;
       return {
-        url: useCookieAuth
-          ? `${API_BASE}/api/notifications/stream`
-          : `${API_BASE}/api/notifications/stream?accessToken=${encodeURIComponent(token)}`,
-        withCredentials: useCookieAuth,
+        url: `${API_BASE}/api/notifications/stream?app=pm`,
+        withCredentials: true,
       };
     };
 
@@ -234,3 +227,6 @@ export function NotificationCenter() {
     </div>
   );
 }
+
+
+

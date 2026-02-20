@@ -7,7 +7,6 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Modal } from "@/components/ui/modal";
 import { apiFetch, handleAuthError } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import { setAuthCookies } from "@/lib/auth";
 
 type Tenant = {
   id: string;
@@ -84,14 +83,10 @@ export default function TenantsPage() {
     setSwitchingTenantId(tenant.id);
     setError(null);
     try {
-      const switched = await apiFetch<{ accessToken: string; refreshToken: string }>("/api/auth/switch-tenant", {
+      await apiFetch("/api/auth/switch-tenant", {
         method: "POST",
         body: JSON.stringify({ tenantId: tenant.id }),
       });
-      if (!switched?.accessToken || !switched?.refreshToken) {
-        throw new Error("테넌트 전환 응답이 올바르지 않습니다.");
-      }
-      setAuthCookies(switched.accessToken, switched.refreshToken);
       router.push(`/admin/tenants/${tenant.id}`);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
