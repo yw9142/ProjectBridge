@@ -10,7 +10,7 @@
 - 모노레포: `pnpm + Turborepo`
 - Docker 필수: `postgres`, `minio`, `mailhog`
 - 인증 전면 강제: 최초 진입 로그인, 미인증 차단, 세션 만료 리다이렉트
-- `/sign/[contractId]` 로그인 필수 + 토큰 소유권 검증 필수
+- `/sign/[contractId]` 로그인 필수 + 서명자 소유권 검증 필수
 - 백엔드 영속성: `Spring Data JPA(Hibernate)` 강제
 - 무한루프/메모리 폭주 방지: 보수형 메모리 프로파일 고정
 - 프레임워크 생성: 수동 뼈대 금지, 공식 설치/스캐폴드 명령만 사용
@@ -364,7 +364,7 @@
 
 ### 11.2 Playwright MCP E2E 수행
 - PM/Client/Admin 보호 라우트 로그인 강제 + 로그인 후 복귀 확인
-- `/sign/[contractId]` 토큰 검증 동작 확인
+- `/sign/[contractId]` 로그인 + 서명자 소유권 검증 동작 확인
 - 근거 문서:
   - `docs/Test/PLAYWRIGHT_MCP_E2E.md`
 

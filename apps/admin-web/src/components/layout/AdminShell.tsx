@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Building2, FolderKanban, ShieldCheck } from "lucide-react";
 import { AdminLogoutButton } from "./AdminLogoutButton";
 import FadeContent from "@/components/react-bits/FadeContent";
+import { useCurrentUserRole } from "@/lib/use-current-user-role";
 
 const nav = [
   { href: "/admin/tenants", label: "테넌트 목록", icon: Building2 },
@@ -13,6 +14,8 @@ const nav = [
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { tenantRole, isPlatformAdmin } = useCurrentUserRole();
+  const roleLabel = isPlatformAdmin ? "PLATFORM_ADMIN" : tenantRole ?? "-";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -30,7 +33,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground sm:flex">
               <ShieldCheck className="h-3.5 w-3.5" />
-              PLATFORM_ADMIN
+              {roleLabel}
             </div>
             <div className="h-6 w-px bg-border" />
             <AdminLogoutButton />

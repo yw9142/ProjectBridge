@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -67,7 +68,11 @@ public class AuthController {
 
     @GetMapping("/me")
     public ApiSuccess<Map<String, Object>> me() {
-        return ApiSuccess.of(authService.me(SecurityUtils.currentUserId()));
+        var principal = SecurityUtils.requirePrincipal();
+        Map<String, Object> me = new HashMap<>(authService.me(principal.getUserId()));
+        me.put("roles", principal.getRoles());
+        me.put("tenantRole", resolveTenantRole(principal.getRoles()));
+        return ApiSuccess.of(me);
     }
 
     @PostMapping("/switch-tenant")
@@ -97,5 +102,14 @@ public class AuthController {
     public record FirstPasswordRequest(@Email @NotBlank String email,
                                        @NotBlank String setupCode,
                                        @NotBlank String newPassword) {
+    }
+
+    private String resolveTenantRole(Set<String> roles) {
+        for (String role : roles) {
+            if (role != null && role.startsWith("TENANT_")) {
+                return role.substring("TENANT_".length());
+            }
+        }
+        return null;
     }
 }

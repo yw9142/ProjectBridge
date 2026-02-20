@@ -63,12 +63,27 @@ function Invoke-BridgeApi {
         [string]$Method,
         [string]$Path,
         [object]$Body = $null,
-        [Microsoft.PowerShell.Commands.WebRequestSession]$Session
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
+        [string]$App = $null
     )
 
     $uri = "$BaseUrl$Path"
     $headers = @{
         "Accept" = "application/json"
+    }
+
+    $resolvedApp = $App
+    if ([string]::IsNullOrWhiteSpace($resolvedApp) -and $Session) {
+        if ($script:adminSession -and [object]::ReferenceEquals($Session, $script:adminSession)) {
+            $resolvedApp = "admin"
+        } elseif ($script:pmSession -and [object]::ReferenceEquals($Session, $script:pmSession)) {
+            $resolvedApp = "pm"
+        } elseif ($script:clientSession -and [object]::ReferenceEquals($Session, $script:clientSession)) {
+            $resolvedApp = "client"
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($resolvedApp)) {
+        $headers["X-Bridge-App"] = $resolvedApp
     }
 
     $bodyJson = $null
@@ -223,9 +238,12 @@ $clientEmail = "client+$slugSuffix@bridge.local"
 $pmPassword = "TempPassword!123"
 $clientPassword = "Client!12345"
 
-$adminSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-$pmSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-$clientSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$script:adminSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$script:pmSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$script:clientSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$adminSession = $script:adminSession
+$pmSession = $script:pmSession
+$clientSession = $script:clientSession
 
 Write-Host "Running DoD scenarios against $BaseUrl"
 
@@ -247,8 +265,18 @@ $pmUser = Invoke-BridgeApi -Step "S1-create-pm-user" -Method "POST" -Path "/api/
     name  = "DoD PM $timestamp"
 }
 $pmUserId = $pmUser.data.userId
+$pmSetupCode = $pmUser.data.setupCode
+if ([string]::IsNullOrWhiteSpace($pmSetupCode)) {
+    throw "[S1-create-pm-user] setupCode is missing."
+}
 
-# Scenario 2: pm project create + invite client
+# Scenario 2: pm first-password + login + project create + invite client
+$pmFirstPassword = Invoke-BridgeApi -Step "S2-pm-first-password" -Method "POST" -Path "/api/auth/first-password" -Body @{
+    email       = $pmEmail
+    setupCode   = $pmSetupCode
+    newPassword = $pmPassword
+}
+
 $null = Invoke-BridgeApi -Step "S2-pm-login" -Method "POST" -Path "/api/auth/login" -Session $pmSession -Body @{
     email      = $pmEmail
     password   = $pmPassword
@@ -268,6 +296,9 @@ $invite = Invoke-BridgeApi -Step "S2-invite-client" -Method "POST" -Path "/api/p
 }
 $clientMemberId = $invite.data.id
 $clientSetupCode = $invite.data.setupCode
+if ([string]::IsNullOrWhiteSpace($clientSetupCode)) {
+    throw "[S2-invite-client] setupCode is missing."
+}
 
 # Scenario 3: client first-password + login
 $firstPassword = Invoke-BridgeApi -Step "S3-first-password" -Method "POST" -Path "/api/auth/first-password" -Body @{
@@ -454,7 +485,7 @@ $revealSecret = Invoke-BridgeApi -Step "S9-reveal-secret" -Method "POST" -Path "
 
 $scenarios = [ordered]@{
     "1" = [ordered]@{ status = "DONE"; tenantId = $tenantId; pmUserId = $pmUserId }
-    "2" = [ordered]@{ status = "DONE"; projectId = $projectId; clientMemberId = $clientMemberId }
+    "2" = [ordered]@{ status = "DONE"; pmPasswordInitialized = $pmFirstPassword.data.passwordInitialized; projectId = $projectId; clientMemberId = $clientMemberId }
     "3" = [ordered]@{ status = "DONE"; passwordInitialized = $firstPassword.data.passwordInitialized }
     "4" = [ordered]@{ status = "DONE"; postId = $postId; requestId = $requestId; requestStatus = $requestStatus.data.status; decisionId = $decisionId; decisionStatus = $decisionStatus.data.status }
     "5" = [ordered]@{ status = "DONE"; fileId = $fileId; fileVersionId = $fileVersionId; commentId = $fileCommentId; commentStatus = $resolvedComment.data.status }
@@ -497,7 +528,7 @@ $mdLines = @(
     "| Scenario | Status | Evidence |",
     "|---|---|---|",
     "| 1 | DONE | tenantId=$tenantId, pmUserId=$pmUserId |",
-    "| 2 | DONE | projectId=$projectId, clientMemberId=$clientMemberId |",
+    "| 2 | DONE | pmInitialized=$($pmFirstPassword.data.passwordInitialized), projectId=$projectId, clientMemberId=$clientMemberId |",
     "| 3 | DONE | passwordInitialized=$($firstPassword.data.passwordInitialized) |",
     "| 4 | DONE | postId=$postId, requestId=$requestId, decisionId=$decisionId |",
     "| 5 | DONE | fileId=$fileId, fileVersionId=$fileVersionId, commentId=$fileCommentId |",

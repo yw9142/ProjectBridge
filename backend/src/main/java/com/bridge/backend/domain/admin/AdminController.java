@@ -51,8 +51,15 @@ public class AdminController {
     public ApiSuccess<Map<String, Object>> createPmUser(@PathVariable UUID tenantId, @RequestBody @Valid CreatePmUserRequest request) {
         UUID actorId = SecurityUtils.currentUserId();
         accessGuardService.requirePlatformAdmin(actorId);
-        var user = adminService.createPmUser(tenantId, request.email(), request.name(), actorId);
-        return ApiSuccess.of(Map.of("userId", user.getId(), "email", user.getEmail(), "status", user.getStatus()));
+        var issued = adminService.createPmUser(tenantId, request.email(), request.name(), actorId);
+        Map<String, Object> response = new HashMap<>();
+        response.put("userId", issued.userId());
+        response.put("email", issued.email());
+        response.put("status", issued.status());
+        response.put("passwordInitialized", issued.passwordInitialized());
+        response.put("setupCode", issued.setupCode());
+        response.put("setupCodeExpiresAt", issued.setupCodeExpiresAt());
+        return ApiSuccess.of(response);
     }
 
     @GetMapping("/tenants/{tenantId}/pm-users")
@@ -94,6 +101,19 @@ public class AdminController {
     public ApiSuccess<Map<String, Object>> unlockLogin(@PathVariable UUID userId) {
         accessGuardService.requirePlatformAdmin(SecurityUtils.currentUserId());
         return ApiSuccess.of(adminService.unlockLogin(userId));
+    }
+
+    @PostMapping("/users/{userId}/setup-code/reset")
+    public ApiSuccess<Map<String, Object>> resetSetupCode(@PathVariable UUID userId) {
+        UUID actorId = SecurityUtils.currentUserId();
+        accessGuardService.requirePlatformAdmin(actorId);
+        var issued = adminService.resetSetupCode(userId, actorId);
+        Map<String, Object> response = new HashMap<>();
+        response.put("userId", issued.userId());
+        response.put("passwordInitialized", issued.passwordInitialized());
+        response.put("setupCode", issued.setupCode());
+        response.put("setupCodeExpiresAt", issued.setupCodeExpiresAt());
+        return ApiSuccess.of(response);
     }
 
     public record CreateTenantRequest(@NotBlank String name, @NotBlank String slug) {

@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { apiFetch, handleAuthError } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { ApiRequestError, apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
 import { Modal } from "@/components/ui/modal";
+import { useCurrentUserRole } from "@/lib/use-current-user-role";
 
 type MemberRole = "PM_OWNER" | "PM_MEMBER" | "CLIENT_OWNER" | "CLIENT_MEMBER" | "READONLY";
 
@@ -33,7 +35,10 @@ const roles: Array<{ value: MemberRole; label: string }> = [
 ];
 
 export default function ProjectMemberSettingsPage() {
+  const router = useRouter();
   const projectId = useProjectId();
+  const { loading: roleLoading, tenantRole, isPlatformAdmin } = useCurrentUserRole();
+  const canManageMembers = isPlatformAdmin || tenantRole === "PM_OWNER";
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, MemberRole>>({});
   const [accountDrafts, setAccountDrafts] = useState<Record<string, AccountDraft>>({});
@@ -44,8 +49,32 @@ export default function ProjectMemberSettingsPage() {
   const [inviteRole, setInviteRole] = useState<MemberRole>("CLIENT_MEMBER");
 
   const [createNotice, setCreateNotice] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [setupCodeInfo, setSetupCodeInfo] = useState<{ loginId: string; setupCode: string; expiresAt?: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionState, setActionState] = useState<{ memberId: string; action: "account" | "role" | "reset" | "delete" } | null>(null);
+
+  const resolveCreateErrorMessage = (e: unknown) => {
+    if (e instanceof ApiRequestError && e.code === "VALIDATION_ERROR" && e.details && typeof e.details === "object") {
+      const details = e.details as Record<string, unknown>;
+      const loginIdError = details.loginId;
+      if (typeof loginIdError === "string" && loginIdError.trim() !== "") {
+        return "로그인 ID는 올바른 이메일 형식으로 입력해 주세요. (예: user@example.com)";
+      }
+    }
+    if (e instanceof Error) {
+      try {
+        const parsed = JSON.parse(e.message) as { details?: Record<string, unknown> };
+        const loginIdError = parsed?.details?.loginId;
+        if (typeof loginIdError === "string" && loginIdError.trim() !== "") {
+          return "로그인 ID는 올바른 이메일 형식으로 입력해 주세요. (예: user@example.com)";
+        }
+      } catch {
+        // use fallback message
+      }
+    }
+    return "계정 생성에 실패했습니다. 입력값을 확인한 뒤 다시 시도해 주세요.";
+  };
 
   const load = async () => {
     setError(null);
@@ -65,6 +94,9 @@ export default function ProjectMemberSettingsPage() {
         ),
       );
     } catch (e) {
+      setMembers([]);
+      setRoleDrafts({});
+      setAccountDrafts({});
       if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "멤버 목록을 불러오지 못했습니다.");
       }
@@ -72,12 +104,20 @@ export default function ProjectMemberSettingsPage() {
   };
 
   useEffect(() => {
+    if (roleLoading) {
+      return;
+    }
+    if (!canManageMembers) {
+      router.replace(`/pm/projects/${projectId}/dashboard`);
+      return;
+    }
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectId, roleLoading, canManageMembers, router]);
 
   async function createMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setCreateError(null);
     setError(null);
     setCreateNotice(null);
 
@@ -104,19 +144,22 @@ export default function ProjectMemberSettingsPage() {
         setSetupCodeInfo(null);
       }
       setCreateOpen(false);
+      setCreateError(null);
       setLoginId("");
       setDisplayName("");
       setInviteRole("CLIENT_MEMBER");
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
-        setError(e instanceof Error ? e.message : "계정 생성에 실패했습니다.");
+        setCreateError(resolveCreateErrorMessage(e));
       }
     }
   }
 
   async function resetSetupCode(memberId: string, memberLoginId: string) {
     setError(null);
+    setCreateNotice(null);
+    setActionState({ memberId, action: "reset" });
     try {
       const reset = await apiFetch<ProjectMember>(`/api/projects/${projectId}/members/${memberId}/setup-code/reset`, {
         method: "POST",
@@ -135,6 +178,8 @@ export default function ProjectMemberSettingsPage() {
       if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "설정 코드 재발급에 실패했습니다.");
       }
+    } finally {
+      setActionState((prev) => (prev?.memberId === memberId && prev.action === "reset" ? null : prev));
     }
   }
 
@@ -142,16 +187,21 @@ export default function ProjectMemberSettingsPage() {
     const nextRole = roleDrafts[memberId];
     if (!nextRole) return;
     setError(null);
+    setCreateNotice(null);
+    setActionState({ memberId, action: "role" });
     try {
       await apiFetch(`/api/projects/${projectId}/members/${memberId}`, {
         method: "PATCH",
         body: JSON.stringify({ role: nextRole }),
       });
+      setCreateNotice("멤버 역할을 저장했습니다.");
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "멤버 역할 수정에 실패했습니다.");
       }
+    } finally {
+      setActionState((prev) => (prev?.memberId === memberId && prev.action === "role" ? null : prev));
     }
   }
 
@@ -166,6 +216,8 @@ export default function ProjectMemberSettingsPage() {
     if (!hasLoginIdChange && !hasPasswordChange) return;
 
     setError(null);
+    setCreateNotice(null);
+    setActionState({ memberId, action: "account" });
     try {
       await apiFetch(`/api/projects/${projectId}/members/${memberId}/account`, {
         method: "PATCH",
@@ -174,25 +226,33 @@ export default function ProjectMemberSettingsPage() {
           ...(hasPasswordChange ? { password: draft.password } : {}),
         }),
       });
+      setCreateNotice("계정 정보를 저장했습니다.");
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "계정 정보 수정에 실패했습니다.");
       }
+    } finally {
+      setActionState((prev) => (prev?.memberId === memberId && prev.action === "account" ? null : prev));
     }
   }
 
   async function deleteMember(memberId: string) {
     setError(null);
+    setCreateNotice(null);
+    setActionState({ memberId, action: "delete" });
     try {
       await apiFetch(`/api/projects/${projectId}/members/${memberId}`, {
         method: "DELETE",
       });
+      setCreateNotice("멤버를 삭제했습니다.");
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "멤버 삭제에 실패했습니다.");
       }
+    } finally {
+      setActionState((prev) => (prev?.memberId === memberId && prev.action === "delete" ? null : prev));
     }
   }
 
@@ -244,16 +304,41 @@ export default function ProjectMemberSettingsPage() {
     }
   };
 
+  if (roleLoading) {
+    return (
+      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h1 className="text-xl font-bold text-slate-900">멤버 설정</h1>
+        <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">권한 정보를 확인하는 중입니다.</p>
+      </section>
+    );
+  }
+
+  if (!roleLoading && !canManageMembers) {
+    return (
+      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h1 className="text-xl font-bold text-slate-900">멤버 설정</h1>
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">PM_OWNER만 접근할 수 있습니다.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">멤버 설정</h1>
-          <p className="text-sm text-slate-500">멤버 역할과 계정 정보를 관리합니다.</p>
+          <p className="text-sm text-slate-500">
+            멤버 역할과 계정 정보를 관리합니다.
+            <br />
+            운영 예외: PM_OWNER/플랫폼 관리자는 계정 저장으로 비밀번호를 직접 재설정할 수 있습니다.
+          </p>
         </div>
         <button
           type="button"
-          onClick={() => setCreateOpen(true)}
+          onClick={() => {
+            setCreateError(null);
+            setCreateOpen(true);
+          }}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
         >
           계정 생성
@@ -363,31 +448,35 @@ export default function ProjectMemberSettingsPage() {
                     <button
                       type="button"
                       onClick={() => void saveAccount(member.id)}
+                      disabled={actionState?.memberId === member.id}
                       className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold !text-white hover:bg-indigo-700"
                     >
-                      계정 저장
+                      {actionState?.memberId === member.id && actionState.action === "account" ? "계정 저장 중..." : "계정 저장"}
                     </button>
                     <button
                       type="button"
                       onClick={() => void saveRole(member.id)}
+                      disabled={actionState?.memberId === member.id}
                       className="rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold !text-white hover:bg-slate-800"
                     >
-                      역할 저장
+                      {actionState?.memberId === member.id && actionState.action === "role" ? "역할 저장 중..." : "역할 저장"}
                     </button>
                     {!member.passwordInitialized ? (
                       <button
                         type="button"
                         onClick={() => void resetSetupCode(member.id, member.loginId)}
+                        disabled={actionState?.memberId === member.id}
                         className="rounded border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50"
                       >
-                        설정코드 재발급
+                        {actionState?.memberId === member.id && actionState.action === "reset" ? "재발급 중..." : "설정코드 재발급"}
                       </button>
                     ) : null}
                     <ConfirmActionButton
-                      label="멤버 삭제"
+                      label={actionState?.memberId === member.id && actionState.action === "delete" ? "삭제 중..." : "멤버 삭제"}
                       title="멤버를 삭제할까요?"
                       description="삭제 시 프로젝트 접근 권한이 제거됩니다."
                       onConfirm={() => deleteMember(member.id)}
+                      disabled={actionState?.memberId === member.id}
                       triggerVariant="destructive"
                       triggerSize="sm"
                       triggerClassName="rounded border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
@@ -415,18 +504,29 @@ export default function ProjectMemberSettingsPage() {
         description="로그인 ID를 생성하고 최초 비밀번호 설정 코드를 발급합니다."
       >
         <form onSubmit={createMember} className="space-y-3">
+          {createError ? <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{createError}</p> : null}
           <input
-            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            className={`w-full rounded-lg px-3 py-2 ${createError ? "border border-red-300 bg-red-50/30" : "border border-slate-300"}`}
             placeholder="로그인 ID(이메일)"
             value={loginId}
-            onChange={(e) => setLoginId(e.target.value)}
+            onChange={(e) => {
+              setLoginId(e.target.value);
+              if (createError) {
+                setCreateError(null);
+              }
+            }}
             required
           />
           <input
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
             placeholder="표시 이름"
             value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            onChange={(e) => {
+              setDisplayName(e.target.value);
+              if (createError) {
+                setCreateError(null);
+              }
+            }}
           />
           <select className="w-full rounded-lg border border-slate-300 px-3 py-2" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as MemberRole)}>
             {roles.map((role) => (
@@ -436,7 +536,14 @@ export default function ProjectMemberSettingsPage() {
             ))}
           </select>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setCreateOpen(false)} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setCreateError(null);
+                setCreateOpen(false);
+              }}
+              className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            >
               취소
             </button>
             <button type="submit" className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700">

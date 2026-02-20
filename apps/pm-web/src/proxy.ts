@@ -4,7 +4,7 @@ import { ACCESS_COOKIE, sanitizeNextPath } from "./lib/auth";
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/_next") || path.startsWith("/favicon");
+  const isPublic = path === "/login" || path === "/first-password" || path.startsWith("/_next") || path.startsWith("/favicon");
   const token = request.cookies.get(ACCESS_COOKIE)?.value;
 
   if (!isPublic && !token) {

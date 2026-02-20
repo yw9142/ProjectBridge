@@ -721,7 +721,11 @@ TABLE notification_preferences (권장)
 공통:
 
 - Base: /api
-- 인증: HttpOnly 쿠키(bridge_access_token, bridge_refresh_token)
+- 인증: HttpOnly 쿠키(앱 스코프 분리)
+  - admin: bridge_admin_access_token / bridge_admin_refresh_token
+  - pm: bridge_pm_access_token / bridge_pm_refresh_token
+  - client: bridge_client_access_token / bridge_client_refresh_token
+  - 요청에 `X-Bridge-App`(또는 SSE `?app=`) 스코프가 없으면 인증 토큰을 해석하지 않음
 - 성공 응답: { "data": ..., "meta": ... }
 - 에러 응답: { "error": { "code": "...", "message": "...", "details": {...} } }
 
@@ -740,6 +744,8 @@ POST /api/auth/logout
 
 GET  /api/auth/me
 POST /api/auth/first-password # 최초 비번설정: email + setupCode + newPassword
+  - PM 진입 경로: PM 앱 /first-password
+  - Client 진입 경로: Client 앱 /first-password
 
 ADMIN (PLATFORM_ADMIN)
 POST /api/admin/tenants
@@ -749,6 +755,7 @@ POST /api/admin/tenants/{tenantId}/pm-users   # PM 계정 생성
 GET  /api/admin/tenants/{tenantId}/pm-users
 PATCH /api/admin/users/{userId}/status
 POST /api/admin/users/{userId}/unlock-login
+POST /api/admin/users/{userId}/setup-code/reset
 
 PROJECTS (멤버십 기반)
 GET  /api/projects
@@ -758,6 +765,7 @@ PATCH /api/projects/{projectId}            # PM_OWNER
 GET  /api/projects/{projectId}/members
 POST /api/projects/{projectId}/members/invite  # PM이 클라이언트 ID 생성 + setupCode 발급
 POST /api/projects/{projectId}/members/{memberId}/setup-code/reset
+PATCH /api/projects/{projectId}/members/{memberId}/account # 운영 예외: PM_OWNER/플랫폼관리자 직접 비밀번호 재설정 허용
 
 POSTS
 GET  /api/projects/{projectId}/posts
@@ -814,7 +822,7 @@ GET  /api/envelopes/{envelopeId}
 GET  /api/envelopes/{envelopeId}/events
 POST /api/envelopes/{envelopeId}/void
 
-SIGNING (토큰 기반)
+SIGNING (로그인 + 서명자 소유권 검증)
 GET  /api/signing/contracts/{contractId}               # 서명 페이지 데이터 + 원본 PDF URL
 POST /api/signing/contracts/{contractId}/viewed        # VIEWED 이벤트 + 알림
 POST /api/signing/contracts/{contractId}/submit        # SIGNED(+완료시 COMPLETED) + 완료본 생성/저장 + 알림
@@ -862,6 +870,7 @@ pm-web
 Routes:
 
 - /login
+- /first-password
 - /pm/projects
 - /pm/projects/new
 - /pm/projects/[projectId]/dashboard
@@ -888,6 +897,7 @@ client-web
 Routes:
 
 - /login
+- /first-password
 - /client/projects
 - /client/projects/[projectId]/home
 - /client/projects/[projectId]/requests    # 최우선
@@ -897,7 +907,7 @@ Routes:
 - /client/projects/[projectId]/contracts
 - /client/projects/[projectId]/billing
 - /client/projects/[projectId]/vault       # 권한 있을 때만
-- /sign/[contractId]                   # 토큰 기반 서명 페이지(로그인 없이 가능)
+- /sign/[contractId]                   # 로그인 후 서명 페이지(서명자 소유권 검증)
 Key Components:
 - ClientProjectShell
 - MyTasks(Requests) 중심 UI

@@ -104,6 +104,19 @@ pnpm -C apps/admin-web dev
 - `pm@bridge.local`
 - `client@bridge.local`
 
+## Auth & Onboarding (Current)
+- 인증 토큰은 응답 본문이 아니라 `HttpOnly` 쿠키로 관리합니다.
+  - Admin: `bridge_admin_access_token` / `bridge_admin_refresh_token`
+  - PM: `bridge_pm_access_token` / `bridge_pm_refresh_token`
+  - Client: `bridge_client_access_token` / `bridge_client_refresh_token`
+- 인증 쿠키 해석은 앱 스코프 기준입니다. 요청에 `X-Bridge-App` 헤더가 필요하며, SSE는 `?app=pm|client|admin`을 사용합니다.
+- PM/Admin에서 신규 계정을 생성하면 초기 비밀번호 대신 `setupCode`가 발급됩니다.
+  - PM 계정: PM 앱 `/first-password`
+  - Client 계정: Client 앱 `/first-password`
+- 로그인 실패 5회 이상이면 `LOGIN_BLOCKED`가 반환되며, 잠금 해제는 관리자 API/UI에서 수행합니다.
+- 비밀번호 미초기화 계정은 로그인 시 `PASSWORD_SETUP_REQUIRED`가 반환됩니다.
+- 서명 페이지 `/sign/[contractId]`는 로그인 필수입니다.
+
 ## Validation Commands
 ### Backend
 ```bash
@@ -123,9 +136,9 @@ pnpm -C apps/admin-web lint && pnpm -C apps/admin-web build
 ```
 
 ## E2E Demo Scenarios (DoD 1~9)
-1. admin: tenant 생성, PM 생성
-2. pm: 프로젝트 생성, 클라이언트 초대
-3. client: 초대 수락
+1. admin: tenant 생성, PM 생성(setup code 발급)
+2. pm: `/first-password` 설정 후 로그인, 프로젝트 생성, 클라이언트 초대
+3. client: `/first-password` 설정 후 로그인, 초대 수락
 4. 프로젝트 룸: Post/Request/Decision
 5. Files: 업로드/버전/주석
 6. Meetings: 생성 -> client 확인/응답

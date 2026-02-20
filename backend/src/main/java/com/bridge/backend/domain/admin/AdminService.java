@@ -12,7 +12,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.time.OffsetDateTime;
 import java.util.Comparator;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -23,6 +28,11 @@ import java.util.stream.Collectors;
 
 @Service
 public class AdminService {
+    private static final String SETUP_CODE_DIGITS = "0123456789";
+    private static final int SETUP_CODE_LENGTH = 8;
+    private static final int SETUP_CODE_TTL_HOURS = 24;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final TenantRepository tenantRepository;
     private final TenantMemberRepository tenantMemberRepository;
     private final UserRepository userRepository;
@@ -39,6 +49,14 @@ public class AdminService {
         this.userRepository = userRepository;
         this.projectRepository = projectRepository;
         this.passwordEncoder = passwordEncoder;
+    }
+
+    public record SetupCodeIssueResult(UUID userId,
+                                       String email,
+                                       UserStatus status,
+                                       boolean passwordInitialized,
+                                       String setupCode,
+                                       OffsetDateTime setupCodeExpiresAt) {
     }
 
     @Transactional
@@ -70,7 +88,7 @@ public class AdminService {
     }
 
     @Transactional
-    public UserEntity createPmUser(UUID tenantId, String email, String name, UUID actorId) {
+    public SetupCodeIssueResult createPmUser(UUID tenantId, String email, String name, UUID actorId) {
         getTenant(tenantId);
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
 
@@ -78,12 +96,25 @@ public class AdminService {
             UserEntity created = new UserEntity();
             created.setEmail(normalizedEmail);
             created.setName(name);
-            created.setPasswordHash(passwordEncoder.encode("TempPassword!123"));
+            created.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
             created.setStatus(UserStatus.INVITED);
+            created.setPasswordInitialized(false);
+            created.setFailedLoginAttempts(0);
             created.setCreatedBy(actorId);
             created.setUpdatedBy(actorId);
             return userRepository.save(created);
         });
+
+        String setupCode = null;
+        OffsetDateTime setupCodeExpiresAt = null;
+        if (!user.isPasswordInitialized()) {
+            setupCode = generateSetupCode();
+            setupCodeExpiresAt = OffsetDateTime.now().plusHours(SETUP_CODE_TTL_HOURS);
+            user.setPasswordSetupCodeHash(sha256(setupCode));
+            user.setPasswordSetupCodeExpiresAt(setupCodeExpiresAt);
+            user.setUpdatedBy(actorId);
+            user = userRepository.save(user);
+        }
 
         boolean exists = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, user.getId()).isPresent();
         if (!exists) {
@@ -96,7 +127,14 @@ public class AdminService {
             tenantMemberRepository.save(member);
         }
 
-        return user;
+        return new SetupCodeIssueResult(
+                user.getId(),
+                user.getEmail(),
+                user.getStatus(),
+                user.isPasswordInitialized(),
+                setupCode,
+                setupCodeExpiresAt
+        );
     }
 
     @Transactional(readOnly = true)
@@ -113,6 +151,7 @@ public class AdminService {
                     row.put("status", user.getStatus());
                     row.put("role", member.getRole());
                     row.put("lastLoginAt", user.getLastLoginAt());
+                    row.put("passwordInitialized", user.isPasswordInitialized());
                     return row;
                 })
                 .sorted(Comparator.comparing(row -> String.valueOf(row.get("email"))))
@@ -152,18 +191,18 @@ public class AdminService {
                 .sorted(Comparator.comparing(row -> String.valueOf(row.get("tenantName"))))
                 .toList();
 
-        return Map.of(
-                "userId", user.getId(),
-                "email", user.getEmail(),
-                "name", user.getName(),
-                "status", user.getStatus(),
-                "isPlatformAdmin", user.isPlatformAdmin(),
-                "lastLoginAt", user.getLastLoginAt(),
-                "failedLoginAttempts", user.getFailedLoginAttempts(),
-                "loginBlocked", user.getFailedLoginAttempts() >= 5,
-                "passwordInitialized", user.isPasswordInitialized(),
-                "memberships", tenantMemberships
-        );
+        Map<String, Object> detail = new HashMap<>();
+        detail.put("userId", user.getId());
+        detail.put("email", user.getEmail());
+        detail.put("name", user.getName());
+        detail.put("status", user.getStatus());
+        detail.put("isPlatformAdmin", user.isPlatformAdmin());
+        detail.put("lastLoginAt", user.getLastLoginAt());
+        detail.put("failedLoginAttempts", user.getFailedLoginAttempts());
+        detail.put("loginBlocked", user.getFailedLoginAttempts() >= 5);
+        detail.put("passwordInitialized", user.isPasswordInitialized());
+        detail.put("memberships", tenantMemberships);
+        return detail;
     }
 
     @Transactional
@@ -183,6 +222,48 @@ public class AdminService {
                 "loginBlocked", false,
                 "failedLoginAttempts", 0
         );
+    }
+
+    @Transactional
+    public SetupCodeIssueResult resetSetupCode(UUID userId, UUID actorId) {
+        UserEntity user = requireActiveUser(userId);
+        if (user.isPasswordInitialized()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PASSWORD_ALREADY_INITIALIZED", "Password already initialized.");
+        }
+
+        String setupCode = generateSetupCode();
+        OffsetDateTime setupCodeExpiresAt = OffsetDateTime.now().plusHours(SETUP_CODE_TTL_HOURS);
+        user.setPasswordSetupCodeHash(sha256(setupCode));
+        user.setPasswordSetupCodeExpiresAt(setupCodeExpiresAt);
+        user.setUpdatedBy(actorId);
+        userRepository.save(user);
+
+        return new SetupCodeIssueResult(
+                user.getId(),
+                user.getEmail(),
+                user.getStatus(),
+                user.isPasswordInitialized(),
+                setupCode,
+                setupCodeExpiresAt
+        );
+    }
+
+    private String generateSetupCode() {
+        StringBuilder builder = new StringBuilder(SETUP_CODE_LENGTH);
+        for (int i = 0; i < SETUP_CODE_LENGTH; i++) {
+            int index = SECURE_RANDOM.nextInt(SETUP_CODE_DIGITS.length());
+            builder.append(SETUP_CODE_DIGITS.charAt(index));
+        }
+        return builder.toString();
+    }
+
+    private String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return Base64.getEncoder().encodeToString(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
     private UserEntity requireActiveUser(UUID userId) {
