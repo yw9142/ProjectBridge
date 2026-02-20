@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { Building2, FolderKanban, ShieldCheck } from "lucide-react";
 import { AdminLogoutButton } from "./AdminLogoutButton";
 import FadeContent from "@/components/react-bits/FadeContent";
-import Magnet from "@/components/react-bits/Magnet";
 
 const nav = [
   { href: "/admin/tenants", label: "테넌트 목록", icon: Building2 },
@@ -20,9 +19,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-[1680px] items-center justify-between px-4 md:px-6">
           <Link href="/admin/tenants" className="flex items-center gap-3">
-            <Magnet padding={80} magnetStrength={3} wrapperClassName="shrink-0">
+            <div className="shrink-0">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
-            </Magnet>
+            </div>
             <div className="leading-tight">
               <p className="text-sm font-semibold">Bridge Admin</p>
               <p className="text-xs text-muted-foreground">운영 콘솔</p>
