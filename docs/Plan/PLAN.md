@@ -13,7 +13,7 @@
 2. 모노레포는 `pnpm + Turborepo`로 구성하고, 서비스 의존성은 Docker(`postgres`, `minio`, `mailhog`) 기준으로 운영한다.
 3. 개발 원칙은 `플랜 우선`, `PROJECT.md 주기 점검`, `Playwright MCP 프론트 검증`, `MVP 금지`를 강제한다.
 4. 인증은 전면 강제한다: 모든 앱 최초 진입 로그인, 미인증 사용 불가, 세션 만료 즉시 로그인 리다이렉트.
-5. `/sign/[recipientToken]`도 로그인 필수이며 로그인 후 recipient token 소유권 검증을 통과해야 사용 가능하다.
+5. `/sign/[contractId]`도 로그인 필수이며 로그인 후 recipient token 소유권 검증을 통과해야 사용 가능하다.
 6. 프론트 품질은 `frontend-design + ui-ux-pro-max` 기준으로 운영한다.
 7. 백엔드 영속성은 `Spring Data JPA(Hibernate)`를 표준으로 강제한다.
 8. 구현 안정성은 `무한루프 방지 + 메모리 상한 관리`를 기본 게이트로 강제한다.
@@ -28,7 +28,7 @@
 6. 배포 산출물은 로컬+프로덕션 구성(runbook/env)까지 포함한다.
 7. 운영원칙은 플랜 우선/PROJECT.md 주기 점검/Playwright MCP 테스트/Docker 필수다.
 8. 인증원칙은 최초 로그인, 미인증 차단, 세션 만료 즉시 리다이렉트다.
-9. `/sign/[recipientToken]`는 로그인 필수 + 토큰 소유권 검증이다.
+9. `/sign/[contractId]`는 로그인 필수 + 토큰 소유권 검증이다.
 10. 프론트 품질 스킬은 `frontend-design + ui-ux-pro-max`를 강제 적용한다.
 11. 백엔드 CRUD/조회 기본 구현은 `JPA Repository`로 통일한다.
 12. 각 프레임워크 생성은 수동 파일 작성 금지, 공식 설치/생성 명령어 사용을 강제한다.
@@ -85,14 +85,14 @@
 ## 6. 공용 API/인터페이스/타입 계약 (변경/추가 포함)
 
 1. 응답 계약: `ApiSuccess<T>`, `ApiError`.
-2. 인증 계약: `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/set-password`.
+2. 인증 계약: `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/first-password`.
 3. 인증 컨텍스트: `AuthContext { userId, tenantId, projectRoles }`.
 4. 상태 enum 단일 소스: 백엔드 enum + DB 제약 + OpenAPI + 프론트 공유타입 일치.
 5. SSE 타입: `notification.created`, `notification.read`, `system.ping`.
 6. 파일 주석 좌표: 정규화 좌표 스키마(해상도 독립).
 7. 옵션 인터페이스: `GoogleCalendarProvider`, `EmailNotificationSender` + 기본 `FEATURE_DISABLED`.
 8. 로그인 선행 유틸: `next` 복귀 포함 공통 라우트 가드.
-9. 서명 계약: `/sign/[recipientToken]`는 인증 후 토큰 소유권 검증 API 필수.
+9. 서명 계약: `/sign/[contractId]`는 인증 후 토큰 소유권 검증 API 필수.
 10. UI/UX 품질 계약: 릴리즈 산출물에 `UI/UX Quality Gate` 리포트 필수.
 11. 영속성 구현 계약: 도메인 엔티티는 JPA 매핑 기준, 저장소는 `JpaRepository` 기준으로 통일.
 12. `ref` 참조 계약: UI 표현 규칙만 사용하고 도메인 타입/상태/비즈니스 흐름 계약의 근거로 사용하지 않는다.
@@ -100,11 +100,11 @@
 ## 7. REST API 구현 범위 (전부)
 
 1. AUTH  
-`POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/set-password`
+`POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/first-password`
 2. ADMIN  
 `POST /api/admin/tenants`, `GET /api/admin/tenants`, `GET /api/admin/tenants/{tenantId}`, `POST /api/admin/tenants/{tenantId}/pm-users`, `GET /api/admin/tenants/{tenantId}/pm-users`, `PATCH /api/admin/users/{userId}/status`
 3. PROJECTS  
-`GET /api/projects`, `POST /api/projects`, `GET /api/projects/{projectId}`, `PATCH /api/projects/{projectId}`, `GET /api/projects/{projectId}/members`, `POST /api/projects/{projectId}/members/invite`, `POST /api/invitations/{invitationToken}/accept`
+`GET /api/projects`, `POST /api/projects`, `GET /api/projects/{projectId}`, `PATCH /api/projects/{projectId}`, `GET /api/projects/{projectId}/members`, `POST /api/projects/{projectId}/members/invite`, `POST /api/projects/{projectId}/members/{memberId}/setup-code/reset`
 4. POSTS  
 `GET /api/projects/{projectId}/posts`, `POST /api/projects/{projectId}/posts`, `GET /api/posts/{postId}`, `PATCH /api/posts/{postId}`, `DELETE /api/posts/{postId}`, `GET /api/posts/{postId}/comments`, `POST /api/posts/{postId}/comments`
 5. REQUESTS  
@@ -120,7 +120,7 @@
 10. CONTRACTS & E-SIGN  
 `GET /api/projects/{projectId}/contracts`, `POST /api/projects/{projectId}/contracts`, `POST /api/contracts/{contractId}/envelopes`, `POST /api/envelopes/{envelopeId}/recipients`, `POST /api/envelopes/{envelopeId}/fields`, `POST /api/envelopes/{envelopeId}/send`, `GET /api/envelopes/{envelopeId}`, `GET /api/envelopes/{envelopeId}/events`, `POST /api/envelopes/{envelopeId}/void`
 11. SIGNING  
-`GET /api/signing/{recipientToken}`, `POST /api/signing/{recipientToken}/viewed`, `POST /api/signing/{recipientToken}/submit`
+`GET /api/signing/contracts/{contractId}`, `POST /api/signing/contracts/{contractId}/viewed`, `POST /api/signing/contracts/{contractId}/submit`
 12. BILLING  
 `GET /api/projects/{projectId}/invoices`, `POST /api/projects/{projectId}/invoices`, `PATCH /api/invoices/{invoiceId}/status`, `POST /api/invoices/{invoiceId}/attachments/presign`, `POST /api/invoices/{invoiceId}/attachments/complete`
 13. VAULT  
@@ -135,9 +135,9 @@
 2. pm-web  
 `/login`, `/pm/projects`, `/pm/projects/new`, `/pm/projects/[projectId]/dashboard`, `/pm/projects/[projectId]/posts`, `/pm/projects/[projectId]/requests`, `/pm/projects/[projectId]/decisions`, `/pm/projects/[projectId]/files`, `/pm/projects/[projectId]/meetings`, `/pm/projects/[projectId]/contracts`, `/pm/projects/[projectId]/billing`, `/pm/projects/[projectId]/vault`, `/pm/projects/[projectId]/settings/members`, `/pm/profile/integrations/google`
 3. client-web  
-`/login`, `/client/projects`, `/client/projects/[projectId]/home`, `/client/projects/[projectId]/requests`, `/client/projects/[projectId]/posts`, `/client/projects/[projectId]/files`, `/client/projects/[projectId]/meetings`, `/client/projects/[projectId]/contracts`, `/client/projects/[projectId]/billing`, `/client/projects/[projectId]/vault`, `/sign/[recipientToken]`
+`/login`, `/client/projects`, `/client/projects/[projectId]/home`, `/client/projects/[projectId]/requests`, `/client/projects/[projectId]/posts`, `/client/projects/[projectId]/files`, `/client/projects/[projectId]/meetings`, `/client/projects/[projectId]/contracts`, `/client/projects/[projectId]/billing`, `/client/projects/[projectId]/vault`, `/sign/[contractId]`
 4. 인증 규칙  
-최초 진입 로그인, 미인증 보호경로 즉시 `/login?next=...`, 로그인 후 원경로 복귀, `/sign/[recipientToken]` 동일 적용.
+최초 진입 로그인, 미인증 보호경로 즉시 `/login?next=...`, 로그인 후 원경로 복귀, `/sign/[contractId]` 동일 적용.
 
 ## 9. 도메인 구현 범위 (누락 금지)
 
@@ -196,7 +196,7 @@ Posts/Requests/Decisions/Files/Meetings 완성.
 6. Phase 5 Billing & Vault  
 인보이스/증빙, Vault 암호화/정책강제/reveal 이벤트 완성.
 7. Phase 6 프론트 3앱  
-인증/권한가드/토큰갱신, 프로젝트 룸 UI, SSE 알림, 로그인 선행 `/sign/[recipientToken]`, UX/UI 게이트, 루프/메모리 안정성 게이트.
+인증/권한가드/토큰갱신, 프로젝트 룸 UI, SSE 알림, 로그인 선행 `/sign/[contractId]`, UX/UI 게이트, 루프/메모리 안정성 게이트.
 8. Phase 7 하드닝/문서화  
 OpenAPI, 보안 헤더/CORS/CSP, 시드, README E2E 1~9, UI/UX 게이트 최종 통과, DoD 100%.
 
@@ -272,7 +272,7 @@ MCP 검증 시 `ref` 화면을 디자인 벤치마크로 비교하되 기능 동
 6. Playwright MCP가 Phase 0에서 미인식이면 구현 착수 보류.
 7. 로그인 없이는 서비스 사용 불가, 예외는 계정 부팅용 인증 엔드포인트로 한정.
 8. 영속성 기본은 Spring Data JPA(Hibernate)이며, 네이티브 SQL은 제한적 예외로만 허용.
-9. `PROJECT.md` 내 `/sign/[recipientToken]` 무인증 가능 문구가 있더라도 본 계획의 인증 강제 규칙을 우선 적용한다.
+9. `PROJECT.md` 내 `/sign/[contractId]` 무인증 가능 문구가 있더라도 본 계획의 인증 강제 규칙을 우선 적용한다.
 10. 메모리 프로파일 기본은 `보수형`으로 고정한다.
 11. `ref`는 디자인 참조 전용이며 기능 명세 출처가 아니다.
 12. 프로젝트 프레임워크 초기화는 반드시 프레임워크 공식 설치/생성 명령어로 수행한다.
@@ -298,3 +298,5 @@ MCP 검증 시 `ref` 화면을 디자인 벤치마크로 비교하되 기능 동
 `useEffect` cleanup 강제, SSE 단일 연결 보장, 무한 polling 금지, 상태 업데이트는 조건 가드 후 수행.
 7. 루프/메모리 실패 처리 규칙  
 경고 발견 시 기능 개발을 중단하고 재현 스크립트 작성 후 수정, 재검증 통과 전 병합 금지.
+
+

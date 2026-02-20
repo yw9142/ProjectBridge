@@ -54,10 +54,14 @@ public class ProjectController {
                 SecurityUtils.requirePrincipal(),
                 projectId,
                 request.loginId(),
-                request.password(),
                 request.name(),
                 request.role()
         ));
+    }
+
+    @PostMapping("/api/projects/{projectId}/members/{memberId}/setup-code/reset")
+    public ApiSuccess<ProjectService.ProjectMemberAccount> resetSetupCode(@PathVariable UUID projectId, @PathVariable UUID memberId) {
+        return ApiSuccess.of(projectService.resetSetupCode(SecurityUtils.requirePrincipal(), projectId, memberId));
     }
 
     @PatchMapping("/api/projects/{projectId}/members/{memberId}")
@@ -91,7 +95,7 @@ public class ProjectController {
     public record UpdateProjectRequest(String name, String description, ProjectStatus status) {
     }
 
-    public record InviteRequest(@Email @NotBlank String loginId, @NotBlank String password, String name, MemberRole role) {
+    public record InviteRequest(@Email @NotBlank String loginId, String name, MemberRole role) {
     }
 
     public record UpdateMemberRequest(MemberRole role) {

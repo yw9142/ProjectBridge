@@ -28,8 +28,55 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  quality:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint web apps
+        run: |
+          pnpm --filter pm-web lint
+          pnpm --filter client-web lint
+          pnpm --filter admin-web lint
+
+      - name: Test backend
+        shell: bash
+        run: |
+          chmod +x backend/gradlew
+          cd backend
+          ./gradlew test
+
+      - name: Build web apps
+        run: |
+          pnpm --filter pm-web build
+          pnpm --filter client-web build
+          pnpm --filter admin-web build
+
   deploy:
     name: Deploy ${{ matrix.app.name }}
+    needs: quality
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

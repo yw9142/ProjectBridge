@@ -721,27 +721,34 @@ TABLE notification_preferences (권장)
 공통:
 
 - Base: /api
-- Auth header: Authorization: Bearer <accessToken>
+- 인증: HttpOnly 쿠키(bridge_access_token, bridge_refresh_token)
 - 성공 응답: { "data": ..., "meta": ... }
 - 에러 응답: { "error": { "code": "...", "message": "...", "details": {...} } }
 
 AUTH
 POST /api/auth/login
-  req { email, password }
-  resp { data: { accessToken, refreshToken, user } }
+  req { email, password, tenantSlug? }
+  resp { data: { userId, tenantId, roles, ... } } + Set-Cookie
 
 POST /api/auth/refresh
+  req body 없음 (쿠키 기반)
+  resp { data: { refreshed: true } } + Set-Cookie 회전
+
 POST /api/auth/logout
+  req body 없음 (쿠키 기반)
+  resp { data: { loggedOut: true } } + 쿠키 만료
+
 GET  /api/auth/me
-POST /api/auth/set-password   # 초대 수락/최초 비번설정: inviteToken + password + name
+POST /api/auth/first-password # 최초 비번설정: email + setupCode + newPassword
 
 ADMIN (PLATFORM_ADMIN)
 POST /api/admin/tenants
 GET  /api/admin/tenants
 GET  /api/admin/tenants/{tenantId}
-POST /api/admin/tenants/{tenantId}/pm-users   # PM 계정 생성(초대메일)
+POST /api/admin/tenants/{tenantId}/pm-users   # PM 계정 생성
 GET  /api/admin/tenants/{tenantId}/pm-users
 PATCH /api/admin/users/{userId}/status
+POST /api/admin/users/{userId}/unlock-login
 
 PROJECTS (멤버십 기반)
 GET  /api/projects
@@ -749,8 +756,8 @@ POST /api/projects                         # PM_OWNER/PM_MEMBER
 GET  /api/projects/{projectId}
 PATCH /api/projects/{projectId}            # PM_OWNER
 GET  /api/projects/{projectId}/members
-POST /api/projects/{projectId}/members/invite  # PM이 클라이언트 초대
-POST /api/invitations/{invitationToken}/accept
+POST /api/projects/{projectId}/members/invite  # PM이 클라이언트 ID 생성 + setupCode 발급
+POST /api/projects/{projectId}/members/{memberId}/setup-code/reset
 
 POSTS
 GET  /api/projects/{projectId}/posts
@@ -777,7 +784,7 @@ FILES (Presigned)
 GET  /api/projects/{projectId}/files?folder=/design
 POST /api/projects/{projectId}/files
 POST /api/files/{fileId}/versions/presign
-POST /api/files/{fileId}/versions/complete
+POST /api/files/{fileId}/versions/complete   # presign 응답의 uploadTicket 필수
 GET  /api/file-versions/{fileVersionId}/download-url
 POST /api/file-versions/{fileVersionId}/comments
 PATCH /api/file-comments/{commentId}/resolve
@@ -808,9 +815,9 @@ GET  /api/envelopes/{envelopeId}/events
 POST /api/envelopes/{envelopeId}/void
 
 SIGNING (토큰 기반)
-GET  /api/signing/{recipientToken}               # 서명 페이지 데이터 + 원본 PDF URL
-POST /api/signing/{recipientToken}/viewed        # VIEWED 이벤트 + 알림
-POST /api/signing/{recipientToken}/submit        # SIGNED(+완료시 COMPLETED) + 완료본 생성/저장 + 알림
+GET  /api/signing/contracts/{contractId}               # 서명 페이지 데이터 + 원본 PDF URL
+POST /api/signing/contracts/{contractId}/viewed        # VIEWED 이벤트 + 알림
+POST /api/signing/contracts/{contractId}/submit        # SIGNED(+완료시 COMPLETED) + 완료본 생성/저장 + 알림
 
 BILLING (상태관리만)
 GET  /api/projects/{projectId}/invoices
@@ -890,7 +897,7 @@ Routes:
 - /client/projects/[projectId]/contracts
 - /client/projects/[projectId]/billing
 - /client/projects/[projectId]/vault       # 권한 있을 때만
-- /sign/[recipientToken]                   # 토큰 기반 서명 페이지(로그인 없이 가능)
+- /sign/[contractId]                   # 토큰 기반 서명 페이지(로그인 없이 가능)
 Key Components:
 - ClientProjectShell
 - MyTasks(Requests) 중심 UI
@@ -994,7 +1001,8 @@ README.md 반드시 포함:
    - 프로젝트 룸 탭/각 모듈 화면
    - 파일 업로드/버전/주석
    - 회의 캘린더/응답
-   - 서명 페이지(/sign/[token]) 구현
+   - 서명 페이지(/sign/[contractId]) 구현
    - 알림센터 + SSE 구독
 5) 로컬 실행 방법/데모 시나리오를 README로 마무리하라.
 6) 요구사항을 “생략”하거나 “나중에”라고 하지 말고, 구현 가능한 범위로 전부 반영하라.
+

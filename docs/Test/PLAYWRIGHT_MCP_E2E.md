@@ -39,9 +39,9 @@
    - 결과: `/admin/tenants` 진입, 테넌트 목록 렌더링 확인  
    - 상태: PASS
 
-7. 서명 경로 토큰 검증 동작  
-   - 접근: `/sign/test-token`  
-   - 결과: `SIGNING_TOKEN_NOT_FOUND` 응답 노출 확인  
+7. 서명 경로 계약 접근 검증 동작  
+   - 접근: `/sign/test-contract-id`  
+   - 결과: 인증/권한 검증 또는 계약 미존재 에러 응답 확인  
    - 상태: PASS
 
 ## 메모

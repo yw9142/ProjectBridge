@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -71,10 +72,11 @@ public class AdminService {
     @Transactional
     public UserEntity createPmUser(UUID tenantId, String email, String name, UUID actorId) {
         getTenant(tenantId);
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
 
-        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(email).orElseGet(() -> {
+        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(normalizedEmail).orElseGet(() -> {
             UserEntity created = new UserEntity();
-            created.setEmail(email);
+            created.setEmail(normalizedEmail);
             created.setName(name);
             created.setPasswordHash(passwordEncoder.encode("TempPassword!123"));
             created.setStatus(UserStatus.INVITED);
@@ -102,7 +104,6 @@ public class AdminService {
         getTenant(tenantId);
 
         return tenantMemberRepository.findByTenantIdAndDeletedAtIsNull(tenantId).stream()
-                .filter(member -> member.getRole() == MemberRole.PM_OWNER || member.getRole() == MemberRole.PM_MEMBER)
                 .map(member -> {
                     UserEntity user = requireActiveUser(member.getUserId());
                     Map<String, Object> row = new HashMap<>();
@@ -158,6 +159,9 @@ public class AdminService {
                 "status", user.getStatus(),
                 "isPlatformAdmin", user.isPlatformAdmin(),
                 "lastLoginAt", user.getLastLoginAt(),
+                "failedLoginAttempts", user.getFailedLoginAttempts(),
+                "loginBlocked", user.getFailedLoginAttempts() >= 5,
+                "passwordInitialized", user.isPasswordInitialized(),
                 "memberships", tenantMemberships
         );
     }
@@ -167,6 +171,18 @@ public class AdminService {
         UserEntity user = requireActiveUser(userId);
         user.setStatus(status);
         return userRepository.save(user);
+    }
+
+    @Transactional
+    public Map<String, Object> unlockLogin(UUID userId) {
+        UserEntity user = requireActiveUser(userId);
+        user.setFailedLoginAttempts(0);
+        userRepository.save(user);
+        return Map.of(
+                "userId", user.getId(),
+                "loginBlocked", false,
+                "failedLoginAttempts", 0
+        );
     }
 
     private UserEntity requireActiveUser(UUID userId) {

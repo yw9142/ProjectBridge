@@ -11,4 +11,5 @@ import java.util.List;
 @ConfigurationProperties(prefix = "bridge.security")
 public class SecurityProperties {
     private List<String> allowedOrigins;
+    private String authCookieDomain;
 }

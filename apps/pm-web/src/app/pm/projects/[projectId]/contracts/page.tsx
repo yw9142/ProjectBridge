@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChangeEvent, FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -460,7 +460,7 @@ export default function ProjectContractsPage() {
       );
       setSignersByContract(Object.fromEntries(signerEntries));
     } catch (e) {
-      if (!handleAuthError(e, "/pm/login")) {
+      if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "계약 목록을 불러오지 못했습니다.");
       }
     } finally {
@@ -489,7 +489,7 @@ export default function ProjectContractsPage() {
       } catch (e) {
         const renderCancelled = e instanceof Error && e.name === "RenderingCancelledException";
         if (!cancelled && !renderCancelled) {
-          if (!handleAuthError(e, "/pm/login")) {
+          if (!handleAuthError(e, "/login")) {
             setPreviewError(e instanceof Error ? e.message : "PDF 미리보기를 불러오지 못했습니다.");
           }
         }
@@ -583,7 +583,7 @@ export default function ProjectContractsPage() {
       setCreatePdf(null);
       await load();
     } catch (e) {
-      if (!handleAuthError(e, "/pm/login")) {
+      if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "계약 생성에 실패했습니다.");
       }
     }
@@ -639,7 +639,7 @@ export default function ProjectContractsPage() {
       setEditingId(null);
       await load();
     } catch (e) {
-      if (!handleAuthError(e, "/pm/login")) {
+      if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "계약 수정에 실패했습니다.");
       }
     }
@@ -654,7 +654,7 @@ export default function ProjectContractsPage() {
       }
       await load();
     } catch (e) {
-      if (!handleAuthError(e, "/pm/login")) {
+      if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "계약 삭제에 실패했습니다.");
       }
     }
@@ -666,7 +666,7 @@ export default function ProjectContractsPage() {
       const result = await apiFetch<{ downloadUrl: string }>(`/api/file-versions/${fileVersionId}/download-url`);
       window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
     } catch (e) {
-      if (!handleAuthError(e, "/pm/login")) {
+      if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "계약서 열기에 실패했습니다.");
       }
     }
@@ -696,7 +696,7 @@ export default function ProjectContractsPage() {
       setSigningTargetUserId(assignedUserId || clientMembers[0]?.userId || "");
       applyFieldDefaults(signer);
     } catch (e) {
-      if (!handleAuthError(e, "/pm/login")) {
+      if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "서명자 정보를 불러오지 못했습니다.");
       }
     } finally {
@@ -740,7 +740,7 @@ export default function ProjectContractsPage() {
       const refreshed = await loadSigner(signingContractId);
       applyFieldDefaults(refreshed);
     } catch (e) {
-      if (!handleAuthError(e, "/pm/login")) {
+      if (!handleAuthError(e, "/login")) {
         setError(e instanceof Error ? e.message : "서명자 지정에 실패했습니다.");
       }
     } finally {
@@ -1157,5 +1157,6 @@ function resolveDisplayStatus(contract: Contract, signer?: SignerInfo): Contract
   }
   return contract.status;
 }
+
 
 
