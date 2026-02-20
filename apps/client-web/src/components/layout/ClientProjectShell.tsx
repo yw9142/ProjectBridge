@@ -6,7 +6,6 @@ import { Calendar, FileSignature, FolderOpen, LayoutDashboard, Lock, MessageSqua
 import { ClientLogoutButton } from "./ClientLogoutButton";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
 import FadeContent from "@/components/react-bits/FadeContent";
-import Magnet from "@/components/react-bits/Magnet";
 import { RouteTransition } from "@/components/motion/RouteTransition";
 
 const menu = [
@@ -28,9 +27,9 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
       <aside className="fixed inset-y-0 left-0 z-30 w-64 border-r border-border bg-card/95 backdrop-blur">
         <div className="flex h-14 items-center border-b border-border px-4">
           <Link href="/client/projects" className="flex items-center gap-3">
-            <Magnet padding={80} magnetStrength={3} wrapperClassName="shrink-0">
+            <div className="shrink-0">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold !text-white">B</span>
-            </Magnet>
+            </div>
             <div className="leading-tight">
               <p className="text-sm font-semibold text-foreground">Bridge Client</p>
               <p className="text-xs text-muted-foreground">협업 작업공간</p>
