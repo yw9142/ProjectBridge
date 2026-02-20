@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -96,7 +97,6 @@ public class AdminService {
     public SetupCodeIssueResult createTenantUser(UUID tenantId, String email, String name, MemberRole role, UUID actorId) {
         getTenant(tenantId);
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
-        MemberRole resolvedRole = role == null ? MemberRole.PM_MEMBER : role;
 
         UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(normalizedEmail).orElseGet(() -> {
             UserEntity created = new UserEntity();
@@ -123,7 +123,8 @@ public class AdminService {
         }
         UUID userId = user.getId();
 
-        TenantMemberEntity member = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId)
+        Optional<TenantMemberEntity> existingMember = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId);
+        TenantMemberEntity member = existingMember
                 .orElseGet(() -> {
                     TenantMemberEntity created = new TenantMemberEntity();
                     created.setTenantId(tenantId);
@@ -131,6 +132,12 @@ public class AdminService {
                     created.setCreatedBy(actorId);
                     return created;
                 });
+        MemberRole resolvedRole = existingMember
+                .map(TenantMemberEntity::getRole)
+                .orElse(MemberRole.PM_MEMBER);
+        if (role != null) {
+            resolvedRole = role;
+        }
         member.setRole(resolvedRole);
         member.setUpdatedBy(actorId);
         tenantMemberRepository.save(member);

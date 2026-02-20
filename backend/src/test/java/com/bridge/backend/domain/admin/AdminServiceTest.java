@@ -96,11 +96,13 @@ class AdminServiceTest {
         existing.setEmail(email);
         existing.setStatus(UserStatus.ACTIVE);
         existing.setPasswordInitialized(true);
+        TenantMemberEntity membership = new TenantMemberEntity();
+        membership.setRole(MemberRole.PM_OWNER);
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
         when(userRepository.findByEmailAndDeletedAtIsNull(email)).thenReturn(Optional.of(existing));
         when(tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, existing.getId()))
-                .thenReturn(Optional.of(new TenantMemberEntity()));
+                .thenReturn(Optional.of(membership));
         when(projectRepository.findByTenantIdAndDeletedAtIsNull(tenantId)).thenReturn(List.of());
 
         AdminService.SetupCodeIssueResult result = adminService.createTenantUser(tenantId, email, "Existing PM", null, actorId);
@@ -108,7 +110,35 @@ class AdminServiceTest {
         assertThat(result.passwordInitialized()).isTrue();
         assertThat(result.setupCode()).isNull();
         assertThat(result.setupCodeExpiresAt()).isNull();
+        verify(tenantMemberRepository).save(argThat(member -> member.getRole() == MemberRole.PM_OWNER));
         verify(userRepository, never()).save(existing);
+    }
+
+    @Test
+    void createTenantUserUpdatesRoleWhenExplicitRoleProvided() {
+        UUID tenantId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+        String email = "existing-role-change@bridge.local";
+
+        TenantEntity tenant = new TenantEntity();
+        tenant.setId(tenantId);
+        UserEntity existing = new UserEntity();
+        existing.setId(UUID.randomUUID());
+        existing.setEmail(email);
+        existing.setStatus(UserStatus.ACTIVE);
+        existing.setPasswordInitialized(true);
+        TenantMemberEntity membership = new TenantMemberEntity();
+        membership.setRole(MemberRole.PM_OWNER);
+
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(userRepository.findByEmailAndDeletedAtIsNull(email)).thenReturn(Optional.of(existing));
+        when(tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, existing.getId()))
+                .thenReturn(Optional.of(membership));
+        when(projectRepository.findByTenantIdAndDeletedAtIsNull(tenantId)).thenReturn(List.of());
+
+        adminService.createTenantUser(tenantId, email, "Existing Role Change", MemberRole.PM_MEMBER, actorId);
+
+        verify(tenantMemberRepository).save(argThat(member -> member.getRole() == MemberRole.PM_MEMBER));
     }
 
     @Test
