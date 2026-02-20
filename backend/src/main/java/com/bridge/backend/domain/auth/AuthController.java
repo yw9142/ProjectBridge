@@ -61,8 +61,11 @@ public class AuthController {
     @PostMapping("/logout")
     public ApiSuccess<Map<String, Object>> logout(HttpServletRequest httpRequest,
                                                   HttpServletResponse httpResponse) {
-        authCookieService.readRefreshToken(httpRequest).ifPresent(authService::logout);
+        String refreshToken = authCookieService.readRefreshToken(httpRequest).orElse(null);
         authCookieService.clearAuthCookies(httpRequest, httpResponse);
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            authService.logout(refreshToken);
+        }
         return ApiSuccess.of(Map.of("loggedOut", true));
     }
 

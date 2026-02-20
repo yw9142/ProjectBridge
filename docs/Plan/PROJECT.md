@@ -726,7 +726,8 @@ TABLE notification_preferences (권장)
   - pm: bridge_pm_access_token / bridge_pm_refresh_token
   - client: bridge_client_access_token / bridge_client_refresh_token
   - `Authorization: Bearer` 헤더는 인증 소스로 사용하지 않음
-  - 요청에 `X-Bridge-App`(또는 SSE `?app=`) 스코프가 없으면 인증 토큰을 해석하지 않음
+  - 일반 REST API 요청은 `X-Bridge-App` 스코프가 필수
+  - SSE(`/api/notifications/stream`)는 `X-Bridge-App` 또는 `?app=` 스코프 허용
 - 성공 응답: { "data": ..., "meta": ... }
 - 에러 응답: { "success": false, "error": { "code": "...", "message": "...", "details": {...} } }
 

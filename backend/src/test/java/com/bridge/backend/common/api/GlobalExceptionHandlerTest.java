@@ -1,5 +1,8 @@
 package com.bridge.backend.common.api;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +17,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Set;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -64,6 +71,16 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.error.message").value("요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."));
     }
 
+    @Test
+    void wrapsConstraintViolationWithValidationMessageAndDetails() throws Exception {
+        mockMvc.perform(get("/test/constraint-ex"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.error.message").value("입력값이 유효하지 않습니다."))
+                .andExpect(jsonPath("$.error.details.setupCode").value("설정 코드는 필수입니다."));
+    }
+
     @RestController
     static class TestController {
 
@@ -80,6 +97,17 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/internal-ex")
         public String internalException() {
             throw new RuntimeException("sensitive stack message");
+        }
+
+        @GetMapping("/test/constraint-ex")
+        public String constraintException() {
+            @SuppressWarnings("unchecked")
+            ConstraintViolation<Object> violation = (ConstraintViolation<Object>) mock(ConstraintViolation.class);
+            Path path = mock(Path.class);
+            when(path.toString()).thenReturn("firstPassword.setupCode");
+            when(violation.getPropertyPath()).thenReturn(path);
+            when(violation.getMessage()).thenReturn("설정 코드는 필수입니다.");
+            throw new ConstraintViolationException(Set.of(violation));
         }
     }
 
