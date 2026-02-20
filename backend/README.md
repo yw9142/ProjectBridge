@@ -68,6 +68,10 @@ Default server URL: `http://localhost:8080`
 - Token parsing requires app scope:
   - API requests: `X-Bridge-App: admin|pm|client`
   - SSE requests: `?app=admin|pm|client`
+- `Authorization: Bearer` header is not used as an authentication source.
+
+## Error Response Format
+- `{ "success": false, "error": { "code": "...", "message": "...", "details": ... } }`
 
 ## Validation Commands
 ```bash
