@@ -4,6 +4,8 @@ import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.UserStatus;
 import com.bridge.backend.domain.auth.UserEntity;
 import com.bridge.backend.domain.auth.UserRepository;
+import com.bridge.backend.domain.project.ProjectEntity;
+import com.bridge.backend.domain.project.ProjectMemberRepository;
 import com.bridge.backend.domain.project.ProjectRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +38,8 @@ class AdminServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private ProjectMemberRepository projectMemberRepository;
+    @Mock
     private ProjectRepository projectRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -43,7 +48,7 @@ class AdminServiceTest {
     private AdminService adminService;
 
     @Test
-    void createPmUserIssuesSetupCodeForNewUser() {
+    void createTenantUserIssuesSetupCodeForNewUser() {
         UUID tenantId = UUID.randomUUID();
         UUID actorId = UUID.randomUUID();
         String email = "new-pm@bridge.local";
@@ -63,8 +68,9 @@ class AdminServiceTest {
         });
         when(tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(eq(tenantId), any(UUID.class)))
                 .thenReturn(Optional.empty());
+        when(projectRepository.findByTenantIdAndDeletedAtIsNull(tenantId)).thenReturn(List.of());
 
-        AdminService.SetupCodeIssueResult result = adminService.createPmUser(tenantId, email, "New PM", actorId);
+        AdminService.SetupCodeIssueResult result = adminService.createTenantUser(tenantId, email, "New PM", actorId);
 
         assertThat(result.email()).isEqualTo(email);
         assertThat(result.status()).isEqualTo(UserStatus.INVITED);
@@ -76,7 +82,7 @@ class AdminServiceTest {
     }
 
     @Test
-    void createPmUserDoesNotIssueSetupCodeForInitializedAccount() {
+    void createTenantUserDoesNotIssueSetupCodeForInitializedAccount() {
         UUID tenantId = UUID.randomUUID();
         UUID actorId = UUID.randomUUID();
         String email = "existing-pm@bridge.local";
@@ -93,13 +99,47 @@ class AdminServiceTest {
         when(userRepository.findByEmailAndDeletedAtIsNull(email)).thenReturn(Optional.of(existing));
         when(tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, existing.getId()))
                 .thenReturn(Optional.of(new TenantMemberEntity()));
+        when(projectRepository.findByTenantIdAndDeletedAtIsNull(tenantId)).thenReturn(List.of());
 
-        AdminService.SetupCodeIssueResult result = adminService.createPmUser(tenantId, email, "Existing PM", actorId);
+        AdminService.SetupCodeIssueResult result = adminService.createTenantUser(tenantId, email, "Existing PM", actorId);
 
         assertThat(result.passwordInitialized()).isTrue();
         assertThat(result.setupCode()).isNull();
         assertThat(result.setupCodeExpiresAt()).isNull();
         verify(userRepository, never()).save(existing);
+    }
+
+    @Test
+    void createTenantUserSyncsProjectMembershipForSingleProjectTenant() {
+        UUID tenantId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+        String email = "single-project@bridge.local";
+
+        TenantEntity tenant = new TenantEntity();
+        tenant.setId(tenantId);
+
+        ProjectEntity project = new ProjectEntity();
+        project.setId(projectId);
+        project.setTenantId(tenantId);
+
+        UserEntity existing = new UserEntity();
+        existing.setId(userId);
+        existing.setEmail(email);
+        existing.setStatus(UserStatus.ACTIVE);
+        existing.setPasswordInitialized(true);
+
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(userRepository.findByEmailAndDeletedAtIsNull(email)).thenReturn(Optional.of(existing));
+        when(tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId)).thenReturn(Optional.empty());
+        when(projectRepository.findByTenantIdAndDeletedAtIsNull(tenantId)).thenReturn(List.of(project));
+        when(projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, userId)).thenReturn(Optional.empty());
+        when(projectMemberRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        adminService.createTenantUser(tenantId, email, "Single Project User", actorId);
+
+        verify(projectMemberRepository, times(1)).save(any());
     }
 
     @Test

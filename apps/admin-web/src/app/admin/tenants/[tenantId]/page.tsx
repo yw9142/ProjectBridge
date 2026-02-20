@@ -17,7 +17,7 @@ type Tenant = {
   createdAt?: string;
 };
 
-type PmUser = {
+type TenantUser = {
   userId: string;
   email: string;
   name: string;
@@ -62,7 +62,7 @@ export default function TenantDetailPage() {
   const tenantId = params.tenantId;
 
   const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [pmUsers, setPmUsers] = useState<PmUser[]>([]);
+  const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,20 +95,20 @@ export default function TenantDetailPage() {
         // use fallback message
       }
     }
-    return "PM 사용자 생성에 실패했습니다. 입력값을 확인한 뒤 다시 시도해 주세요.";
+    return "테넌트 사용자 생성에 실패했습니다. 입력값을 확인한 뒤 다시 시도해 주세요.";
   };
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const [tenantData, pmUserData, projectData] = await Promise.all([
+      const [tenantData, tenantUserData, projectData] = await Promise.all([
         apiFetch<Tenant>(`/api/admin/tenants/${tenantId}`),
-        apiFetch<PmUser[]>(`/api/admin/tenants/${tenantId}/pm-users`),
+        apiFetch<TenantUser[]>(`/api/admin/tenants/${tenantId}/pm-users`),
         apiFetch<Project[]>(`/api/admin/tenants/${tenantId}/projects`),
       ]);
       setTenant(tenantData);
-      setPmUsers(pmUserData);
+      setTenantUsers(tenantUserData);
       setProjects(projectData);
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
@@ -124,7 +124,7 @@ export default function TenantDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
-  async function createPmUser(event: FormEvent<HTMLFormElement>) {
+  async function createTenantUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setCreateError(null);
@@ -136,7 +136,7 @@ export default function TenantDetailPage() {
         body: JSON.stringify({ email, name }),
       });
       if (created.setupCode) {
-        setCreateNotice(`PM 계정을 생성했습니다. 최초 비밀번호 설정 코드를 전달하세요. 이메일: ${created.email ?? email}`);
+        setCreateNotice(`테넌트 사용자 계정을 생성했습니다. 최초 비밀번호 설정 코드를 전달하세요. 이메일: ${created.email ?? email}`);
         setSetupCodeInfo({
           email: created.email ?? email,
           setupCode: created.setupCode,
@@ -204,7 +204,7 @@ export default function TenantDetailPage() {
       return;
     }
     const guide = [
-      "[Bridge PM 최초 비밀번호 설정 안내]",
+      "[Bridge 테넌트 사용자 최초 비밀번호 설정 안내]",
       `이메일: ${setupCodeInfo.email}`,
       `설정 코드: ${setupCodeInfo.setupCode}`,
       `만료시각: ${formatDateTime(setupCodeInfo.expiresAt)}`,
@@ -263,14 +263,14 @@ export default function TenantDetailPage() {
             }}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
           >
-            PM 사용자 추가
+            테넌트 사용자 추가
           </button>
         </div>
 
         {createNotice ? <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{createNotice}</p> : null}
         {setupCodeInfo ? (
           <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            <p className="font-semibold">PM 최초 비밀번호 설정 코드</p>
+            <p className="font-semibold">테넌트 사용자 최초 비밀번호 설정 코드</p>
             <p>이메일: {setupCodeInfo.email}</p>
             <p>
               설정 코드: <span className="font-mono font-semibold">{setupCodeInfo.setupCode}</span>
@@ -403,7 +403,7 @@ export default function TenantDetailPage() {
                 </td>
               </tr>
             ) : null}
-              {pmUsers.map((user) => (
+              {tenantUsers.map((user) => (
                 <tr key={user.userId}>
                   <td className="px-4 py-3 font-medium text-slate-900">{user.name || "-"}</td>
                   <td className="px-4 py-3 text-slate-700">{user.email}</td>
@@ -434,7 +434,7 @@ export default function TenantDetailPage() {
                   </td>
                 </tr>
               ))}
-              {!loading && pmUsers.length === 0 ? (
+              {!loading && tenantUsers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                     등록된 테넌트 사용자가 없습니다.
@@ -445,8 +445,8 @@ export default function TenantDetailPage() {
           </table>
         </div>
 
-        <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="PM 사용자 생성" description="생성 후 기본 상태는 초대(INVITED)입니다.">
-          <form onSubmit={createPmUser} className="space-y-3">
+        <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="테넌트 사용자 생성" description="생성 후 기본 상태는 초대(INVITED)입니다.">
+          <form onSubmit={createTenantUser} className="space-y-3">
             {createError ? <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{createError}</p> : null}
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">이메일</label>

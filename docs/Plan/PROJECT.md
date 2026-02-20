@@ -753,8 +753,8 @@ ADMIN (PLATFORM_ADMIN)
 POST /api/admin/tenants
 GET  /api/admin/tenants
 GET  /api/admin/tenants/{tenantId}
-POST /api/admin/tenants/{tenantId}/pm-users   # PM 계정 생성
-GET  /api/admin/tenants/{tenantId}/pm-users
+POST /api/admin/tenants/{tenantId}/pm-users   # 테넌트 사용자 계정 생성 (호환 경로명 유지)
+GET  /api/admin/tenants/{tenantId}/pm-users   # 테넌트 사용자 목록 조회 (역할 필터 없음)
 PATCH /api/admin/users/{userId}/status
 POST /api/admin/users/{userId}/unlock-login
 POST /api/admin/users/{userId}/setup-code/reset

@@ -6,6 +6,8 @@ import com.bridge.backend.common.model.enums.UserStatus;
 import com.bridge.backend.domain.auth.UserEntity;
 import com.bridge.backend.domain.auth.UserRepository;
 import com.bridge.backend.domain.project.ProjectEntity;
+import com.bridge.backend.domain.project.ProjectMemberEntity;
+import com.bridge.backend.domain.project.ProjectMemberRepository;
 import com.bridge.backend.domain.project.ProjectRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,17 +38,20 @@ public class AdminService {
     private final TenantRepository tenantRepository;
     private final TenantMemberRepository tenantMemberRepository;
     private final UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final ProjectRepository projectRepository;
     private final PasswordEncoder passwordEncoder;
 
     public AdminService(TenantRepository tenantRepository,
                         TenantMemberRepository tenantMemberRepository,
                         UserRepository userRepository,
+                        ProjectMemberRepository projectMemberRepository,
                         ProjectRepository projectRepository,
                         PasswordEncoder passwordEncoder) {
         this.tenantRepository = tenantRepository;
         this.tenantMemberRepository = tenantMemberRepository;
         this.userRepository = userRepository;
+        this.projectMemberRepository = projectMemberRepository;
         this.projectRepository = projectRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -88,7 +93,7 @@ public class AdminService {
     }
 
     @Transactional
-    public SetupCodeIssueResult createPmUser(UUID tenantId, String email, String name, UUID actorId) {
+    public SetupCodeIssueResult createTenantUser(UUID tenantId, String email, String name, UUID actorId) {
         getTenant(tenantId);
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
 
@@ -126,6 +131,7 @@ public class AdminService {
             member.setUpdatedBy(actorId);
             tenantMemberRepository.save(member);
         }
+        syncProjectMembershipForSingleProjectTenant(tenantId, user.getId(), MemberRole.PM_OWNER, actorId);
 
         return new SetupCodeIssueResult(
                 user.getId(),
@@ -138,7 +144,7 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> listPmUsers(UUID tenantId) {
+    public List<Map<String, Object>> listTenantUsers(UUID tenantId) {
         getTenant(tenantId);
 
         return tenantMemberRepository.findByTenantIdAndDeletedAtIsNull(tenantId).stream()
@@ -269,5 +275,26 @@ public class AdminService {
     private UserEntity requireActiveUser(UUID userId) {
         return userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+    }
+
+    private void syncProjectMembershipForSingleProjectTenant(UUID tenantId, UUID userId, MemberRole role, UUID actorId) {
+        List<ProjectEntity> projects = projectRepository.findByTenantIdAndDeletedAtIsNull(tenantId);
+        if (projects.size() != 1) {
+            return;
+        }
+
+        UUID projectId = projects.get(0).getId();
+        ProjectMemberEntity projectMember = projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, userId)
+                .orElseGet(() -> {
+                    ProjectMemberEntity created = new ProjectMemberEntity();
+                    created.setTenantId(tenantId);
+                    created.setProjectId(projectId);
+                    created.setUserId(userId);
+                    created.setCreatedBy(actorId);
+                    return created;
+                });
+        projectMember.setRole(role);
+        projectMember.setUpdatedBy(actorId);
+        projectMemberRepository.save(projectMember);
     }
 }

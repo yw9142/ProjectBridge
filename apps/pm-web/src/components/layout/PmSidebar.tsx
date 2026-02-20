@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Calendar, FileSignature, FolderOpen, History, LayoutDashboard, Lock, MessageSquare, Receipt, Settings, SquareCheck } from "lucide-react";
 import FadeContent from "@/components/react-bits/FadeContent";
-import { useCurrentUserRole } from "@/lib/use-current-user-role";
+import { useCurrentProjectRole } from "@/lib/use-current-project-role";
 
 const items = [
   { key: "dashboard", label: "대시보드", icon: LayoutDashboard },
@@ -20,8 +20,7 @@ const items = [
 
 export function PmSidebar({ projectId }: { projectId: string }) {
   const pathname = usePathname();
-  const { tenantRole, isPlatformAdmin } = useCurrentUserRole();
-  const canManageMembers = isPlatformAdmin || tenantRole === "PM_OWNER";
+  const { isPmOwner } = useCurrentProjectRole(projectId);
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 w-64 border-r border-border bg-card/95 backdrop-blur">
@@ -59,7 +58,7 @@ export function PmSidebar({ projectId }: { projectId: string }) {
                 </Link>
               );
             })}
-            {canManageMembers ? (
+            {isPmOwner ? (
               <Link
                 href={`/pm/projects/${projectId}/settings/members`}
                 aria-current={pathname.includes("/settings/members") ? "page" : undefined}

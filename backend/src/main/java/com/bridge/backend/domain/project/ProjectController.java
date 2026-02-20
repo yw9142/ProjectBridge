@@ -38,6 +38,12 @@ public class ProjectController {
         return ApiSuccess.of(projectService.get(SecurityUtils.requirePrincipal(), projectId));
     }
 
+    @GetMapping("/api/projects/{projectId}/my-role")
+    public ApiSuccess<Map<String, String>> myProjectRole(@PathVariable UUID projectId) {
+        var role = projectService.myRole(SecurityUtils.requirePrincipal(), projectId);
+        return ApiSuccess.of(Map.of("role", role.name()));
+    }
+
     @PatchMapping("/api/projects/{projectId}")
     public ApiSuccess<ProjectEntity> updateProject(@PathVariable UUID projectId, @RequestBody UpdateProjectRequest request) {
         return ApiSuccess.of(projectService.update(SecurityUtils.requirePrincipal(), projectId, request.name(), request.description(), request.status()));

@@ -2,8 +2,6 @@ package com.bridge.backend.common.tenant;
 
 import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.MemberRole;
-import com.bridge.backend.domain.admin.TenantMemberEntity;
-import com.bridge.backend.domain.admin.TenantMemberRepository;
 import com.bridge.backend.domain.auth.UserEntity;
 import com.bridge.backend.domain.auth.UserRepository;
 import com.bridge.backend.domain.project.ProjectEntity;
@@ -32,15 +30,13 @@ class AccessGuardServiceTest {
     @Mock
     private ProjectMemberRepository projectMemberRepository;
     @Mock
-    private TenantMemberRepository tenantMemberRepository;
-    @Mock
     private UserRepository userRepository;
 
     @InjectMocks
     private AccessGuardService accessGuardService;
 
     @Test
-    void requireProjectMemberAllowsTenantPmOwnerWithoutProjectMembership() {
+    void requireProjectMemberThrowsWhenProjectMembershipMissing() {
         UUID projectId = UUID.randomUUID();
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
@@ -48,8 +44,20 @@ class AccessGuardServiceTest {
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project(projectId, tenantId)));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user(userId, false)));
         when(projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, userId)).thenReturn(Optional.empty());
-        when(tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId))
-                .thenReturn(Optional.of(tenantMember(tenantId, userId, MemberRole.PM_OWNER)));
+
+        AppException ex = assertThrows(AppException.class, () -> accessGuardService.requireProjectMember(projectId, userId, tenantId));
+
+        assertThat(ex.getCode()).isEqualTo("PROJECT_MEMBER_REQUIRED");
+    }
+
+    @Test
+    void requireProjectMemberAllowsPlatformAdminWithoutProjectMembership() {
+        UUID projectId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project(projectId, tenantId)));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user(userId, true)));
 
         ProjectMemberEntity result = accessGuardService.requireProjectMember(projectId, userId, tenantId);
 
@@ -59,20 +67,25 @@ class AccessGuardServiceTest {
     }
 
     @Test
-    void requireProjectMemberThrowsWhenTenantMemberIsNotPmRole() {
+    void requireProjectMemberAllowsProjectMembership() {
         UUID projectId = UUID.randomUUID();
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
+        ProjectMemberEntity membership = new ProjectMemberEntity();
+        membership.setTenantId(tenantId);
+        membership.setProjectId(projectId);
+        membership.setUserId(userId);
+        membership.setRole(MemberRole.PM_MEMBER);
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project(projectId, tenantId)));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user(userId, false)));
-        when(projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, userId)).thenReturn(Optional.empty());
-        when(tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId))
-                .thenReturn(Optional.of(tenantMember(tenantId, userId, MemberRole.CLIENT_OWNER)));
+        when(projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, userId)).thenReturn(Optional.of(membership));
 
-        AppException ex = assertThrows(AppException.class, () -> accessGuardService.requireProjectMember(projectId, userId, tenantId));
+        ProjectMemberEntity result = accessGuardService.requireProjectMember(projectId, userId, tenantId);
 
-        assertThat(ex.getCode()).isEqualTo("PROJECT_MEMBER_REQUIRED");
+        assertThat(result.getRole()).isEqualTo(MemberRole.PM_MEMBER);
+        assertThat(result.getProjectId()).isEqualTo(projectId);
+        assertThat(result.getUserId()).isEqualTo(userId);
     }
 
     @Test
@@ -83,9 +96,12 @@ class AccessGuardServiceTest {
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project(projectId, tenantId)));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user(userId, false)));
-        when(projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, userId)).thenReturn(Optional.empty());
-        when(tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId))
-                .thenReturn(Optional.of(tenantMember(tenantId, userId, MemberRole.PM_MEMBER)));
+        ProjectMemberEntity membership = new ProjectMemberEntity();
+        membership.setTenantId(tenantId);
+        membership.setProjectId(projectId);
+        membership.setUserId(userId);
+        membership.setRole(MemberRole.PM_MEMBER);
+        when(projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, userId)).thenReturn(Optional.of(membership));
 
         AppException ex = assertThrows(
                 AppException.class,
@@ -109,11 +125,4 @@ class AccessGuardServiceTest {
         return user;
     }
 
-    private static TenantMemberEntity tenantMember(UUID tenantId, UUID userId, MemberRole role) {
-        TenantMemberEntity tenantMember = new TenantMemberEntity();
-        tenantMember.setTenantId(tenantId);
-        tenantMember.setUserId(userId);
-        tenantMember.setRole(role);
-        return tenantMember;
-    }
 }
