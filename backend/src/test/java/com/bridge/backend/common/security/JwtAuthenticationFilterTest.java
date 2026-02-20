@@ -65,6 +65,18 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void skipsFilterForActuatorHealth() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/actuator/health");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        jwtAuthenticationFilter.doFilter(request, response, new MockFilterChain());
+
+        verify(jwtService, never()).parse(any());
+        verifyNoInteractions(handlerExceptionResolver);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
     void rejectsQueryScopeOnRestRequest() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/projects");
         request.addParameter("app", "pm");

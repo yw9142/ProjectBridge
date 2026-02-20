@@ -6,7 +6,7 @@ import { ApiRequestError, apiFetch, handleAuthError } from "@/lib/api";
 import { useProjectId } from "@/lib/use-project-id";
 import { ConfirmActionButton } from "@/components/ui/confirm-action";
 import { Modal } from "@/components/ui/modal";
-import { useCurrentUserRole } from "@/lib/use-current-user-role";
+import { useCurrentProjectRole } from "@/lib/use-current-project-role";
 
 type MemberRole = "PM_OWNER" | "PM_MEMBER" | "CLIENT_OWNER" | "CLIENT_MEMBER" | "READONLY";
 
@@ -37,8 +37,7 @@ const roles: Array<{ value: MemberRole; label: string }> = [
 export default function ProjectMemberSettingsPage() {
   const router = useRouter();
   const projectId = useProjectId();
-  const { loading: roleLoading, tenantRole, isPlatformAdmin } = useCurrentUserRole();
-  const canManageMembers = isPlatformAdmin || tenantRole === "PM_OWNER";
+  const { loading: projectRoleLoading, isPmOwner } = useCurrentProjectRole(projectId);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, MemberRole>>({});
   const [accountDrafts, setAccountDrafts] = useState<Record<string, AccountDraft>>({});
@@ -104,16 +103,16 @@ export default function ProjectMemberSettingsPage() {
   };
 
   useEffect(() => {
-    if (roleLoading) {
+    if (projectRoleLoading) {
       return;
     }
-    if (!canManageMembers) {
+    if (!isPmOwner) {
       router.replace(`/pm/projects/${projectId}/dashboard`);
       return;
     }
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, roleLoading, canManageMembers, router]);
+  }, [projectId, projectRoleLoading, isPmOwner, router]);
 
   async function createMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -304,7 +303,7 @@ export default function ProjectMemberSettingsPage() {
     }
   };
 
-  if (roleLoading) {
+  if (projectRoleLoading) {
     return (
       <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h1 className="text-xl font-bold text-slate-900">멤버 설정</h1>
@@ -313,7 +312,7 @@ export default function ProjectMemberSettingsPage() {
     );
   }
 
-  if (!roleLoading && !canManageMembers) {
+  if (!projectRoleLoading && !isPmOwner) {
     return (
       <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h1 className="text-xl font-bold text-slate-900">멤버 설정</h1>

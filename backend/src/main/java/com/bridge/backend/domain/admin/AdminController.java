@@ -48,10 +48,10 @@ public class AdminController {
     }
 
     @PostMapping("/tenants/{tenantId}/pm-users")
-    public ApiSuccess<Map<String, Object>> createPmUser(@PathVariable UUID tenantId, @RequestBody @Valid CreatePmUserRequest request) {
+    public ApiSuccess<Map<String, Object>> createTenantUser(@PathVariable UUID tenantId, @RequestBody @Valid CreateTenantUserRequest request) {
         UUID actorId = SecurityUtils.currentUserId();
         accessGuardService.requirePlatformAdmin(actorId);
-        var issued = adminService.createPmUser(tenantId, request.email(), request.name(), actorId);
+        var issued = adminService.createTenantUser(tenantId, request.email(), request.name(), actorId);
         Map<String, Object> response = new HashMap<>();
         response.put("userId", issued.userId());
         response.put("email", issued.email());
@@ -63,9 +63,10 @@ public class AdminController {
     }
 
     @GetMapping("/tenants/{tenantId}/pm-users")
-    public ApiSuccess<List<Map<String, Object>>> listPmUsers(@PathVariable UUID tenantId) {
+    public ApiSuccess<List<Map<String, Object>>> listTenantUsers(@PathVariable UUID tenantId) {
+        // Keep path for compatibility; response is tenant user list (not PM-only filter).
         accessGuardService.requirePlatformAdmin(SecurityUtils.currentUserId());
-        return ApiSuccess.of(adminService.listPmUsers(tenantId));
+        return ApiSuccess.of(adminService.listTenantUsers(tenantId));
     }
 
     @GetMapping("/tenants/{tenantId}/projects")
@@ -119,7 +120,7 @@ public class AdminController {
     public record CreateTenantRequest(@NotBlank String name, @NotBlank String slug) {
     }
 
-    public record CreatePmUserRequest(@Email @NotBlank String email, @NotBlank String name) {
+    public record CreateTenantUserRequest(@Email @NotBlank String email, @NotBlank String name) {
     }
 
     public record UpdateStatusRequest(@NotNull UserStatus status) {
