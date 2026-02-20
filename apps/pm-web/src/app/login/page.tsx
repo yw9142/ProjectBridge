@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { sanitizeNextPath } from "../../lib/auth";
@@ -59,6 +60,11 @@ function LoginForm() {
       });
       const json = await response.json();
       if (!response.ok) {
+        if (json?.error?.code === "PASSWORD_SETUP_REQUIRED") {
+          const encodedEmail = encodeURIComponent(email.trim().toLowerCase());
+          router.replace(`/first-password?email=${encodedEmail}`);
+          return;
+        }
         throw new Error(resolveLoginErrorMessage(json));
       }
 
@@ -143,6 +149,14 @@ function LoginForm() {
             disabled={Boolean(tenantOptions)}
             required
           />
+          <div className="mt-2 flex justify-end">
+            <Link
+              href={`/first-password?email=${encodeURIComponent(email.trim().toLowerCase())}`}
+              className="text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              설정 코드로 최초 비밀번호 설정
+            </Link>
+          </div>
 
           {tenantOptions ? (
             <div className="mt-4 space-y-2">

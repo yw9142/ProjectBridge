@@ -1,7 +1,13 @@
+"use client";
+
 import { NotificationCenter } from "../ui/NotificationCenter";
 import { PmLogoutButton } from "./PmLogoutButton";
+import { useCurrentUserRole } from "@/lib/use-current-user-role";
 
 export function AppHeader() {
+  const { tenantRole, isPlatformAdmin } = useCurrentUserRole();
+  const roleLabel = isPlatformAdmin ? "PLATFORM_ADMIN" : tenantRole ?? "-";
+
   return (
     <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-[1320px] items-center justify-between px-4 md:px-6">
@@ -15,7 +21,7 @@ export function AppHeader() {
           <PmLogoutButton />
           <div className="hidden text-right sm:block">
             <p className="text-sm font-medium text-foreground">PM 사용자</p>
-            <p className="text-xs text-muted-foreground">PM_OWNER</p>
+            <p className="text-xs text-muted-foreground">{roleLabel}</p>
           </div>
         </div>
       </div>

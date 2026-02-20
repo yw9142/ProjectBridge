@@ -28,6 +28,20 @@ export class ApiAuthError extends Error {
   }
 }
 
+export class ApiRequestError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly details?: unknown;
+
+  constructor(message: string, status: number, code?: string, details?: unknown) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
+
 let refreshPromise: Promise<boolean> | null = null;
 
 function normalizePath(path: string): string {
@@ -144,7 +158,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     if (response.status === 401) {
       throw new ApiAuthError(message);
     }
-    throw new Error(message);
+    throw new ApiRequestError(message, response.status, payload?.error?.code, payload?.error?.details);
   }
 
   if (payload && "data" in payload) {
@@ -175,7 +189,7 @@ export async function apiFetchResponse(path: string, init?: RequestInit): Promis
     if (response.status === 401) {
       throw new ApiAuthError(message);
     }
-    throw new Error(message);
+    throw new ApiRequestError(message, response.status, payload?.error?.code, payload?.error?.details);
   }
 
   return response;

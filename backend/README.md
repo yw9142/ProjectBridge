@@ -23,6 +23,7 @@ Values are resolved from `backend/src/main/resources/application.properties`.
 - `JWT_SECRET`
 - `VAULT_MASTER_KEY`
 - `ALLOWED_ORIGINS` (example: `http://localhost:3000,http://localhost:3001,http://localhost:3002`)
+- `AUTH_COOKIE_DOMAIN` (optional, default: host-only cookie)
 - `MINIO_ENDPOINT` (default: `http://localhost:9000`)
 - `MINIO_BUCKET` (default: `bridge`)
 - `MINIO_ROOT_USER` (default: `minio`)
@@ -49,12 +50,24 @@ Default server URL: `http://localhost:8080`
 
 ## API Docs
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+- Health: `http://localhost:8080/actuator/health`
 
 ## Main Auth Endpoints
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `POST /api/auth/first-password`
+
+## Auth Notes
+- Login/refresh/logout are cookie-based (`HttpOnly`, `SameSite=Lax`).
+- Cookie scope is app-specific:
+  - `bridge_admin_access_token` / `bridge_admin_refresh_token`
+  - `bridge_pm_access_token` / `bridge_pm_refresh_token`
+  - `bridge_client_access_token` / `bridge_client_refresh_token`
+- Token parsing requires app scope:
+  - API requests: `X-Bridge-App: admin|pm|client`
+  - SSE requests: `?app=admin|pm|client`
 
 ## Validation Commands
 ```bash

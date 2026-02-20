@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Modal } from "@/components/ui/modal";
-import { apiFetch, handleAuthError } from "@/lib/api";
+import { ApiRequestError, apiFetch, handleAuthError } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Tenant = {
@@ -23,7 +23,17 @@ type PmUser = {
   name: string;
   status: string;
   role: string;
+  passwordInitialized: boolean;
   lastLoginAt?: string | null;
+};
+
+type SetupCodeIssue = {
+  userId: string;
+  email?: string;
+  status?: string;
+  passwordInitialized: boolean;
+  setupCode?: string | null;
+  setupCodeExpiresAt?: string | null;
 };
 
 type Project = {
@@ -60,8 +70,33 @@ export default function TenantDetailPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [createNotice, setCreateNotice] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [setupCodeInfo, setSetupCodeInfo] = useState<{ email: string; setupCode: string; expiresAt?: string | null } | null>(null);
 
   const [error, setError] = useState<string | null>(null);
+
+  const resolveCreateErrorMessage = (e: unknown) => {
+    if (e instanceof ApiRequestError && e.code === "VALIDATION_ERROR" && e.details && typeof e.details === "object") {
+      const details = e.details as Record<string, unknown>;
+      const emailError = details.email;
+      if (typeof emailError === "string" && emailError.trim() !== "") {
+        return "이메일 형식을 확인해 주세요. (예: user@example.com)";
+      }
+    }
+    if (e instanceof Error) {
+      try {
+        const parsed = JSON.parse(e.message) as { details?: Record<string, unknown> };
+        const emailError = parsed?.details?.email;
+        if (typeof emailError === "string" && emailError.trim() !== "") {
+          return "이메일 형식을 확인해 주세요. (예: user@example.com)";
+        }
+      } catch {
+        // use fallback message
+      }
+    }
+    return "PM 사용자 생성에 실패했습니다. 입력값을 확인한 뒤 다시 시도해 주세요.";
+  };
 
   async function load() {
     setLoading(true);
@@ -92,22 +127,94 @@ export default function TenantDetailPage() {
   async function createPmUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
+    setCreateError(null);
     setError(null);
+    setCreateNotice(null);
     try {
-      await apiFetch(`/api/admin/tenants/${tenantId}/pm-users`, {
+      const created = await apiFetch<SetupCodeIssue>(`/api/admin/tenants/${tenantId}/pm-users`, {
         method: "POST",
         body: JSON.stringify({ email, name }),
       });
+      if (created.setupCode) {
+        setCreateNotice(`PM 계정을 생성했습니다. 최초 비밀번호 설정 코드를 전달하세요. 이메일: ${created.email ?? email}`);
+        setSetupCodeInfo({
+          email: created.email ?? email,
+          setupCode: created.setupCode,
+          expiresAt: created.setupCodeExpiresAt,
+        });
+      } else if (created.passwordInitialized) {
+        setCreateNotice(`이미 비밀번호가 설정된 계정입니다. 이메일: ${created.email ?? email}`);
+        setSetupCodeInfo(null);
+      } else {
+        setCreateNotice(`코드를 확인하지 못했습니다. 행의 '설정코드 재발급'으로 다시 발급하세요. 이메일: ${created.email ?? email}`);
+        setSetupCodeInfo(null);
+      }
       setEmail("");
       setName("");
       setCreateOpen(false);
+      setCreateError(null);
       await load();
     } catch (e) {
       if (!handleAuthError(e, "/admin/login")) {
-        setError(e instanceof Error ? e.message : "PM 사용자 생성에 실패했습니다.");
+        setCreateError(resolveCreateErrorMessage(e));
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function resetSetupCode(userId: string, userEmail: string) {
+    setError(null);
+    setCreateNotice(null);
+    try {
+      const issued = await apiFetch<SetupCodeIssue>(`/api/admin/users/${userId}/setup-code/reset`, {
+        method: "POST",
+      });
+      if (!issued.setupCode) {
+        throw new Error("설정 코드 발급에 실패했습니다.");
+      }
+      setSetupCodeInfo({
+        email: userEmail,
+        setupCode: issued.setupCode,
+        expiresAt: issued.setupCodeExpiresAt,
+      });
+      setCreateNotice(`설정 코드를 재발급했습니다. 이메일: ${userEmail}`);
+      await load();
+    } catch (e) {
+      if (!handleAuthError(e, "/admin/login")) {
+        setError(e instanceof Error ? e.message : "설정 코드 재발급에 실패했습니다.");
+      }
+    }
+  }
+
+  async function copySetupCode() {
+    if (!setupCodeInfo?.setupCode || typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(setupCodeInfo.setupCode);
+      setCreateNotice("설정 코드를 클립보드에 복사했습니다.");
+    } catch {
+      setCreateNotice("클립보드 복사에 실패했습니다.");
+    }
+  }
+
+  async function copySetupGuide() {
+    if (!setupCodeInfo?.setupCode || typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+    const guide = [
+      "[Bridge PM 최초 비밀번호 설정 안내]",
+      `이메일: ${setupCodeInfo.email}`,
+      `설정 코드: ${setupCodeInfo.setupCode}`,
+      `만료시각: ${formatDateTime(setupCodeInfo.expiresAt)}`,
+      "접속 경로: PM 앱 /first-password",
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(guide);
+      setCreateNotice("설정 안내문을 클립보드에 복사했습니다.");
+    } catch {
+      setCreateNotice("설정 안내문 복사에 실패했습니다.");
     }
   }
 
@@ -150,12 +257,46 @@ export default function TenantDetailPage() {
           </div>
           <button
             type="button"
-            onClick={() => setCreateOpen(true)}
+            onClick={() => {
+              setCreateError(null);
+              setCreateOpen(true);
+            }}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700"
           >
             PM 사용자 추가
           </button>
         </div>
+
+        {createNotice ? <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{createNotice}</p> : null}
+        {setupCodeInfo ? (
+          <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="font-semibold">PM 최초 비밀번호 설정 코드</p>
+            <p>이메일: {setupCodeInfo.email}</p>
+            <p>
+              설정 코드: <span className="font-mono font-semibold">{setupCodeInfo.setupCode}</span>
+            </p>
+            <p>만료시각: {formatDateTime(setupCodeInfo.expiresAt)}</p>
+            <p className="text-xs text-amber-800">
+              사용 방법: PM 앱의 <span className="font-mono">/first-password</span> 페이지에서 이메일, 설정 코드, 새 비밀번호를 입력합니다.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void copySetupCode()}
+                className="rounded border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              >
+                코드 복사
+              </button>
+              <button
+                type="button"
+                onClick={() => void copySetupGuide()}
+                className="rounded border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              >
+                안내문 복사
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -247,6 +388,7 @@ export default function TenantDetailPage() {
                 <th className="px-4 py-3">역할</th>
                 <th className="px-4 py-3">상태</th>
                 <th className="px-4 py-3">최근 로그인</th>
+                <th className="px-4 py-3">비밀번호 상태</th>
                 <th className="px-4 py-3">작업</th>
               </tr>
             </thead>
@@ -270,19 +412,31 @@ export default function TenantDetailPage() {
                     <StatusBadge status={user.status} />
                   </td>
                   <td className="px-4 py-3 text-slate-600">{formatDateTime(user.lastLoginAt)}</td>
+                  <td className="px-4 py-3 text-slate-600">{user.passwordInitialized ? "설정 완료" : "최초 설정 필요"}</td>
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/admin/users/${user.userId}`}
-                      className="inline-flex rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    >
-                      사용자 관리
-                    </Link>
+                    <div className="flex flex-wrap gap-2">
+                      {!user.passwordInitialized ? (
+                        <button
+                          type="button"
+                          onClick={() => void resetSetupCode(user.userId, user.email)}
+                          className="inline-flex rounded border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+                        >
+                          설정코드 재발급
+                        </button>
+                      ) : null}
+                      <Link
+                        href={`/admin/users/${user.userId}`}
+                        className="inline-flex rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        사용자 관리
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
               {!loading && pmUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                     등록된 테넌트 사용자가 없습니다.
                   </td>
                 </tr>
@@ -293,12 +447,18 @@ export default function TenantDetailPage() {
 
         <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="PM 사용자 생성" description="생성 후 기본 상태는 초대(INVITED)입니다.">
           <form onSubmit={createPmUser} className="space-y-3">
+            {createError ? <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{createError}</p> : null}
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">이메일</label>
               <input
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className={`w-full rounded-lg px-3 py-2 ${createError ? "border border-red-300 bg-red-50/30" : "border border-slate-300"}`}
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (createError) {
+                    setCreateError(null);
+                  }
+                }}
                 required
               />
             </div>
@@ -307,14 +467,22 @@ export default function TenantDetailPage() {
               <input
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (createError) {
+                    setCreateError(null);
+                  }
+                }}
                 required
               />
             </div>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setCreateOpen(false)}
+                onClick={() => {
+                  setCreateError(null);
+                  setCreateOpen(false);
+                }}
                 className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 취소

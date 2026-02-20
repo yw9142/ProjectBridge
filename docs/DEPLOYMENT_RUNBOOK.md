@@ -1,7 +1,7 @@
 # Bridge Deployment Runbook
 
 작성일: 2026-02-17  
-최종 수정: 2026-02-17
+최종 수정: 2026-02-20
 
 ## 1) 배포 타깃
 - Frontend: Vercel (`pm-web`, `client-web`, `admin-web`)
@@ -24,6 +24,10 @@
   - `main` push (backend 변경 시)
   - 수동 실행(`workflow_dispatch`)
 - 동작:
+  - 품질 게이트 선행(배포 차단 조건)
+    - `./gradlew check -x test`
+    - `./gradlew test`
+    - `./gradlew build -x test`
   - `backend/Dockerfile`로 이미지 빌드
   - ECR push
   - ECS task definition 렌더링 후 서비스 배포
@@ -69,6 +73,7 @@
 4. Backend Production 배포
 5. Frontend 3앱 Production 배포
 6. DoD 시나리오 확인 (`docs/Test/DOD_DEMO_CHECKLIST.md`)
+7. 운영 헬스체크 확인 (`GET /actuator/health`)
 
 ## 6) 롤백 규칙
 - Frontend: Vercel 이전 배포로 즉시 롤백

@@ -115,10 +115,36 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<ProjectMemberAccount> members(AuthPrincipal principal, UUID projectId) {
         accessGuardService.requireProjectMember(projectId, principal.getUserId(), principal.getTenantId());
         List<ProjectMemberEntity> projectMembers = projectMemberRepository.findByProjectIdAndDeletedAtIsNull(projectId);
+
+        if (isSingleProjectTenant(principal.getTenantId(), projectId)) {
+            Map<UUID, ProjectMemberEntity> projectMembersByUserId = projectMembers.stream()
+                    .collect(HashMap::new, (map, member) -> map.put(member.getUserId(), member), HashMap::putAll);
+            List<TenantMemberEntity> tenantMembers = tenantMemberRepository.findByTenantIdAndDeletedAtIsNull(principal.getTenantId());
+            for (TenantMemberEntity tenantMember : tenantMembers) {
+                ProjectMemberEntity existing = projectMembersByUserId.get(tenantMember.getUserId());
+                if (existing == null) {
+                    ProjectMemberEntity created = new ProjectMemberEntity();
+                    created.setTenantId(principal.getTenantId());
+                    created.setProjectId(projectId);
+                    created.setUserId(tenantMember.getUserId());
+                    created.setRole(tenantMember.getRole());
+                    created.setCreatedBy(principal.getUserId());
+                    created.setUpdatedBy(principal.getUserId());
+                    ProjectMemberEntity saved = projectMemberRepository.save(created);
+                    projectMembers.add(saved);
+                    projectMembersByUserId.put(saved.getUserId(), saved);
+                } else if (existing.getRole() != tenantMember.getRole()) {
+                    existing.setRole(tenantMember.getRole());
+                    existing.setUpdatedBy(principal.getUserId());
+                    projectMemberRepository.save(existing);
+                }
+            }
+        }
+
         List<UUID> userIds = projectMembers.stream()
                 .map(ProjectMemberEntity::getUserId)
                 .distinct()
@@ -177,17 +203,19 @@ public class ProjectService {
             savedUser = userRepository.save(savedUser);
         }
 
-        if (tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), savedUser.getId()).isEmpty()) {
-            TenantMemberEntity tenantMember = new TenantMemberEntity();
-            tenantMember.setTenantId(principal.getTenantId());
-            tenantMember.setUserId(savedUser.getId());
-            tenantMember.setRole(resolvedRole);
-            tenantMember.setCreatedBy(principal.getUserId());
-            tenantMember.setUpdatedBy(principal.getUserId());
-            tenantMemberRepository.save(tenantMember);
-        }
-
         UUID savedUserId = savedUser.getId();
+        TenantMemberEntity tenantMember = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), savedUserId)
+                .orElseGet(() -> {
+                    TenantMemberEntity created = new TenantMemberEntity();
+                    created.setTenantId(principal.getTenantId());
+                    created.setUserId(savedUserId);
+                    created.setCreatedBy(principal.getUserId());
+                    return created;
+                });
+        tenantMember.setRole(resolvedRole);
+        tenantMember.setUpdatedBy(principal.getUserId());
+        tenantMemberRepository.save(tenantMember);
+
         ProjectMemberEntity member = projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, savedUserId)
                 .orElseGet(() -> {
                     ProjectMemberEntity created = new ProjectMemberEntity();
@@ -313,7 +341,20 @@ public class ProjectService {
         member.setDeletedAt(OffsetDateTime.now());
         member.setUpdatedBy(principal.getUserId());
         projectMemberRepository.save(member);
+        if (isSingleProjectTenant(principal.getTenantId(), projectId)) {
+            tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(principal.getTenantId(), member.getUserId())
+                    .ifPresent(tenantMember -> {
+                        tenantMember.setDeletedAt(OffsetDateTime.now());
+                        tenantMember.setUpdatedBy(principal.getUserId());
+                        tenantMemberRepository.save(tenantMember);
+                    });
+        }
         return Map.of("deleted", true);
+    }
+
+    private boolean isSingleProjectTenant(UUID tenantId, UUID projectId) {
+        List<ProjectEntity> tenantProjects = projectRepository.findByTenantIdAndDeletedAtIsNull(tenantId);
+        return tenantProjects.size() == 1 && tenantProjects.get(0).getId().equals(projectId);
     }
 
     private void validateLoginId(String loginId) {

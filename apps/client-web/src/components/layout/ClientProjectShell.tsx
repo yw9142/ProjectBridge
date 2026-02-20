@@ -7,6 +7,7 @@ import { ClientLogoutButton } from "./ClientLogoutButton";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
 import FadeContent from "@/components/react-bits/FadeContent";
 import { RouteTransition } from "@/components/motion/RouteTransition";
+import { useCurrentUserRole } from "@/lib/use-current-user-role";
 
 const menu = [
   { key: "home", label: "대시보드", icon: LayoutDashboard },
@@ -21,6 +22,8 @@ const menu = [
 
 export function ClientProjectShell({ projectId, children }: { projectId: string; children: React.ReactNode }) {
   const pathname = usePathname();
+  const { tenantRole, isPlatformAdmin } = useCurrentUserRole();
+  const roleLabel = isPlatformAdmin ? "PLATFORM_ADMIN" : tenantRole ?? "-";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -77,7 +80,7 @@ export function ClientProjectShell({ projectId, children }: { projectId: string;
               <ClientLogoutButton />
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-medium text-foreground">Client 사용자</p>
-                <p className="text-xs text-muted-foreground">CLIENT_OWNER</p>
+                <p className="text-xs text-muted-foreground">{roleLabel}</p>
               </div>
             </div>
           </div>

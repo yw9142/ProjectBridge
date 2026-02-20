@@ -3,6 +3,8 @@ package com.bridge.backend.common.tenant;
 import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.common.model.enums.MemberRole;
 import com.bridge.backend.common.security.AuthPrincipal;
+import com.bridge.backend.domain.admin.TenantMemberEntity;
+import com.bridge.backend.domain.admin.TenantMemberRepository;
 import com.bridge.backend.domain.auth.UserEntity;
 import com.bridge.backend.domain.auth.UserRepository;
 import com.bridge.backend.domain.project.ProjectEntity;
@@ -19,13 +21,16 @@ import java.util.UUID;
 public class AccessGuardService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final TenantMemberRepository tenantMemberRepository;
     private final UserRepository userRepository;
 
     public AccessGuardService(ProjectRepository projectRepository,
                               ProjectMemberRepository projectMemberRepository,
+                              TenantMemberRepository tenantMemberRepository,
                               UserRepository userRepository) {
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
+        this.tenantMemberRepository = tenantMemberRepository;
         this.userRepository = userRepository;
     }
 
@@ -56,21 +61,29 @@ public class AccessGuardService {
         requireProjectInTenant(projectId, tenantId);
         UserEntity user = requireUser(userId);
         if (user.isPlatformAdmin()) {
-            return virtualPmOwnerMembership(projectId, userId, tenantId);
+            return virtualMembership(projectId, userId, tenantId, MemberRole.PM_OWNER);
         }
         ProjectMemberEntity member = projectMemberRepository.findByProjectIdAndUserIdAndDeletedAtIsNull(projectId, userId)
-                .orElseThrow(() -> new AppException(HttpStatus.FORBIDDEN, "PROJECT_MEMBER_REQUIRED", "프로젝트 멤버가 아닙니다."));
-        if (!tenantId.equals(member.getTenantId())) {
-            throw new AppException(HttpStatus.FORBIDDEN, "TENANT_MISMATCH", "테넌트가 일치하지 않습니다.");
+                .orElse(null);
+        if (member != null) {
+            if (!tenantId.equals(member.getTenantId())) {
+                throw new AppException(HttpStatus.FORBIDDEN, "TENANT_MISMATCH", "테넌트가 일치하지 않습니다.");
+            }
+            return member;
         }
-        return member;
+        TenantMemberEntity tenantMember = tenantMemberRepository.findByTenantIdAndUserIdAndDeletedAtIsNull(tenantId, userId)
+                .orElse(null);
+        if (tenantMember != null && (tenantMember.getRole() == MemberRole.PM_OWNER || tenantMember.getRole() == MemberRole.PM_MEMBER)) {
+            return virtualMembership(projectId, userId, tenantId, tenantMember.getRole());
+        }
+        throw new AppException(HttpStatus.FORBIDDEN, "PROJECT_MEMBER_REQUIRED", "프로젝트 멤버가 아닙니다.");
     }
 
     public ProjectMemberEntity requireProjectMemberRole(UUID projectId, UUID userId, UUID tenantId, Set<MemberRole> allowedRoles) {
         requireProjectInTenant(projectId, tenantId);
         UserEntity user = requireUser(userId);
         if (user.isPlatformAdmin()) {
-            return virtualPmOwnerMembership(projectId, userId, tenantId);
+            return virtualMembership(projectId, userId, tenantId, MemberRole.PM_OWNER);
         }
         ProjectMemberEntity member = requireProjectMember(projectId, userId, tenantId);
         if (!allowedRoles.contains(member.getRole())) {
@@ -79,12 +92,12 @@ public class AccessGuardService {
         return member;
     }
 
-    private ProjectMemberEntity virtualPmOwnerMembership(UUID projectId, UUID userId, UUID tenantId) {
+    private ProjectMemberEntity virtualMembership(UUID projectId, UUID userId, UUID tenantId, MemberRole role) {
         ProjectMemberEntity member = new ProjectMemberEntity();
         member.setProjectId(projectId);
         member.setUserId(userId);
         member.setTenantId(tenantId);
-        member.setRole(MemberRole.PM_OWNER);
+        member.setRole(role);
         return member;
     }
 

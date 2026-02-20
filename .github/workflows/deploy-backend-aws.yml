@@ -26,13 +26,16 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Lint (placeholder)
-        run: echo "backend: no lint step configured"
+      - name: Check backend
+        shell: bash
+        run: |
+          chmod +x backend/gradlew
+          cd backend
+          ./gradlew check -x test
 
       - name: Test backend
         shell: bash
         run: |
-          chmod +x backend/gradlew
           cd backend
           ./gradlew test
 
