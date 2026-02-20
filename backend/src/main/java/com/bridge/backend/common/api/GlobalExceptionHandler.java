@@ -35,8 +35,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiError> handleConstraint(ConstraintViolationException ex) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        ex.getConstraintViolations().forEach(violation -> {
+            String fieldName = extractFieldName(String.valueOf(violation.getPropertyPath()));
+            fieldErrors.put(fieldName, violation.getMessage());
+        });
         return ResponseEntity.badRequest()
-                .body(ApiError.of("VALIDATION_ERROR", ex.getMessage()));
+                .body(ApiError.of("VALIDATION_ERROR", "입력값이 유효하지 않습니다.", fieldErrors));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -58,5 +63,16 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception", ex);
         return ResponseEntity.internalServerError()
                 .body(ApiError.of("INTERNAL_ERROR", INTERNAL_ERROR_MESSAGE));
+    }
+
+    private String extractFieldName(String propertyPath) {
+        if (propertyPath == null || propertyPath.isBlank()) {
+            return "request";
+        }
+        int index = propertyPath.lastIndexOf('.');
+        if (index >= 0 && index + 1 < propertyPath.length()) {
+            return propertyPath.substring(index + 1);
+        }
+        return propertyPath;
     }
 }

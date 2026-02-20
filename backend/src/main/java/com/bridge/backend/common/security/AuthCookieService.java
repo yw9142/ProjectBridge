@@ -1,9 +1,11 @@
 package com.bridge.backend.common.security;
 
+import com.bridge.backend.common.api.AppException;
 import com.bridge.backend.config.SecurityProperties;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,9 @@ import java.util.Optional;
 public class AuthCookieService {
     public static final String APP_HEADER_NAME = "X-Bridge-App";
     private static final String APP_QUERY_PARAM = "app";
+    private static final String SSE_STREAM_PATH = "/api/notifications/stream";
+    private static final String APP_SCOPE_REQUIRED_CODE = "APP_SCOPE_REQUIRED";
+    private static final String APP_SCOPE_REQUIRED_MESSAGE = "요청 앱 스코프가 필요합니다.";
 
     private static final String APP_PM = "pm";
     private static final String APP_CLIENT = "client";
@@ -37,11 +42,7 @@ public class AuthCookieService {
     }
 
     public void writeAuthCookies(HttpServletRequest request, HttpServletResponse response, String accessToken, String refreshToken) {
-        Optional<CookieNames> cookieNamesOpt = resolveCookieNames(request);
-        if (cookieNamesOpt.isEmpty()) {
-            return;
-        }
-        CookieNames cookieNames = cookieNamesOpt.get();
+        CookieNames cookieNames = requireCookieNames(request);
         response.addHeader(HttpHeaders.SET_COOKIE, buildCookie(cookieNames.accessCookieName(), accessToken,
                 Duration.ofMinutes(jwtProperties.getAccessExpirationMinutes()), request).toString());
         response.addHeader(HttpHeaders.SET_COOKIE, buildCookie(cookieNames.refreshCookieName(), refreshToken,
@@ -49,11 +50,7 @@ public class AuthCookieService {
     }
 
     public void clearAuthCookies(HttpServletRequest request, HttpServletResponse response) {
-        Optional<CookieNames> cookieNamesOpt = resolveCookieNames(request);
-        if (cookieNamesOpt.isEmpty()) {
-            return;
-        }
-        CookieNames cookieNames = cookieNamesOpt.get();
+        CookieNames cookieNames = requireCookieNames(request);
         response.addHeader(HttpHeaders.SET_COOKIE, buildCookie(cookieNames.accessCookieName(), "",
                 Duration.ZERO, request).toString());
         response.addHeader(HttpHeaders.SET_COOKIE, buildCookie(cookieNames.refreshCookieName(), "",
@@ -61,13 +58,13 @@ public class AuthCookieService {
     }
 
     public Optional<String> readAccessToken(HttpServletRequest request) {
-        return resolveCookieNames(request)
-                .flatMap(cookieNames -> readCookie(request, cookieNames.accessCookieName()));
+        CookieNames cookieNames = requireCookieNames(request);
+        return readCookie(request, cookieNames.accessCookieName());
     }
 
     public Optional<String> readRefreshToken(HttpServletRequest request) {
-        return resolveCookieNames(request)
-                .flatMap(cookieNames -> readCookie(request, cookieNames.refreshCookieName()));
+        CookieNames cookieNames = requireCookieNames(request);
+        return readCookie(request, cookieNames.refreshCookieName());
     }
 
     private Optional<String> readCookie(HttpServletRequest request, String name) {
@@ -106,14 +103,54 @@ public class AuthCookieService {
     }
 
     private Optional<CookieNames> resolveCookieNames(HttpServletRequest request) {
-        return normalizeScope(request.getHeader(APP_HEADER_NAME))
-                .or(() -> normalizeScope(request.getParameter(APP_QUERY_PARAM)))
-                .flatMap(appScope -> switch (appScope) {
-                    case APP_PM -> Optional.of(new CookieNames(PM_ACCESS_COOKIE_NAME, PM_REFRESH_COOKIE_NAME));
-                    case APP_CLIENT -> Optional.of(new CookieNames(CLIENT_ACCESS_COOKIE_NAME, CLIENT_REFRESH_COOKIE_NAME));
-                    case APP_ADMIN -> Optional.of(new CookieNames(ADMIN_ACCESS_COOKIE_NAME, ADMIN_REFRESH_COOKIE_NAME));
-                    default -> Optional.empty();
-                });
+        Optional<String> appScope = normalizeScope(request.getHeader(APP_HEADER_NAME));
+        if (appScope.isEmpty() && isSseScopeFallbackAllowed(request)) {
+            appScope = normalizeScope(request.getParameter(APP_QUERY_PARAM));
+        }
+        return appScope.flatMap(this::toCookieNames);
+    }
+
+    private CookieNames requireCookieNames(HttpServletRequest request) {
+        return resolveCookieNames(request)
+                .orElseThrow(this::appScopeRequiredException);
+    }
+
+    private Optional<CookieNames> toCookieNames(String appScope) {
+        return switch (appScope) {
+            case APP_PM -> Optional.of(new CookieNames(PM_ACCESS_COOKIE_NAME, PM_REFRESH_COOKIE_NAME));
+            case APP_CLIENT -> Optional.of(new CookieNames(CLIENT_ACCESS_COOKIE_NAME, CLIENT_REFRESH_COOKIE_NAME));
+            case APP_ADMIN -> Optional.of(new CookieNames(ADMIN_ACCESS_COOKIE_NAME, ADMIN_REFRESH_COOKIE_NAME));
+            default -> Optional.empty();
+        };
+    }
+
+    private AppException appScopeRequiredException() {
+        return new AppException(HttpStatus.BAD_REQUEST, APP_SCOPE_REQUIRED_CODE, APP_SCOPE_REQUIRED_MESSAGE);
+    }
+
+    private boolean isSseScopeFallbackAllowed(HttpServletRequest request) {
+        return SSE_STREAM_PATH.equals(normalizePath(request));
+    }
+
+    private String normalizePath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (uri == null || uri.isBlank()) {
+            return "/";
+        }
+
+        String contextPath = request.getContextPath();
+        if (contextPath != null && !contextPath.isBlank() && uri.startsWith(contextPath)) {
+            uri = uri.substring(contextPath.length());
+        }
+
+        String normalized = uri.replaceAll("/{2,}", "/");
+        if (normalized.isEmpty()) {
+            return "/";
+        }
+        if (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
     }
 
     private Optional<String> normalizeScope(String value) {

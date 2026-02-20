@@ -123,7 +123,7 @@
   - `client-web` 라우트 전량 생성  
     (`/login`, `/client/projects`, `/client/projects/[projectId]/home/requests/posts/files/meetings/contracts/billing/vault`, `/sign/[contractId]`)
   - 앱별 로그인 가드(`middleware.ts`) + `next` 복귀 흐름 추가
-  - 앱별 인증 유틸(`lib/auth.ts`) + Bearer 헤더 기반 API 유틸(`lib/api.ts`) 추가
+  - 앱별 인증 유틸(`lib/auth.ts`) + 쿠키(`credentials: include`) 기반 API 유틸(`lib/api.ts`) 추가
   - `/sign/[contractId]` 페이지에서 `GET /api/signing/contracts/{contractId}` 호출로 소유권 검증 결과를 표시하고, `viewed/submit` 액션 버튼 연결
   - `pm-web`, `admin-web`, `client-web` lint 통과
 - 미완료/잔여

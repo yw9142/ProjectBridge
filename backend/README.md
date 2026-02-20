@@ -66,8 +66,8 @@ Default server URL: `http://localhost:8080`
   - `bridge_pm_access_token` / `bridge_pm_refresh_token`
   - `bridge_client_access_token` / `bridge_client_refresh_token`
 - Token parsing requires app scope:
-  - API requests: `X-Bridge-App: admin|pm|client`
-  - SSE requests: `?app=admin|pm|client`
+  - REST API requests: `X-Bridge-App: admin|pm|client` (required)
+  - SSE `/api/notifications/stream`: `X-Bridge-App` or `?app=admin|pm|client`
 - `Authorization: Bearer` header is not used as an authentication source.
 
 ## Error Response Format
