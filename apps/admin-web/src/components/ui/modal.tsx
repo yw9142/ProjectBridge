@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 
 type ModalProps = {
@@ -11,8 +12,53 @@ type ModalProps = {
   children: ReactNode;
 };
 
+const BODY_MODAL_LOCK_COUNT_ATTR = "data-modal-lock-count";
+const BODY_MODAL_ORIGINAL_OVERFLOW_ATTR = "data-modal-original-overflow";
+const BODY_MODAL_ORIGINAL_PADDING_RIGHT_ATTR = "data-modal-original-padding-right";
+
+function useBodyScrollLock(open: boolean) {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const body = document.body;
+    const currentCount = Number(body.getAttribute(BODY_MODAL_LOCK_COUNT_ATTR) ?? "0");
+    body.setAttribute(BODY_MODAL_LOCK_COUNT_ATTR, String(currentCount + 1));
+
+    if (currentCount === 0) {
+      body.setAttribute(BODY_MODAL_ORIGINAL_OVERFLOW_ATTR, body.style.overflow);
+      body.setAttribute(BODY_MODAL_ORIGINAL_PADDING_RIGHT_ATTR, body.style.paddingRight);
+
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      body.style.overflow = "hidden";
+      if (scrollbarWidth > 0) {
+        body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+    }
+
+    return () => {
+      const nextCount = Math.max(0, Number(body.getAttribute(BODY_MODAL_LOCK_COUNT_ATTR) ?? "1") - 1);
+      if (nextCount > 0) {
+        body.setAttribute(BODY_MODAL_LOCK_COUNT_ATTR, String(nextCount));
+        return;
+      }
+      body.removeAttribute(BODY_MODAL_LOCK_COUNT_ATTR);
+      body.style.overflow = body.getAttribute(BODY_MODAL_ORIGINAL_OVERFLOW_ATTR) ?? "";
+      body.style.paddingRight = body.getAttribute(BODY_MODAL_ORIGINAL_PADDING_RIGHT_ATTR) ?? "";
+      body.removeAttribute(BODY_MODAL_ORIGINAL_OVERFLOW_ATTR);
+      body.removeAttribute(BODY_MODAL_ORIGINAL_PADDING_RIGHT_ATTR);
+    };
+  }, [open]);
+}
+
 export function Modal({ open, title, description, onClose, children }: ModalProps) {
-  return (
+  useBodyScrollLock(open);
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
     <AnimatePresence>
       {open ? (
         <motion.div
@@ -51,6 +97,7 @@ export function Modal({ open, title, description, onClose, children }: ModalProp
           </motion.div>
         </motion.div>
       ) : null}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

@@ -189,6 +189,7 @@ export default function ProjectContractsPage() {
     [projectMembers],
   );
   const currentSigningInfo = signingContractId ? signersByContract[signingContractId] : undefined;
+  const currentSigningCompleted = isSignerCompleted(currentSigningInfo);
   const currentSigningContract = signingContractId ? contracts.find((contract) => contract.id === signingContractId) : undefined;
   const signaturePreviewRect = useMemo(
     () => ({
@@ -589,6 +590,11 @@ export default function ProjectContractsPage() {
   }
 
   function openEditModal(contract: Contract) {
+    const signer = signersByContract[contract.id];
+    if (isSignerCompleted(signer)) {
+      setError("클라이언트 서명이 완료된 계약은 수정할 수 없습니다.");
+      return;
+    }
     setEditingId(contract.id);
     setEditName(contract.name);
     setEditPdf(null);
@@ -602,6 +608,11 @@ export default function ProjectContractsPage() {
     try {
       const target = contracts.find((item) => item.id === editingId);
       if (!target) return;
+      const signer = signersByContract[target.id];
+      if (isSignerCompleted(signer)) {
+        setError("클라이언트 서명이 완료된 계약은 수정할 수 없습니다.");
+        return;
+      }
 
       let nextFileVersionId = target.fileVersionId ?? null;
 
@@ -666,11 +677,21 @@ export default function ProjectContractsPage() {
   }
 
   async function openSigningModal(contractId: string) {
+    const existingSigner = signersByContract[contractId];
+    if (isSignerCompleted(existingSigner)) {
+      setError("클라이언트 서명이 완료된 계약은 서명자를 변경할 수 없습니다.");
+      return;
+    }
     setSigningContractId(contractId);
     setSigningLoading(true);
     setError(null);
     try {
       const signer = await loadSigner(contractId);
+      if (isSignerCompleted(signer)) {
+        setSigningContractId(null);
+        setError("클라이언트 서명이 완료된 계약은 서명자를 변경할 수 없습니다.");
+        return;
+      }
       const assignedUserId = resolveAssignedSignerUserId(signer);
       setSigningTargetUserId(assignedUserId || clientMembers[0]?.userId || "");
       applyFieldDefaults(signer);
@@ -686,6 +707,11 @@ export default function ProjectContractsPage() {
   async function assignSigner(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!signingContractId) return;
+    const signer = signersByContract[signingContractId];
+    if (isSignerCompleted(signer)) {
+      setError("클라이언트 서명이 완료된 계약은 서명자를 변경할 수 없습니다.");
+      return;
+    }
     if (!signingTargetUserId) {
       setError("서명자를 선택해 주세요.");
       return;
@@ -796,8 +822,9 @@ export default function ProjectContractsPage() {
             ) : null}{sortedContracts.map((contract) => {
               const version = contract.fileVersionId ? fileVersionMap.get(contract.fileVersionId) : undefined;
               const signer = signersByContract[contract.id];
+              const signerCompleted = isSignerCompleted(signer);
               const displayStatus = resolveDisplayStatus(contract, signer);
-              const canAssignSigner = Boolean(contract.fileVersionId);
+              const canAssignSigner = Boolean(contract.fileVersionId) && !signerCompleted;
               return (
                 <tr key={contract.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{contract.name}</td>
@@ -852,7 +879,8 @@ export default function ProjectContractsPage() {
                       <button
                         type="button"
                         onClick={() => openEditModal(contract)}
-                        className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        disabled={signerCompleted}
+                        className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         수정
                       </button>
@@ -867,7 +895,8 @@ export default function ProjectContractsPage() {
                         confirmVariant="destructive"
                       />
                     </div>
-                    {!signer?.assigned && !canAssignSigner ? <p className="mt-2 text-xs text-slate-500">서명자 지정 전 계약서 PDF를 먼저 업로드해 주세요.</p> : null}
+                    {signerCompleted ? <p className="mt-2 text-xs text-slate-500">클라이언트 서명이 완료되어 서명자 지정/수정이 잠겨 있습니다.</p> : null}
+                    {!signerCompleted && !signer?.assigned && !contract.fileVersionId ? <p className="mt-2 text-xs text-slate-500">서명자 지정 전 계약서 PDF를 먼저 업로드해 주세요.</p> : null}
                   </td>
                 </tr>
               );
@@ -1091,7 +1120,7 @@ export default function ProjectContractsPage() {
             </button>
             <button
               type="submit"
-              disabled={signingLoading || clientMembers.length === 0 || !signingTargetUserId}
+              disabled={signingLoading || clientMembers.length === 0 || !signingTargetUserId || currentSigningCompleted}
               className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               서명자 지정
